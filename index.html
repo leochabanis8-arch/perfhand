@@ -562,6 +562,35 @@ function localDateStr(d) {
   return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
 }
 
+// ── CODES D'ACCÈS JOUEUR ─────────────────────────────────────────────────────
+// Avant : Math.random() (prévisible) + .set() direct — si le même code sortait deux fois, le
+// nouveau joueur ÉCRASAIT silencieusement le code d'un autre joueur, qui ne pouvait plus se
+// connecter. Ici : tirage cryptographique + vérification que le code est libre avant écriture.
+// Format inchangé (6 chiffres) pour ne rien changer côté joueurs.
+function tirerCode6() {
+  try {
+    const buf = new Uint32Array(1);
+    window.crypto.getRandomValues(buf);
+    return String(100000 + (buf[0] % 900000));
+  } catch(e) {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+}
+async function genererCodeAcces(basePath, data) {
+  const db = window.__perfhand_db;
+  if (!db) throw new Error('Base de données non disponible');
+  for (let i = 0; i < 8; i++) {
+    const code = tirerCode6();
+    let libre = true;
+    try { libre = !(await db.ref(basePath + code).once('value')).exists(); }
+    catch(e) { libre = true; } // lecture refusée par les règles : on garde l'ancien comportement
+    if (!libre) continue;
+    await db.ref(basePath + code).set(data);
+    return code;
+  }
+  throw new Error('Impossible de générer un code libre, réessaie.');
+}
+
 // wellnessCheckins est stocké côté Firebase comme un objet {date: checkin} (écriture par clé
 // dédiée, pour que deux joueurs/appareils n'écrasent jamais le check-in d'un autre jour), mais
 // plusieurs écrans du coach l'utilisaient comme un tableau (.map/.find/.filter/.length) — ce qui
@@ -16380,12 +16409,11 @@ function PlayerDetail({ p, db, setDb, onBack, staffPermissions }) {
       <div style=${{ display:'flex', flexDirection:'column', gap:6 }}>
         <button class="btn btn-sm" onClick=${() => setEditProfile(true)} style=${{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)' }}>✏️ Modifier</button>
         <button class="btn btn-sm" onClick=${() => {
-          const code = String(Math.floor(100000 + Math.random() * 900000));
           if (window.__perfhand_db) {
-            window.__perfhand_db.ref('perfhand/codes/' + code).set({
+            genererCodeAcces('perfhand/codes/', {
               playerId: player.id, playerName: player.name, clubId: player.clubId || 'usm',
               createdAt: new Date().toISOString()
-            }).then(() => {
+            }).then(code => {
               alert('Code d\'accès de ' + player.name + ' :\n\n      ' + code + '\n\nEnvoie ce code au joueur avec le lien perfhandballapp.netlify.app\nIl se connecte via "Code joueur" — aucun mot de passe nécessaire.');
             }).catch(e => alert('Erreur : ' + e.message));
           }
@@ -17455,12 +17483,11 @@ function AdminView() {
                   style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420', padding:'3px 8px', fontSize:12 }}
                   onClick=${e => {
                     e.stopPropagation();
-                    const code = String(Math.floor(100000 + Math.random() * 900000));
                     if (window.__perfhand_db) {
-                      window.__perfhand_db.ref('perfhand/codes/' + code).set({
+                      genererCodeAcces('perfhand/codes/', {
                         playerId: p.id, playerName: p.name, clubId: p.clubId || selClub.id,
                         createdAt: new Date().toISOString()
-                      }).then(() => {
+                      }).then(code => {
                         alert('Code d\'accès de ' + p.name + ' :\n\n      ' + code + '\n\nEnvoie ce code au joueur avec le lien perfhandballapp.netlify.app\nIl se connecte via "Code joueur" — aucun mot de passe nécessaire.');
                       }).catch(err => alert('Erreur : ' + err.message));
                     }
@@ -18144,13 +18171,12 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
           <div style=${{ display:'flex', gap:8 }}>
             <button onClick=${() => {
               // Générer code 6 chiffres unique
-              const code = String(Math.floor(100000 + Math.random() * 900000));
               // Sauvegarder dans Firebase tenants/{tenantId}/codes/{code}
-              window.__perfhand_db.ref('tenants/' + tenantId + '/codes/' + code).set({
+              genererCodeAcces('tenants/' + tenantId + '/codes/', {
                 playerId: livePlayer.id,
                 playerName: livePlayer.name,
                 createdAt: new Date().toISOString()
-              }).then(() => {
+              }).then(code => {
                 alert('Code d\'accès de ' + livePlayer.name + ' : ' + code + '\n\nEnvoie ce code à ton athlète. Il peut se connecter via "Code joueur" sur perfhandballapp.netlify.app');
               }).catch(e => alert('Erreur : ' + e.message));
             }}
