@@ -16762,7 +16762,7 @@ function RegisterScreen({ onBack }) {
   </div>`;
 }
 
-// ── SUPER ADMIN VIEW — Vue de tous les tenants (leo@perfhand.fr) ───────────────
+// ── SUPER ADMIN VIEW — Vue de tous les tenants (leo.chabanis@gmail.com) ───────────────
 // ── LEGACY ADMIN VIEW — Espace coach Leo (USM + profils individuels) ──────────
 function AdminView() {
   const { db, setDb, logout, resetDb } = useApp();
@@ -28994,7 +28994,9 @@ function ClubStaffManager({ club, db, setDb }) {
       return null;
     }
     // Super-admin — accès total
-    if (email === "leo@perfhand.fr" || email === "leo.chabanis@gmail.com") {
+    // Une seule adresse admin : toute adresse listée ici sans compte Firebase déjà créé pourrait
+    // être enregistrée par n'importe qui (Firebase ne vérifie pas la propriété de l'email).
+    if (email === "leo.chabanis@gmail.com") {
       return { role:"admin", name:"Leo", email, uid: fbUser.uid, tenantId: 'legacy' };
     }
     // Coach club — chercher dans db.clubs ET INITIAL_DB.clubs (fallback si db pas encore chargé)
