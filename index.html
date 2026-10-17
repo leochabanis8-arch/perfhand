@@ -591,6 +591,120 @@ async function genererCodeAcces(basePath, data) {
   throw new Error('Impossible de générer un code libre, réessaie.');
 }
 
+// ── MOTS DE PASSE : JAMAIS STOCKÉS ───────────────────────────────────────────
+// La connexion passe uniquement par Firebase Auth (qui stocke les mots de passe de façon sûre).
+// Une copie en clair dans la base n'était qu'un pense-bête lisible par quiconque accède aux données :
+// on retire systématiquement le champ "password" de tout ce qui est gardé en mémoire, en local et
+// envoyé à Firebase. Renvoie le MÊME objet si rien n'est à retirer (évite des rendus inutiles).
+function sansMdp(p) {
+  if (!p || typeof p !== 'object' || !('password' in p)) return p;
+  const { password, ...reste } = p;
+  return reste;
+}
+function listeSansMdp(arr) {
+  if (!Array.isArray(arr)) return arr;
+  let change = false;
+  const out = arr.map(p => { const q = sansMdp(p); if (q !== p) change = true; return q; });
+  return change ? out : arr;
+}
+function dbSansMdp(d) {
+  if (!d || typeof d !== 'object') return d;
+  let out = d;
+  ['playersPerso', 'playerProfiles', 'players', 'staffAccounts', 'staff'].forEach(k => {
+    const v = listeSansMdp(d[k]);
+    if (v !== d[k]) { if (out === d) out = { ...d }; out[k] = v; }
+  });
+  if (Array.isArray(d.clubs) && d.clubs.some(c => c && c.coach && 'password' in c.coach)) {
+    if (out === d) out = { ...d };
+    out.clubs = d.clubs.map(c => (c && c.coach && 'password' in c.coach) ? { ...c, coach: sansMdp(c.coach) } : c);
+  }
+  return out;
+}
+
+// Crée le compte de connexion Firebase Auth sur une instance SECONDAIRE (sinon l'admin serait
+// déconnecté et remplacé par le nouveau compte). Ne lève jamais d'erreur : renvoie un statut.
+async function creerCompteConnexion(email, password) {
+  if (typeof firebase === 'undefined' || !firebase.apps.length) return { ok:false, msg:'Firebase indisponible' };
+  const nom = 'CreationCompte' + Date.now();
+  let app2 = null;
+  try {
+    app2 = firebase.initializeApp(firebase.app().options, nom);
+    await app2.auth().createUserWithEmailAndPassword(email, password);
+    try { await app2.auth().signOut(); } catch(e) {}
+    return { ok:true };
+  } catch(e) {
+    if (e && e.code === 'auth/email-already-in-use') return { ok:true, existait:true };
+    if (e && e.code === 'auth/weak-password') return { ok:false, msg:'mot de passe trop court (6 caractères minimum)' };
+    return { ok:false, msg:(e && e.message) || 'erreur inconnue' };
+  } finally {
+    if (app2) { try { await app2.delete(); } catch(e) {} }
+  }
+}
+
+// Remplace l'affichage du mot de passe : le joueur reçoit un lien pour choisir le sien.
+function envoyerReinitialisation(email) {
+  if (!email) { alert('Aucun email renseigné pour ce profil.'); return; }
+  if (!window.__perfhand_auth) { alert('Service de connexion indisponible.'); return; }
+  if (!confirm('Envoyer à ' + email + ' un email pour (re)définir son mot de passe ?')) return;
+  window.__perfhand_auth.sendPasswordResetEmail(email)
+    .then(() => alert('Email envoyé à ' + email + '.\nLe joueur clique sur le lien pour choisir son mot de passe.'))
+    .catch(e => alert(e && e.code === 'auth/user-not-found'
+      ? 'Aucun compte de connexion n\'existe pour ' + email + '.'
+      : 'Envoi impossible : ' + ((e && e.message) || e)));
+}
+
+// Nettoyage unique (lancé à la connexion de l'admin) : efface de Firebase les mots de passe
+// stockés auparavant. Écriture ciblée champ par champ (null = suppression), rien d'autre n'est touché.
+async function purgerMotsDePasseStockes() {
+  const fdb = window.__perfhand_db;
+  if (!fdb) return;
+  try { if (localStorage.getItem('perfhand_purge_mdp_v1') === 'ok') return; } catch(e) {}
+  try { localStorage.removeItem('perfhand_codes'); } catch(e) {} // anciens codes locaux (contenaient les mots de passe)
+  const updates = {};
+  const scan = async (chemin) => {
+    try {
+      const snap = await fdb.ref(chemin).once('value');
+      const v = snap.val();
+      if (v && typeof v === 'object') Object.entries(v).forEach(([k, p]) => {
+        if (p && typeof p === 'object' && 'password' in p) updates[chemin + '/' + k + '/password'] = null;
+      });
+    } catch(e) { console.warn('[purge mdp] lecture impossible:', chemin, e && e.message); }
+  };
+  await scan('perfhand/playersPerso');
+  await scan('perfhand/playerProfiles');
+  await scan('perfhand/staffAccounts');
+  try {
+    const cs = (await fdb.ref('perfhand/clubs').once('value')).val();
+    if (cs && typeof cs === 'object') Object.entries(cs).forEach(([k, c]) => {
+      if (c && c.coach && 'password' in c.coach) updates['perfhand/clubs/' + k + '/coach/password'] = null;
+    });
+  } catch(e) {}
+  try {
+    const ts = (await fdb.ref('tenants').once('value')).val();
+    if (ts && typeof ts === 'object') Object.entries(ts).forEach(([tid, t]) => {
+      const pp = t && t.playersPerso;
+      if (pp && typeof pp === 'object') Object.entries(pp).forEach(([k, p]) => {
+        if (p && typeof p === 'object' && 'password' in p) updates['tenants/' + tid + '/playersPerso/' + k + '/password'] = null;
+      });
+    });
+  } catch(e) {}
+  const n = Object.keys(updates).length;
+  if (n === 0) { try { localStorage.setItem('perfhand_purge_mdp_v1', 'ok'); } catch(e) {} return; }
+  try {
+    await fdb.ref().update(updates);
+    try { localStorage.setItem('perfhand_purge_mdp_v1', 'ok'); } catch(e) {}
+    console.log('[purge mdp] mots de passe effacés de la base :', n);
+  } catch(e) {
+    // Une écriture groupée échoue en bloc si UN chemin est refusé : on retente un par un.
+    let ok = 0;
+    for (const chemin of Object.keys(updates)) {
+      try { await fdb.ref(chemin).remove(); ok++; } catch(err) {}
+    }
+    console.warn('[purge mdp] écriture groupée refusée, effacés un par un :', ok, '/', n);
+    if (ok === n) { try { localStorage.setItem('perfhand_purge_mdp_v1', 'ok'); } catch(e) {} }
+  }
+}
+
 // wellnessCheckins est stocké côté Firebase comme un objet {date: checkin} (écriture par clé
 // dédiée, pour que deux joueurs/appareils n'écrasent jamais le check-in d'un autre jour), mais
 // plusieurs écrans du coach l'utilisaient comme un tableau (.map/.find/.filter/.length) — ce qui
@@ -1618,19 +1732,17 @@ function ExerciceFichePopup({ exercice, onClose }) {
 function LoginInfoCard({ player, setDb }) {
   const [editing, setEditing] = React.useState(false);
   const [email, setEmail] = React.useState(player.email || '');
-  const [password, setPassword] = React.useState(player.password || '');
-  const [showPw, setShowPw] = React.useState(false);
 
   function save() {
     setDb(db => {
-      const update = (arr) => arr.map(p => p.id === player.id ? { ...p, email, password } : p);
+      const update = (arr) => arr.map(p => p.id === player.id ? { ...p, email } : p);
       // Sync Firebase selon le type de joueur
       if (window.__perfhand_db && player.id) {
         const inProfiles = (db.playerProfiles||[]).some(p => p.id === player.id);
         if (inProfiles) {
-          window.__perfhand_db.ref('perfhand/playerProfiles/' + player.id).update({ email, password });
+          window.__perfhand_db.ref('perfhand/playerProfiles/' + player.id).update({ email });
         } else {
-          window.__perfhand_db.ref('perfhand/playersPerso/' + player.id).update({ email, password });
+          window.__perfhand_db.ref('perfhand/playersPerso/' + player.id).update({ email });
         }
       }
       return {
@@ -1646,7 +1758,7 @@ function LoginInfoCard({ player, setDb }) {
   return _h`<div style=${{ background:'rgba(255,164,32,.06)', border:'1px solid rgba(255,164,32,.2)', borderRadius:12, padding:'14px 16px', marginTop:12 }}>
     <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
       <div style=${{ fontSize:11, fontWeight:700, color:'#FFA420' }}>🔑 Identifiants de connexion du joueur</div>
-      ${!editing ? _h`<button onClick=${() => { setEmail(player.email||''); setPassword(player.password||''); setEditing(true); }}
+      ${!editing ? _h`<button onClick=${() => { setEmail(player.email||''); setEditing(true); }}
         style=${{ background:'rgba(255,255,255,.06)', border:'1px solid #333', color:'#fff', borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:10 }}>
         ✏️ Modifier
       </button>` : null}
@@ -1655,13 +1767,6 @@ function LoginInfoCard({ player, setDb }) {
       <div>
         <div style=${{ fontSize:9, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:1, marginBottom:4 }}>Email</div>
         <input class="inp" type="email" value=${email} onInput=${e => setEmail(e.target.value)} placeholder="email@joueur.fr" style=${{ fontSize:13 }} />
-      </div>
-      <div>
-        <div style=${{ fontSize:9, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:1, marginBottom:4 }}>Mot de passe</div>
-        <div style=${{ position:'relative' }}>
-          <input class="inp" type=${showPw ? 'text' : 'password'} value=${password} onInput=${e => setPassword(e.target.value)} placeholder="Mot de passe" style=${{ fontSize:13, paddingRight:36 }} />
-          <button onClick=${() => setShowPw(s => !s)} style=${{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'rgba(255,255,255,.4)', cursor:'pointer', fontSize:12 }}>${showPw ? '🙈' : '👁'}</button>
-        </div>
       </div>
       <div style=${{ display:'flex', gap:8, marginTop:4 }}>
         <button class="btn btn-primary" onClick=${save} style=${{ fontSize:11 }}>✓ Enregistrer</button>
@@ -1674,10 +1779,10 @@ function LoginInfoCard({ player, setDb }) {
       </div>
       <div style=${{ background:'rgba(255,255,255,.04)', borderRadius:9, padding:'10px 12px' }}>
         <div style=${{ fontSize:9, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:1, marginBottom:5 }}>Mot de passe</div>
-        <div style=${{ fontSize:13, fontWeight:700, color:'#38BDF8' }}>${player.password ? '••••••' : '—'}</div>
+        <button onClick=${() => envoyerReinitialisation(player.email)} style=${{ background:'rgba(56,189,248,.1)', border:'1px solid rgba(56,189,248,.3)', color:'#38BDF8', borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>🔑 Envoyer email mot de passe</button>
       </div>
     </div>`}
-    <div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:8 }}>Ces identifiants permettent au joueur de se connecter sur PerfHand.</div>
+    <div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:8 }}>Le mot de passe n'est jamais stocké : le joueur le choisit via le lien reçu par email.</div>
   </div>`;
 }
 
@@ -16798,7 +16903,7 @@ function AdminView() {
       const newId = 'perso_import_' + Date.now();
       const newPlayer = {
         id: newId, name: data.name, email: data.email || '',
-        password: 'import2025', sport: data.sport || 'Handball',
+        sport: data.sport || 'Handball',
         age: data.age || '', poids: data.poids || '', taille: data.taille || '',
         genre: data.genre || 'M', bilans: data.bilans || [],
         bilansSem: data.bilansSem || [], muscuSeances: data.muscuSeances || [],
@@ -16963,12 +17068,21 @@ function AdminView() {
     age:'', poids:'', taille:'', objectif:'', notes:'', genre:'M'
   };
   const [formP, setFormP] = useState(EMPTY_PERSO);
+  const savingPersoRef = useRef(false); // évite un double profil sur double-clic pendant la création du compte
   const updP = (k, v) => setFormP(f => ({ ...f, [k]: v }));
 
-  function savePerso() {
+  async function savePerso() {
     if (!formP.name || !formP.email || !formP.password) return;
+    if (savingPersoRef.current) return;
+    savingPersoRef.current = true;
     // Normalize email before saving
-    const normalizedForm = { ...formP, email: formP.email.replace(/\s/g,'').toLowerCase(), password: formP.password.replace(/\s/g,'') };
+    const email = formP.email.replace(/\s/g,'').toLowerCase();
+    const password = formP.password.replace(/\s/g,'');
+    // Le compte de connexion est créé ici (avant : à créer à la main dans la console Firebase).
+    // Le mot de passe est affiché une seule fois puis oublié : il n'est jamais enregistré.
+    let r;
+    try { r = await creerCompteConnexion(email, password); } finally { savingPersoRef.current = false; }
+    const normalizedForm = { ...sansMdp(formP), email };
     const player = {
       id: 'perso-' + Date.now(),
       ...normalizedForm,
@@ -16988,6 +17102,10 @@ function AdminView() {
     });
     setFormP(EMPTY_PERSO);
     setShowAddPerso(false);
+    alert(r.ok
+      ? (r.existait ? 'Profil créé. Un compte de connexion existait déjà pour ' + email + ' (mot de passe inchangé).'
+                    : 'Profil créé.\n\nEmail : ' + email + '\nMot de passe : ' + password + '\n\nNote-le et transmets-le au joueur : il ne sera plus affiché.')
+      : 'Profil créé, mais le compte de connexion n\'a pas pu être créé (' + r.msg + ').\nUtilise le bouton 🔑 ou crée-le dans la console Firebase.');
   }
 
   function updatePerso(id, updates) {
@@ -17662,31 +17780,19 @@ function AdminView() {
                     </div>
                     <div style=${{ display:'flex', gap:5, marginTop:4, flexWrap:'wrap' }}>
                       <span style=${{ fontSize:10, background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.25)', borderRadius:5, padding:'2px 7px', color:'#FFA420', fontFamily:'monospace' }}>${p.email||'—'}</span>
-                      <span style=${{ fontSize:10, background:'rgba(56,189,248,.1)', border:'1px solid rgba(56,189,248,.25)', borderRadius:5, padding:'2px 7px', color:'#38BDF8', fontFamily:'monospace' }}>${p.password||'—'}</span>
                     </div>
                   </div>
                 </div>
                 <div style=${{ display:'flex', gap:6, alignItems:'center', justifyContent:'flex-end' }} onClick=${e => e.stopPropagation()}>
                                     <button class="btn btn-sm" style=${{ background:'rgba(76,175,80,.1)', border:'1px solid rgba(76,175,80,.3)', color:'#4CAF50', fontSize:10 }}
+                    title="Envoyer au joueur un email pour choisir son mot de passe"
                     onClick=${e => {
                       e.stopPropagation();
-                      // Stocker le profil complet dans les codes
-                      // Use FULL profile with all data so player gets latest seances/planif
-                      const profil = { ...p };
-                      // Code court : 6 chiffres dérivés de l'email+password
-                      const str = (p.email||'') + (p.password||'');
-                      let hash = 0;
-                      for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash |= 0; }
-                      const code = String(Math.abs(hash) % 1000000).padStart(6, '0');
-                      // Sauvegarder le mapping code → profil dans localStorage
-                      try {
-                        const codes = JSON.parse(localStorage.getItem('perfhand_codes') || '{}');
-                        codes[code] = profil;
-                        localStorage.setItem('perfhand_codes', JSON.stringify(codes));
-                      } catch(e) {}
-                      // Afficher dans une alert avec email+mdp aussi
-                      alert('Code de ' + p.name + ' : ' + code + '\n\nEmail : ' + p.email + '\nMot de passe : ' + p.password + '\n\nEnvoie le code 6 chiffres au joueur.');
-                    }}>📋 Code accès</button>
+                      // Ancien « Code accès » : code dérivé du mot de passe, stocké seulement sur CET
+                      // appareil (inutilisable depuis le téléphone du joueur) et qui affichait le mot
+                      // de passe en clair. Remplacé par l'email de (ré)initialisation Firebase.
+                      envoyerReinitialisation(p.email);
+                    }}>🔑 Mot de passe</button>
                   <button class="btn btn-sm" style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420' }}
                     onClick=${e => { e.stopPropagation(); setEditPerso(p); }}>✏️</button>
                   <button class="btn btn-sm" title="Archiver ce profil (contrat terminé) — historique conservé"
@@ -17995,7 +18101,7 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
     ref.on('value', snap => {
       const data = snap.val() || {};
       const playersPerso = data.playersPerso
-        ? (Array.isArray(data.playersPerso) ? data.playersPerso : Object.values(data.playersPerso)).filter(Boolean)
+        ? listeSansMdp((Array.isArray(data.playersPerso) ? data.playersPerso : Object.values(data.playersPerso)).filter(Boolean))
         : [];
       const clubs = data.clubs
         ? (Array.isArray(data.clubs) ? data.clubs : Object.values(data.clubs)).filter(Boolean)
@@ -18007,7 +18113,8 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
   }, [tenantId]);
 
   function savePlayer(player) {
-    const list = [...(tenantDb.playersPerso || [])];
+    player = sansMdp(player);
+    const list = listeSansMdp([...(tenantDb.playersPerso || [])]);
     const idx = list.findIndex(p => p.id === player.id);
     if (idx >= 0) list[idx] = player; else list.push(player);
     const obj = {};
@@ -18372,9 +18479,24 @@ function AddPlayerForm({ onSave, onCancel }) {
   const [form, setForm] = useState({ name:'', email:'', sport:'Handball', poste:'', objectif:'', password:'' });
   const [err, setErr] = useState('');
   function upd(k, v) { setForm(f => ({...f, [k]:v})); }
-  function submit() {
+  const [busy, setBusy] = useState(false);
+  async function submit() {
     if (!form.name.trim() || !form.email.trim()) { setErr('Nom et email obligatoires'); return; }
-    onSave({ ...form, id:'perso_'+Date.now(), dateCreation: new Date().toISOString().split('T')[0], muscuSeances:[], enduranceSeances:[], status:'ok' });
+    const email = form.email.trim().toLowerCase();
+    const password = (form.password || '').trim();
+    // Le compte de connexion est créé ici ; le mot de passe n'est affiché qu'une fois, jamais enregistré.
+    let info = '';
+    if (password) {
+      setBusy(true);
+      const r = await creerCompteConnexion(email, password);
+      setBusy(false);
+      info = r.ok
+        ? (r.existait ? 'Un compte de connexion existait déjà pour ' + email + ' (mot de passe inchangé).'
+                      : 'Compte de connexion créé.\n\nEmail : ' + email + '\nMot de passe : ' + password + '\n\nNote-le et transmets-le au joueur : il ne sera plus affiché.')
+        : 'Profil créé, mais le compte de connexion n\'a pas pu être créé (' + r.msg + ').\nUtilise « Envoyer email mot de passe » ou crée-le dans la console Firebase.';
+    }
+    onSave({ ...sansMdp(form), email, id:'perso_'+Date.now(), dateCreation: new Date().toISOString().split('T')[0], muscuSeances:[], enduranceSeances:[], status:'ok' });
+    if (info) alert(info);
   }
   return _h`<div style=${{ background:'#1A1A1A', border:'1px solid #333', borderRadius:12, padding:'20px', marginBottom:16 }}>
     <div style=${{ fontSize:13, fontWeight:700, marginBottom:14, color:'#FFA420' }}>Nouveau joueur</div>
@@ -18392,11 +18514,11 @@ function AddPlayerForm({ onSave, onCancel }) {
     </div>
     ${err ? _h`<div style=${{ color:'#FF4455', fontSize:11, marginBottom:8 }}>${err}</div>` : null}
     <div style=${{ display:'flex', gap:8 }}>
-      <button class="btn btn-primary" onClick=${submit}>Créer le joueur</button>
+      <button class="btn btn-primary" onClick=${submit} disabled=${busy}>${busy ? 'Création…' : 'Créer le joueur'}</button>
       <button class="btn" onClick=${onCancel}>Annuler</button>
     </div>
     <div style=${{ fontSize:10, color:'rgba(255,255,255,.25)', marginTop:12 }}>
-      ⚠️ N'oublie pas de créer le compte Firebase Auth correspondant (email + mot de passe) pour que le joueur puisse se connecter.
+      Si tu renseignes un mot de passe, le compte de connexion est créé automatiquement (6 caractères minimum). Il n'est affiché qu'une fois et jamais enregistré.
     </div>
   </div>`;
 }
@@ -24049,7 +24171,7 @@ function StaffManagerView() {
 
   function openEdit(s) {
     setForm({
-      name: s.name||'', email: s.email||'', password: s.password||'',
+      name: s.name||'', email: s.email||'',
       clubId: s.clubId||'', role: s.role||'staff', roleId: s.roleId||'entraineur',
       notes: s.notes||'', permissions: s.permissions || null
     });
@@ -24124,10 +24246,7 @@ function StaffManagerView() {
             <span style=${{ color:'rgba(255,255,255,.35)' }}>Email : </span>
             <span style=${{ color:'#FFA420', fontFamily:'monospace' }}>${s.email}</span>
           </div>
-          <div style=${{ fontSize:11 }}>
-            <span style=${{ color:'rgba(255,255,255,.35)' }}>MDP : </span>
-            <span style=${{ color:'#38BDF8', fontFamily:'monospace' }}>${s.password}</span>
-          </div>
+          <button onClick=${() => envoyerReinitialisation(s.email)} style=${{ background:'rgba(56,189,248,.1)', border:'1px solid rgba(56,189,248,.3)', color:'#38BDF8', borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>🔑 Envoyer email mot de passe</button>
         </div>
         ${s.notes ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.4)', marginTop:8, fontStyle:'italic' }}>${s.notes}</div>` : null}
       </div>`;
@@ -24200,9 +24319,6 @@ function StaffManagerView() {
           </div>
           <div><div class="lbl">Email *</div>
             <input class="inp" type="email" value=${form.email} onInput=${e=>upd('email',e.target.value)} placeholder="laurent@club.fr"/>
-          </div>
-          <div><div class="lbl">Mot de passe *</div>
-            <input class="inp" value=${form.password} onInput=${e=>upd('password',e.target.value)} placeholder="Mot de passe"/>
           </div>
           <div><div class="lbl">Club assigné</div>
             <select class="inp" value=${form.clubId} onChange=${e=>upd('clubId',e.target.value)}>
@@ -24363,7 +24479,7 @@ function sanitizeProfile(p) {
   var s=function(v){return (!v||typeof v==='object')?'':''+v;};
   var a=function(v){return Array.isArray(v)?v:(v&&typeof v==='object'?Object.values(v):[]);};
   var st=(p.stats&&typeof p.stats==='object')?p.stats:{};
-  return {id:s(p.id),clubId:s(p.clubId),clubIdsExtra:a(p.clubIdsExtra).map(s),name:s(p.name),pos:s(p.pos),num:n(p.num),poids:poidsFromMesures(a(p.masseMesures),n(p.poids)),taille:n(p.taille),age:n(p.age),status:s(p.status)||'ok',notes:s(p.notes),nutrition:s(p.nutrition)||'competition',objectif:s(p.objectif),sport:s(p.sport),poste:s(p.poste),email:s(p.email),password:s(p.password),genre:s(p.genre),exportDate:s(p.exportDate),notesMental:s(p.notesMental),dateNaissance:s(p.dateNaissance),stress:n(p.stress),motivation:n(p.motivation),focus:n(p.focus),confiance:n(p.confiance),stats:{sessions:n(st.sessions),absences:n(st.absences),chargeWeek:n(st.chargeWeek),wellness:n(st.wellness)},blessures:a(p.blessures),tests:a(p.tests),muscuSeances:a(p.muscuSeances),enduranceSeances:a(p.enduranceSeances),bilans:a(p.bilans),bilansSem:a(p.bilansSem),rmHistory:(p.rmHistory&&typeof p.rmHistory==='object'&&!Array.isArray(p.rmHistory))?p.rmHistory:{},masseMesures:a(p.masseMesures),cycles:a(p.cycles),gpsActivites:a(p.gpsActivites),ressourcesAssignees:a(p.ressourcesAssignees),planif:(p.planif&&typeof p.planif==='object')?p.planif:null,wellnessQuestionnaire:(p.wellnessQuestionnaire&&typeof p.wellnessQuestionnaire==='object')?p.wellnessQuestionnaire:null,wellnessCheckins:a(p.wellnessCheckins),protocol:a(p.protocol),archived:!!p.archived,archivedDate:s(p.archivedDate),customRM:a(p.customRM),testsEndurance:a(p.testsEndurance),journal:(p.journal&&typeof p.journal==='object'&&!Array.isArray(p.journal))?p.journal:{},hydratation:(p.hydratation&&typeof p.hydratation==='object'&&!Array.isArray(p.hydratation))?p.hydratation:{}};
+  return {id:s(p.id),clubId:s(p.clubId),clubIdsExtra:a(p.clubIdsExtra).map(s),name:s(p.name),pos:s(p.pos),num:n(p.num),poids:poidsFromMesures(a(p.masseMesures),n(p.poids)),taille:n(p.taille),age:n(p.age),status:s(p.status)||'ok',notes:s(p.notes),nutrition:s(p.nutrition)||'competition',objectif:s(p.objectif),sport:s(p.sport),poste:s(p.poste),email:s(p.email),genre:s(p.genre),exportDate:s(p.exportDate),notesMental:s(p.notesMental),dateNaissance:s(p.dateNaissance),stress:n(p.stress),motivation:n(p.motivation),focus:n(p.focus),confiance:n(p.confiance),stats:{sessions:n(st.sessions),absences:n(st.absences),chargeWeek:n(st.chargeWeek),wellness:n(st.wellness)},blessures:a(p.blessures),tests:a(p.tests),muscuSeances:a(p.muscuSeances),enduranceSeances:a(p.enduranceSeances),bilans:a(p.bilans),bilansSem:a(p.bilansSem),rmHistory:(p.rmHistory&&typeof p.rmHistory==='object'&&!Array.isArray(p.rmHistory))?p.rmHistory:{},masseMesures:a(p.masseMesures),cycles:a(p.cycles),gpsActivites:a(p.gpsActivites),ressourcesAssignees:a(p.ressourcesAssignees),planif:(p.planif&&typeof p.planif==='object')?p.planif:null,wellnessQuestionnaire:(p.wellnessQuestionnaire&&typeof p.wellnessQuestionnaire==='object')?p.wellnessQuestionnaire:null,wellnessCheckins:a(p.wellnessCheckins),protocol:a(p.protocol),archived:!!p.archived,archivedDate:s(p.archivedDate),customRM:a(p.customRM),testsEndurance:a(p.testsEndurance),journal:(p.journal&&typeof p.journal==='object'&&!Array.isArray(p.journal))?p.journal:{},hydratation:(p.hydratation&&typeof p.hydratation==='object'&&!Array.isArray(p.hydratation))?p.hydratation:{}};
 }
 
 function BlessuresPersoTab({ player, savePlayer }) {
@@ -24624,7 +24740,6 @@ function EditPersoModal({ p, onSave, onClose }) {
   const [form, setForm] = useState({
     name:      p.name     || '',
     email:     p.email    || '',
-    password:  p.password || '',
     sport:     p.sport    || 'Handball',
     poste:     p.poste    || '',
     age:       String(p.age    || ''),
@@ -24663,7 +24778,6 @@ function EditPersoModal({ p, onSave, onClose }) {
         </div>
         <div class="edit-row">
           <div style=${{ marginBottom:12 }}><div class="lbl">Email</div><input class="inp" type="email" value=${form.email} onInput=${e => upd('email',e.target.value)}/></div>
-          <div style=${{ marginBottom:12 }}><div class="lbl">Mot de passe</div><input class="inp" value=${form.password} onInput=${e => upd('password',e.target.value)}/></div>
         </div>
         <div class="edit-row">
           <div style=${{ marginBottom:12 }}><div class="lbl">Âge</div><input class="inp" type="number" value=${form.age} onInput=${e => upd('age',e.target.value)}/></div>
@@ -24698,7 +24812,7 @@ function EditPersoModal({ p, onSave, onClose }) {
         <button class="btn" style=${{ flex:1 }} onClick=${onClose}>Annuler</button>
         <button class="btn btn-primary" style=${{ flex:2 }} onClick=${() => {
           onSave({ ...form, age:parseInt(form.age)||0, poids:parseInt(form.poids)||0, taille:parseInt(form.taille)||0,
-                   email: form.email.trim().toLowerCase(), password: form.password.trim() });
+                   email: form.email.trim().toLowerCase() });
         }}>Enregistrer</button>
       </div>
     </div>
@@ -25771,7 +25885,7 @@ function PersoProfilTab({ player, editMode, editForm, setEditMode, setEditForm, 
       <div style=${{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
         <button class="btn btn-primary btn-sm" onClick=${() => {
           setEditForm({
-            name: player.name||'', email: player.email||'', password: player.password||'',
+            name: player.name||'', email: player.email||'',
             sport: player.sport||'Handball', poste: player.poste||'',
             age: String(player.age||''), poids: String(player.poids||''), taille: String(player.taille||''),
             objectif: player.objectif||'', notes: player.notes||'',
@@ -25838,8 +25952,8 @@ function PersoProfilTab({ player, editMode, editForm, setEditMode, setEditForm, 
             <div style=${{ fontSize:12, fontWeight:700, color:'#FFA420' }}>${player.email}</div>
           </div>
           <div style=${{ background:'rgba(56,189,248,.06)', borderRadius:8, padding:'8px 10px' }}>
-            <div style=${{ fontSize:9, color:'rgba(255,255,255,.35)', marginBottom:2 }}>MOT DE PASSE</div>
-            <div style=${{ fontSize:12, fontWeight:700, color:'#38BDF8' }}>${player.password}</div>
+            <div style=${{ fontSize:9, color:'rgba(255,255,255,.35)', marginBottom:4 }}>MOT DE PASSE</div>
+            <button onClick=${() => envoyerReinitialisation(player.email)} style=${{ background:'rgba(56,189,248,.1)', border:'1px solid rgba(56,189,248,.3)', color:'#38BDF8', borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>🔑 Envoyer email mot de passe</button>
           </div>
         </div>
       </div>
@@ -25882,7 +25996,6 @@ function PersoProfilTab({ player, editMode, editForm, setEditMode, setEditForm, 
     </div>
     <div class="edit-row" style=${{ marginBottom:10 }}>
       <div><div class="lbl">Email</div><input class="inp" type="email" value=${ef.email||''} onInput=${e => setEditForm(f=>({...f, email:e.target.value}))}/></div>
-      <div><div class="lbl">Mot de passe</div><input class="inp" value=${ef.password||''} onInput=${e => setEditForm(f=>({...f, password:e.target.value}))}/></div>
     </div>
     <div class="edit-row" style=${{ marginBottom:10 }}>
       <div><div class="lbl">Âge</div><input class="inp" type="number" value=${ef.age||''} onInput=${e => setEditForm(f=>({...f, age:e.target.value}))}/></div>
@@ -27057,12 +27170,11 @@ function StaffView() {
   ];
 
   function saveStaff() {
-    if (!form.name || !form.email || !form.password) return;
+    if (!form.name || !form.email) return;
     const member = {
-      ...form,
+      ...sansMdp(form),
       id: editStaff?.id || 'staff-'+Date.now(),
       email: form.email.replace(/\s/g,'').toLowerCase(),
-      password: form.password.replace(/\s/g,''),
       createdAt: editStaff?.createdAt || localDateStr(),
     };
     setDb(d => ({
@@ -27082,7 +27194,7 @@ function StaffView() {
   }
 
   function startEdit(s) {
-    setForm({ name:s.name, email:s.email, password:s.password, role:s.role, poste:s.poste||'', club:s.club||'usm', phone:s.phone||'', notes:s.notes||'' });
+    setForm({ name:s.name, email:s.email, password:'', role:s.role, poste:s.poste||'', club:s.club||'usm', phone:s.phone||'', notes:s.notes||'' });
     setEditStaff(s);
     setShowAdd(true);
   }
@@ -27128,7 +27240,6 @@ function StaffView() {
                   <div style=${{ fontSize:11, color:r.color, marginTop:1 }}>${r.label}${s.poste?' — '+s.poste:''}</div>
                   <div style=${{ display:'flex', gap:8, marginTop:4 }}>
                     <span style=${{ fontSize:11, background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.2)', borderRadius:6, padding:'2px 8px', color:'#FFA420', fontFamily:'monospace' }}>${s.email}</span>
-                    <span style=${{ fontSize:11, background:'rgba(56,189,248,.1)', border:'1px solid rgba(56,189,248,.2)', borderRadius:6, padding:'2px 8px', color:'#38BDF8', fontFamily:'monospace' }}>${s.password}</span>
                   </div>
                 </div>
               </div>
@@ -27169,14 +27280,13 @@ function StaffView() {
           </div>
           <div class="edit-row">
             <div><div class="lbl">Email (connexion) *</div><input class="inp" type="email" value=${form.email} onInput=${e=>upd('email',e.target.value)}/></div>
-            <div><div class="lbl">Mot de passe *</div><input class="inp" value=${form.password} onInput=${e=>upd('password',e.target.value)}/></div>
           </div>
           <div style=${{ marginBottom:10 }}><div class="lbl">Téléphone</div><input class="inp" value=${form.phone} onInput=${e=>upd('phone',e.target.value)} placeholder="+33 6 ..."/></div>
           <div><div class="lbl">Notes</div><textarea class="inp" value=${form.notes} onInput=${e=>upd('notes',e.target.value)} style=${{ resize:'vertical', minHeight:50 }} placeholder="Observations..."></textarea></div>
         </div>
         <div style=${{ padding:'14px 20px', borderTop:'1px solid rgba(255,255,255,.07)', display:'flex', gap:10, flexShrink:0 }}>
           <button class="btn" style=${{ flex:1 }} onClick=${()=>{ setShowAdd(false); setEditStaff(null); }}>Annuler</button>
-          <button class="btn btn-primary" style=${{ flex:2 }} onClick=${saveStaff} disabled=${!form.name||!form.email||!form.password}>
+          <button class="btn btn-primary" style=${{ flex:2 }} onClick=${saveStaff} disabled=${!form.name||!form.email}>
             ${editStaff ? 'Enregistrer' : 'Créer le profil'}
           </button>
         </div>
@@ -28281,11 +28391,13 @@ function PerfHandApp() {
     };
     return () => { delete window.__perfhand_set_session; };
   }, []);
-  const [db, setDbRaw] = useState(loadDb);
+  // Tout l'état passe par dbSansMdp : aucun mot de passe ne reste en mémoire, en local ni n'est envoyé.
+  const [db, _setDbBrut] = useState(() => dbSansMdp(loadDb()));
+  const setDbRaw = React.useCallback(u => _setDbBrut(prev => dbSansMdp(typeof u === 'function' ? u(prev) : u)), []);
 
   function setDb(updater) {
     setDbRaw(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const next = dbSansMdp(typeof updater === "function" ? updater(prev) : updater);
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
       // Exposer la bibliothèque custom globalement pour findBiblioMatch
       window.__perfhand_custom_biblio = next.bibliothequeCustom || [];
@@ -29177,6 +29289,11 @@ function ClubStaffManager({ club, db, setDb }) {
     setDbRaw(INITIAL_DB);
     setSession(null);
   }
+
+  // Nettoyage unique des anciens mots de passe stockés en base, fait avec les droits de l'admin.
+  React.useEffect(() => {
+    if (session && session.role === 'admin') purgerMotsDePasseStockes();
+  }, [session && session.role]);
 
   const ctx = { session, login, logout, db, setDb, resetDb, user:session };
 
