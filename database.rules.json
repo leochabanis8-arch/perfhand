@@ -1,0 +1,41 @@
+{
+  "rules": {
+    "perfhand": {
+      "codes": {
+        "$code": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.token.email != null"
+        }
+      },
+      "$collection": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "bibliothequeCustom": { ".read": "auth != null", ".write": "auth != null" },
+
+    "tenants": {
+      ".read": "auth != null",
+      "$tenantId": {
+        ".write": "auth != null && (auth.token.email === 'leo.chabanis@gmail.com' || (!data.exists() && auth.token.email != null && newData.child('uid').val() === auth.uid && newData.child('id').val() === $tenantId) || ((data.child('uid').val() === auth.uid || root.child('tenants_by_uid').child(auth.uid).val() === $tenantId) && newData.child('uid').val() === data.child('uid').val()))"
+      }
+    },
+
+    "tenants_by_uid": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && newData.isString() && root.child('tenants').child(newData.val()).child('uid').val() === auth.uid"
+      }
+    },
+
+    "tenantCodes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || (newData.isString() && (!data.exists() || data.val() === newData.val()) && (root.child('tenants').child(newData.val()).child('uid').val() === auth.uid || root.child('tenants_by_uid').child(auth.uid).val() === newData.val())))"
+      }
+    },
+
+    "tg_notifications_sent": { ".read": "auth != null", ".write": "auth != null" }
+  }
+}

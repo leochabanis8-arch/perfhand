@@ -15,6 +15,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script>
     window.__perfhand_db = null;
+    // Promesse résolue dès qu'une session Firebase existe (anonyme ou réelle) — les écouteurs de
+    // données l'attendent : branchés AVANT, ils étaient refusés par les règles et annulés pour de bon
+    // lors d'une première visite. Filet : résolue quand même après 6 s (hors ligne, échec auth...).
+    window.__perfhand_auth_pret = new Promise(function(res){
+      window.__perfhand_auth_resoudre = res;
+      setTimeout(res, 6000);
+    });
     console.log("[Firebase] Initialisation...");
     try {
       firebase.initializeApp({
@@ -39,6 +46,7 @@
       window.__perfhand_real_login_pending = false;
       window.__perfhand_real_user_active = false;
       window.__perfhand_auth.onAuthStateChanged(function(u){
+        if (u) window.__perfhand_auth_resoudre();
         if (!u) {
           if (window.__perfhand_real_login_pending || window.__perfhand_real_user_active) return; // vraie session en cours ou active, ne pas interferer
           window.__perfhand_auth.signInAnonymously().catch(function(e){
@@ -576,19 +584,42 @@ function tirerCode6() {
     return String(Math.floor(100000 + Math.random() * 900000));
   }
 }
-async function genererCodeAcces(basePath, data) {
+// autresChemins : emplacements supplémentaires où le code doit aussi être libre (ex: index global).
+async function genererCodeAcces(basePath, data, autresChemins) {
   const db = window.__perfhand_db;
   if (!db) throw new Error('Base de données non disponible');
   for (let i = 0; i < 8; i++) {
     const code = tirerCode6();
     let libre = true;
-    try { libre = !(await db.ref(basePath + code).once('value')).exists(); }
-    catch(e) { libre = true; } // lecture refusée par les règles : on garde l'ancien comportement
+    for (const chemin of [basePath, ...(autresChemins || [])]) {
+      try { if ((await db.ref(chemin + code).once('value')).exists()) { libre = false; break; } }
+      catch(e) {} // lecture refusée par les règles : on garde l'ancien comportement
+    }
     if (!libre) continue;
     await db.ref(basePath + code).set(data);
     return code;
   }
   throw new Error('Impossible de générer un code libre, réessaie.');
+}
+
+// ── INDEX DES CODES TENANT ────────────────────────────────────────────────────
+// tenantCodes/{code} = tenantId. Permet de retrouver un code joueur SANS télécharger tous les
+// tenants (avant : la page de connexion lisait la base de tous les préparateurs pour trouver un code).
+function indexerCodesTenant(tenantId, codes) {
+  const fdb = window.__perfhand_db;
+  if (!fdb || !tenantId || !codes || typeof codes !== 'object') return;
+  Object.keys(codes).forEach(code => {
+    const r = fdb.ref('tenantCodes/' + code);
+    r.once('value').then(s => { if (!s.exists()) r.set(tenantId).catch(() => {}); }).catch(() => {});
+  });
+}
+async function indexerTousLesCodesTenants() {
+  const fdb = window.__perfhand_db;
+  if (!fdb) return;
+  try {
+    const ts = (await fdb.ref('tenants').once('value')).val() || {};
+    Object.entries(ts).forEach(([tid, t]) => { if (t && t.codes) indexerCodesTenant(tid, t.codes); });
+  } catch(e) { console.warn('[index codes] impossible:', e && e.message); }
 }
 
 // ── MOTS DE PASSE : JAMAIS STOCKÉS ───────────────────────────────────────────
@@ -18108,6 +18139,7 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
         : [];
       setTenantDb({ ...data, playersPerso, clubs });
       setLoading(false);
+      if (data.codes) indexerCodesTenant(tenantId, data.codes); // codes créés avant l'index
     });
     return () => window.__perfhand_db.ref('tenants/' + tenantId).off();
   }, [tenantId]);
@@ -18283,7 +18315,8 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
                 playerId: livePlayer.id,
                 playerName: livePlayer.name,
                 createdAt: new Date().toISOString()
-              }).then(code => {
+              }, ['tenantCodes/']).then(async code => {
+                try { await window.__perfhand_db.ref('tenantCodes/' + code).set(tenantId); } catch(e) {}
                 alert('Code d\'accès de ' + livePlayer.name + ' : ' + code + '\n\nEnvoie ce code à ton athlète. Il peut se connecter via "Code joueur" sur perfhandballapp.netlify.app');
               }).catch(e => alert('Erreur : ' + e.message));
             }}
@@ -18934,7 +18967,26 @@ function LoginScreen() {
       checkTenantCodes();
     }).catch(() => checkTenantCodes());
 
+    function ouvrirSessionTenant(tenantId, playerId, playerName) {
+      const session = { role: 'tenant_perso', tenantId, playerId, name: playerName };
+      try { localStorage.setItem('perfhand_tenant_session', JSON.stringify(session)); } catch(e) {}
+      if (window.__perfhand_set_session) { window.__perfhand_set_session(session); setLoading(false); }
+      else window.location.reload();
+    }
+    // 3. Index tenantCodes/{code} -> tenantId (sans télécharger les autres tenants)
     function checkTenantCodes() {
+      window.__perfhand_db.ref('tenantCodes/' + code).once('value').then(idx => {
+        const tid = idx.val();
+        if (!tid) return scanTenants();
+        return window.__perfhand_db.ref('tenants/' + tid + '/codes/' + code).once('value').then(cs => {
+          const c = cs.val();
+          if (c && c.playerId) ouvrirSessionTenant(tid, c.playerId, c.playerName);
+          else scanTenants();
+        });
+      }).catch(() => scanTenants());
+    }
+    // 4. Secours : anciens codes pas encore indexés (indexés à la prochaine visite du préparateur ou de l'admin)
+    function scanTenants() {
     window.__perfhand_db.ref('tenants').once('value').then(snap => {
       const allTenants = snap.val();
       if (!allTenants) { setErr("Code introuvable."); setLoading(false); return; }
@@ -18956,8 +19008,8 @@ function LoginScreen() {
       }
       setErr("Code introuvable. Demande un nouveau code à ton coach.");
       setLoading(false);
-    }).catch(() => { setErr("Erreur réseau."); setLoading(false); });
-    } // fin checkTenantCodes
+    }).catch(() => { setErr("Code introuvable. Demande un nouveau code à ton coach."); setLoading(false); });
+    } // fin scanTenants
   }
 
   function onKey(e) {
@@ -28732,10 +28784,16 @@ function PerfHandApp() {
     });
       return () => ref.off();
     };
-    // Try immediately, then retry after 1s if needed
-    connectFirebase();
-    const timer = setTimeout(connectFirebase, 1000);
-    return () => clearTimeout(timer);
+    // On attend qu'une session Firebase existe avant de brancher les écouteurs (voir
+    // __perfhand_auth_pret). Avant : branchement immédiat + second branchement 1 s plus tard,
+    // ce qui doublait chaque écouteur (chaque mise à jour était traitée deux fois).
+    let annule = false;
+    (window.__perfhand_auth_pret || Promise.resolve()).then(() => {
+      if (annule) return;
+      if (window.__perfhand_db) connectFirebase();
+      else setTimeout(() => { if (!annule) connectFirebase(); }, 1000);
+    });
+    return () => { annule = true; };
   }, []);
 
   // ── TELEGRAM NOTIFICATIONS ─────────────────────────────────────────────────
@@ -28749,11 +28807,16 @@ function PerfHandApp() {
   const [tgSentLogLoaded, setTgSentLogLoaded] = React.useState(false);
   React.useEffect(() => {
     if (!window.__perfhand_db) return;
-    window.__perfhand_db.ref("tg_notifications_sent").on("value", snap => {
-      setTgSentLog(snap.val() || {});
-      setTgSentLogLoaded(true);
+    let annule = false, cb = null;
+    const ref = window.__perfhand_db.ref("tg_notifications_sent");
+    (window.__perfhand_auth_pret || Promise.resolve()).then(() => {
+      if (annule) return;
+      cb = ref.on("value", snap => {
+        setTgSentLog(snap.val() || {});
+        setTgSentLogLoaded(true);
+      });
     });
-    return () => window.__perfhand_db.ref("tg_notifications_sent").off();
+    return () => { annule = true; if (cb) ref.off("value", cb); };
   }, []);
 
   function markSent(key) {
@@ -29292,7 +29355,7 @@ function ClubStaffManager({ club, db, setDb }) {
 
   // Nettoyage unique des anciens mots de passe stockés en base, fait avec les droits de l'admin.
   React.useEffect(() => {
-    if (session && session.role === 'admin') purgerMotsDePasseStockes();
+    if (session && session.role === 'admin') { purgerMotsDePasseStockes(); indexerTousLesCodesTenants(); }
   }, [session && session.role]);
 
   const ctx = { session, login, logout, db, setDb, resetDb, user:session };
