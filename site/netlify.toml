@@ -1,0 +1,6 @@
+# Dossier à glisser-déposer sur Netlify (connecté à ton compte) :
+#  - public/ : le site (index.html)
+#  - netlify/functions/ : le code serveur (ici l'envoi Telegram, token gardé secret)
+[build]
+  publish = "public"
+  functions = "netlify/functions"

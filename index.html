@@ -17371,7 +17371,7 @@ function AdminView() {
       <div style=${{ marginTop:'auto', padding:'0 14px 14px' }}>
         <!-- Telegram test -->
         <button class="btn btn-sm" style=${{ width:'100%', marginBottom:6, background:'rgba(56,189,248,.08)', border:'1px solid rgba(56,189,248,.25)', color:'#38BDF8', fontSize:10 }}
-          onClick=${() => testTelegramNow()}>📨 Test Telegram</button>
+          onClick=${() => window.__perfhand_test_telegram && window.__perfhand_test_telegram()}>📨 Test Telegram</button>
         <button class="btn btn-danger" style=${{ width:'100%', marginBottom:8 }} onClick=${logout}>Déconnexion</button>
         <button class="btn btn-sm" style=${{ width:'100%', background:'rgba(255,68,85,.06)', border:'1px solid rgba(255,68,85,.15)', color:'rgba(255,68,85,.5)', fontSize:10 }}
           onClick=${() => { if(prompt('Tapez RESET pour confirmer la suppression de toutes les données:') === 'RESET') resetDb(); }}>Reset données</button>
@@ -28946,9 +28946,8 @@ function PerfHandApp() {
   }, [cleConnexion]);
 
   // ── TELEGRAM NOTIFICATIONS ─────────────────────────────────────────────────
-  const TG_TOKEN  = "8322941345:AAH8f3_qu4BojnmFlb2vMJk15q1UyircuMA";
-  const TG_CHAT   = "1448235012";
-  const TG_URL    = "https://api.telegram.org/bot" + TG_TOKEN + "/sendMessage";
+  // L'envoi passe par la fonction Netlify /.netlify/functions/telegram : le token du bot est
+  // stocké côté serveur (variables TG_BOT_TOKEN / TG_CHAT_ID) et n'apparaît plus dans la page.
   // Deduplication stockee dans Firebase (partagee entre tous les appareils)
   const [tgSentLog, setTgSentLog] = React.useState({});
 
@@ -28984,12 +28983,17 @@ function PerfHandApp() {
 
   async function sendTelegram(text) {
     try {
-      await fetch(TG_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: TG_CHAT, text, parse_mode: "HTML" })
+      const u = window.__perfhand_auth && window.__perfhand_auth.currentUser;
+      if (!u) return false;
+      const idToken = await u.getIdToken();
+      const r = await fetch('/.netlify/functions/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+        body: JSON.stringify({ text })
       });
-    } catch(e) { console.warn("[Telegram] Erreur envoi:", e); }
+      if (!r.ok) console.warn('[Telegram] envoi refusé :', r.status, await r.text());
+      return r.ok;
+    } catch(e) { console.warn("[Telegram] Erreur envoi:", e); return false; }
   }
 
   // Verrou local en mémoire pour éviter double-envoi même si Firebase est lent
@@ -29071,10 +29075,15 @@ function PerfHandApp() {
   }, [tgSentLogLoaded]);
 
   // Bouton de test manuel dans l'UI
-  function testTelegramNow() {
-    sendTelegram("PerfHand - Test OK\nLa connexion Telegram fonctionne correctement.");
+  async function testTelegramNow() {
+    const ok = await sendTelegram("PerfHand - Test OK\nLa connexion Telegram fonctionne correctement.");
+    alert(ok ? 'Message de test envoyé sur Telegram ✅'
+             : 'Échec de l\'envoi Telegram. Vérifie les variables TG_BOT_TOKEN et TG_CHAT_ID dans Netlify (et que le site a été redéployé après).');
     checkSeancesNonValidees();
   }
+  // Exposé pour le bouton « Test Telegram » de l'admin (composant séparé : avant, l'appel direct
+  // à testTelegramNow y provoquait une erreur et le bouton ne faisait rien).
+  window.__perfhand_test_telegram = testTelegramNow;
 
   // ── FIREBASE AUTH ────────────────────────────────────────────────────────────
   // Determine role from email after Firebase Auth succeeds
