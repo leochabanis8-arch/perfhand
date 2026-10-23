@@ -602,6 +602,146 @@ async function genererCodeAcces(basePath, data, autresChemins) {
   throw new Error('Impossible de générer un code libre, réessaie.');
 }
 
+// Fusion d'une fiche perso reçue de Firebase avec la copie locale (extrait tel quel de l'écouteur
+// playersPerso, pour être réutilisé par l'écouteur de la fiche individuelle d'un joueur).
+function fusionnerPersoDistant(local, remote) {
+  // Normalize muscuSeances: Firebase stores arrays as objects {0:{...},1:{...}} quand il y a
+  // des trous (ex: un élément supprimé au milieu) — même souci pour tous les champs de type
+  // liste, pas seulement muscu/endurance. On les normalise tous ici, sinon un champ comme
+  // testsEndurance peut arriver en objet et faire échouer silencieusement tout code qui
+  // s'attend à un tableau (.filter/.find/.map), ce qui faisait disparaître les tests VMA.
+  function toArr(v) {
+    if (!v) return null;
+    return Array.isArray(v) ? v : Object.values(v).filter(Boolean);
+  }
+  let muscuSeances = toArr(remote.muscuSeances);
+  let enduranceSeances = toArr(remote.enduranceSeances);
+  const testsEndurance = toArr(remote.testsEndurance) || [];
+  const tests = toArr(remote.tests) || [];
+  const customRM = toArr(remote.customRM) || [];
+  const wellnessCheckins = (remote.wellnessCheckins && typeof remote.wellnessCheckins === 'object' && !Array.isArray(remote.wellnessCheckins))
+    ? remote.wellnessCheckins : (toArr(remote.wellnessCheckins) || {});
+  // Remote wins, but keep local seances if remote has none (prevents data loss on first load)
+  return {
+    ...local,
+    ...remote,
+    muscuSeances: (muscuSeances && muscuSeances.length > 0) ? muscuSeances : (local.muscuSeances || []),
+    enduranceSeances: (enduranceSeances && enduranceSeances.length > 0) ? enduranceSeances : (local.enduranceSeances || []),
+    testsEndurance: testsEndurance.length > 0 ? testsEndurance : (local.testsEndurance || []),
+    tests: tests.length > 0 ? tests : (local.tests || []),
+    customRM: customRM.length > 0 ? customRM : (local.customRM || []),
+    wellnessCheckins: (wellnessCheckins && Object.keys(wellnessCheckins).length > 0) ? wellnessCheckins : (local.wellnessCheckins || {}),
+  };
+}
+
+// ── INDEX D'ACCÈS (lus par les règles de sécurité Firebase) ──────────────────
+// Les règles ne savent pas chercher dans une liste : pour savoir « cet email est-il un coach/staff ? »
+// ou « quelle fiche appartient à cet email ? », elles lisent ces index, clés = email avec '.' → ','.
+//   acces/equipe/{email}         = true                    (coachs + staff : accès complet)
+//   acces/joueurs/{email}        = { type:'club'|'perso', id }
+//   acces/joueursTenant/{email}  = { tenantId, playerId }
+// Reconstruits par l'admin à chaque connexion, complétés par l'équipe au fil des ajouts.
+const ADMIN_EMAIL = 'leo.chabanis@gmail.com';
+function cleEmail(e) {
+  const k = String(e || '').replace(/\s/g, '').toLowerCase().replace(/\./g, ',');
+  return (k && !/[$#\[\]\/]/.test(k)) ? k : null;
+}
+function emailAutoJoueur(p) { // même règle que resolveRole (prénom@player.fr)
+  return String(p && p.name || '').split(' ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') + '@player.fr';
+}
+function enTableau(v) { return !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean); }
+function calculerIndexAcces({ clubs, staffAccounts, playerProfiles, playersPerso, tenants }) {
+  const equipe = {}, joueurs = {}, joueursTenant = {};
+  enTableau(clubs).forEach(c => { const k = cleEmail(c && c.coach && c.coach.email); if (k) equipe[k] = true; });
+  enTableau(staffAccounts).forEach(st => { const k = cleEmail(st.email); if (k) equipe[k] = true; });
+  enTableau(playersPerso).forEach(p => { const k = cleEmail(p.email); if (k && p.id) joueurs[k] = { type: 'perso', id: p.id }; });
+  enTableau(playerProfiles).forEach(p => { // club après perso : même priorité que resolveRole
+    if (!p.id) return;
+    const k = cleEmail(p.email) || cleEmail(emailAutoJoueur(p));
+    if (k) joueurs[k] = { type: 'club', id: p.id };
+  });
+  Object.entries(tenants || {}).forEach(([tid, t]) => {
+    enTableau(t && t.playersPerso).forEach(p => { const k = cleEmail(p.email); if (k && p.id) joueursTenant[k] = { tenantId: tid, playerId: p.id }; });
+  });
+  return { equipe, joueurs, joueursTenant };
+}
+// Admin : reconstruction complète depuis Firebase (retire aussi les accès supprimés).
+async function reconstruireIndexAcces() {
+  const fdb = window.__perfhand_db;
+  if (!fdb) return;
+  try {
+    const lire = chemin => fdb.ref(chemin).once('value').then(s => s.val());
+    const [clubs, staffAccounts, playerProfiles, playersPerso, tenants] = await Promise.all([
+      lire('perfhand/clubs'), lire('perfhand/staffAccounts'), lire('perfhand/playerProfiles'), lire('perfhand/playersPerso'), lire('tenants')]);
+    const idx = calculerIndexAcces({ clubs, staffAccounts, playerProfiles, playersPerso, tenants });
+    // Garde-fou : si une lecture a échoué silencieusement et ne renvoie rien, on n'efface pas l'index existant.
+    if (!Object.keys(idx.equipe).length && !Object.keys(idx.joueurs).length) { console.warn('[index accès] rien à indexer — ignoré'); return; }
+    await fdb.ref('acces').set(idx);
+    console.log('[index accès] reconstruit :', Object.keys(idx.equipe).length, 'équipe,', Object.keys(idx.joueurs).length, 'joueurs,', Object.keys(idx.joueursTenant).length, 'joueurs tenant');
+  } catch (e) { console.warn('[index accès] échec :', e && e.message); }
+}
+// Coach/staff : ajoute les nouveaux membres et joueurs connus localement (n'enlève jamais rien).
+function completerIndexAcces(db) {
+  const fdb = window.__perfhand_db;
+  if (!fdb || !db) return;
+  const idx = calculerIndexAcces({ clubs: db.clubs, staffAccounts: db.staffAccounts, playerProfiles: db.playerProfiles, playersPerso: db.playersPerso });
+  const maj = {};
+  Object.entries(idx.equipe).forEach(([k, v]) => { maj['equipe/' + k] = v; });
+  Object.entries(idx.joueurs).forEach(([k, v]) => { maj['joueurs/' + k] = v; });
+  if (Object.keys(maj).length) fdb.ref('acces').update(maj).catch(e => console.warn('[index accès] complément refusé :', e && e.message));
+}
+// Préparateur (tenant) : indexe l'email de ses joueurs.
+function indexerJoueursTenant(tenantId, playersPerso) {
+  const fdb = window.__perfhand_db;
+  if (!fdb || !tenantId) return;
+  enTableau(playersPerso).forEach(p => {
+    const k = cleEmail(p.email);
+    if (k && p.id) fdb.ref('acces/joueursTenant/' + k).set({ tenantId, playerId: p.id }).catch(() => {});
+  });
+}
+
+// ── SESSIONS PAR CODE ─────────────────────────────────────────────────────────
+// Un joueur connecté par code est un utilisateur Firebase ANONYME. Pour que les règles sachent à
+// quelle fiche il a droit, on enregistre codeSessions/{uid} = { code, playerId } — les règles
+// n'acceptent cette écriture que si le code existe vraiment et désigne bien ce joueur.
+async function sessionFirebaseCourante() {
+  const a = window.__perfhand_auth;
+  if (!a) return null;
+  if (a.currentUser) return a.currentUser;
+  try { await a.signInAnonymously(); } catch (e) { return null; }
+  return a.currentUser;
+}
+async function lierCodeClub(code, playerId, clubId) {
+  const u = await sessionFirebaseCourante();
+  if (!u || !window.__perfhand_db) return false;
+  await window.__perfhand_db.ref('perfhand/codeSessions/' + u.uid).set({ code, playerId, clubId: clubId || null, date: new Date().toISOString() });
+  return true;
+}
+async function lierCodeTenant(code, tenantId, playerId) {
+  const u = await sessionFirebaseCourante();
+  if (!u || !window.__perfhand_db) return false;
+  await window.__perfhand_db.ref('tenantCodeSessions/' + u.uid).set({ code, tenantId, playerId, date: new Date().toISOString() });
+  return true;
+}
+
+// Rôle d'un compte email retrouvé via les index (la liste complète des joueurs n'étant plus
+// lisible par tous). Renvoie null si rien trouvé.
+async function chercherRoleParIndex(fbUser) {
+  const fdb = window.__perfhand_db, email = fbUser && fbUser.email, k = cleEmail(email);
+  if (!fdb || !k) return null;
+  const lire = chemin => fdb.ref(chemin).once('value').then(s => s.val()).catch(() => null);
+  const clubs = enTableau(await lire('perfhand/clubs'));
+  const club = clubs.find(c => c && c.coach && (c.coach.email || '').toLowerCase() === email.toLowerCase());
+  if (club) return { role: 'coach', name: club.coach.name, email, clubId: club.id, uid: fbUser.uid };
+  const j = await lire('acces/joueurs/' + k);
+  if (j && j.id) {
+    const chemin = (j.type === 'perso' ? 'perfhand/playersPerso/' : 'perfhand/playerProfiles/') + j.id;
+    const fiche = await lire(chemin);
+    if (fiche) return { role: j.type === 'perso' ? 'perso' : 'player', name: fiche.name, email, playerId: j.id, uid: fbUser.uid };
+  }
+  return null;
+}
+
 // ── INDEX DES CODES TENANT ────────────────────────────────────────────────────
 // tenantCodes/{code} = tenantId. Permet de retrouver un code joueur SANS télécharger tous les
 // tenants (avant : la page de connexion lisait la base de tous les préparateurs pour trouver un code).
@@ -18140,6 +18280,7 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
       setTenantDb({ ...data, playersPerso, clubs });
       setLoading(false);
       if (data.codes) indexerCodesTenant(tenantId, data.codes); // codes créés avant l'index
+      indexerJoueursTenant(tenantId, playersPerso); // connexion par email de ses joueurs
     });
     return () => window.__perfhand_db.ref('tenants/' + tenantId).off();
   }, [tenantId]);
@@ -18693,18 +18834,28 @@ function TenantPlayerView({ session }) {
   const [loading, setLoading] = useState(true);
   const [showWellness, setShowWellness] = useState(false);
   const [ficheExo, setFicheExo] = useState(null);
+  const ficheDirecte = useRef(false); // fiche rangée sous son id : écriture directe, sans relire la liste
 
   React.useEffect(() => {
     if (!window.__perfhand_db || !session.tenantId || !session.playerId) return;
-    window.__perfhand_db.ref('tenants/' + session.tenantId + '/playersPerso').on('value', snap => {
-      const raw = snap.val();
-      if (raw) {
-        const list = Array.isArray(raw) ? raw : Object.values(raw);
-        const p = list.filter(Boolean).find(x => x.id === session.playerId);
-        if (p) setPlayer(p);
-      }
-      setLoading(false);
-    });
+    // Sa fiche uniquement (les règles n'autorisent plus un joueur à lire celles des autres).
+    // Secours : ancienne lecture de la liste si la fiche n'est pas rangée sous son id.
+    const refFiche = window.__perfhand_db.ref('tenants/' + session.tenantId + '/playersPerso/' + session.playerId);
+    const refListe = window.__perfhand_db.ref('tenants/' + session.tenantId + '/playersPerso');
+    let ecouteListe = null;
+    const hFiche = refFiche.on('value', snap => {
+      const v = snap.val();
+      if (v && v.id === session.playerId) { ficheDirecte.current = true; setPlayer(v); setLoading(false); return; }
+      if (ecouteListe) return;
+      ecouteListe = refListe.on('value', s2 => {
+        const raw = s2.val();
+        if (raw) {
+          const p = (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean).find(x => x.id === session.playerId);
+          if (p) setPlayer(p);
+        }
+        setLoading(false);
+      }, () => setLoading(false));
+    }, () => setLoading(false));
     // Charger la bibliothèque custom partagée (pour les fiches exercices)
     window.__perfhand_db.ref('bibliothequeCustom').on('value', snap => {
       const raw = snap.val();
@@ -18715,7 +18866,8 @@ function TenantPlayerView({ session }) {
       window.__perfhand_biblio_overrides = snap.val() || {};
     });
     return () => {
-      window.__perfhand_db.ref('tenants/' + session.tenantId + '/playersPerso').off();
+      refFiche.off('value', hFiche);
+      if (ecouteListe) refListe.off('value', ecouteListe);
       window.__perfhand_db.ref('bibliothequeCustom').off();
       window.__perfhand_db.ref('bibliothequeOverrides').off();
     };
@@ -18724,6 +18876,11 @@ function TenantPlayerView({ session }) {
   function saveSeances(newSeances) {
     if (!player || !window.__perfhand_db) return;
     let safeSeances; try { safeSeances = JSON.parse(JSON.stringify(newSeances)); } catch(e) { safeSeances = newSeances; }
+    if (ficheDirecte.current) {
+      window.__perfhand_db.ref('tenants/' + session.tenantId + '/playersPerso/' + session.playerId + '/muscuSeances').set(safeSeances)
+        .catch(e => console.error('[muscuSeances] échec:', e && e.code, e && e.message));
+      return;
+    }
     // playersPerso est un objet keyed par id dans Firebase
     const ref = window.__perfhand_db.ref('tenants/' + session.tenantId + '/playersPerso');
     ref.once('value').then(snap => {
@@ -18953,7 +19110,9 @@ function LoginScreen() {
     window.__perfhand_db.ref('perfhand/codes/' + code).once('value').then(usmSnap => {
       const usmCode = usmSnap.val();
       if (usmCode && usmCode.playerId) {
-        const session = { role: 'usm_code', playerId: usmCode.playerId, name: usmCode.playerName, clubId: usmCode.clubId || 'usm' };
+        // Lier la session anonyme à ce code : c'est ce qui autorise l'accès à SA fiche (règles Firebase).
+        return lierCodeClub(code, usmCode.playerId, usmCode.clubId || 'usm').catch(e => console.warn('[code] liaison refusée:', e && e.message)).then(() => {
+        const session = { role: 'usm_code', playerId: usmCode.playerId, name: usmCode.playerName, clubId: usmCode.clubId || 'usm', code };
         try { localStorage.setItem('perfhand_tenant_session', JSON.stringify(session)); } catch(e) {}
         if (window.__perfhand_set_session) {
           window.__perfhand_set_session(session);
@@ -18961,14 +19120,15 @@ function LoginScreen() {
         } else {
           window.location.reload();
         }
-        return;
+        });
       }
       // 3. Sinon, chercher dans les tenants
       checkTenantCodes();
     }).catch(() => checkTenantCodes());
 
-    function ouvrirSessionTenant(tenantId, playerId, playerName) {
-      const session = { role: 'tenant_perso', tenantId, playerId, name: playerName };
+    async function ouvrirSessionTenant(tenantId, playerId, playerName) {
+      try { await lierCodeTenant(code, tenantId, playerId); } catch(e) { console.warn('[code tenant] liaison refusée:', e && e.message); }
+      const session = { role: 'tenant_perso', tenantId, playerId, name: playerName, code };
       try { localStorage.setItem('perfhand_tenant_session', JSON.stringify(session)); } catch(e) {}
       if (window.__perfhand_set_session) { window.__perfhand_set_session(session); setLoading(false); }
       else window.location.reload();
@@ -18994,15 +19154,7 @@ function LoginScreen() {
         const codes = tenant.codes || {};
         if (codes[code]) {
           const { playerId, playerName } = codes[code];
-          const session = { role: 'tenant_perso', tenantId, playerId, name: playerName };
-          try { localStorage.setItem('perfhand_tenant_session', JSON.stringify(session)); } catch(e) {}
-          // Utiliser setSession directement ou recharger
-          if (window.__perfhand_set_session) {
-            window.__perfhand_set_session(session);
-            setLoading(false);
-          } else {
-            window.location.reload();
-          }
+          ouvrirSessionTenant(tenantId, playerId, playerName);
           return;
         }
       }
@@ -28435,6 +28587,14 @@ function PerfHandApp() {
     } catch { return null; }
   });
 
+  // Identité Firebase courante + rôle applicatif : quand l'un change, les écouteurs sont rebranchés.
+  const [authUid, setAuthUid] = useState(null);
+  React.useEffect(() => {
+    if (!window.__perfhand_auth) return;
+    return window.__perfhand_auth.onAuthStateChanged(u => setAuthUid(u ? u.uid : null));
+  }, []);
+  const cleConnexion = (authUid || '-') + '|' + (session ? session.role + ':' + (session.playerId || session.email || '') : 'aucune');
+
   // Exposer setSession globalement pour doLoginCode
   React.useEffect(() => {
     window.__perfhand_set_session = (s) => {
@@ -28566,15 +28726,28 @@ function PerfHandApp() {
     });
   }
 
-  // Sync from Firebase on mount (with retry if not yet loaded)
+  // Sync from Firebase — rebranché à chaque changement de connexion (cleConnexion) : un écouteur
+  // refusé par les règles (ex: visiteur pas encore connecté) est annulé définitivement par Firebase,
+  // il faut donc le reposer une fois l'utilisateur identifié.
   React.useEffect(() => {
+    const abonnements = [];
+    const ecoute = chemin => {
+      const r = window.__perfhand_db.ref(chemin);
+      const on0 = r.on.bind(r);
+      r.on = (ev, cb, annul) => {
+        const h = on0(ev, cb, annul || (e => console.warn('[écoute refusée]', chemin, e && e.code)));
+        abonnements.push([r, ev, h]);
+        return h;
+      };
+      return r;
+    };
     const connectFirebase = () => {
       if (!window.__perfhand_db) {
         console.log('[PerfHand] Firebase pas encore pret, retry...');
         return;
       }
     // Charger les clubs depuis Firebase (avant, uniquement stockés en local — jamais synchronisés entre appareils)
-    const refClubs = window.__perfhand_db.ref('perfhand/clubs');
+    const refClubs = ecoute('perfhand/clubs');
     refClubs.on('value', snap => {
       const raw = snap.val();
       if (raw) {
@@ -28599,7 +28772,7 @@ function PerfHandApp() {
     // disparaître le wellness et les mouvements personnalisés après coup.
     // Profils supprimés depuis un autre appareil : on les retire ici aussi
     try {
-      window.__perfhand_db.ref('perfhand/deletedProfiles').on('value', snap => {
+      ecoute('perfhand/deletedProfiles').on('value', snap => {
         const raw = snap.val(); if (!raw) return;
         const ids = Object.keys(raw);
         addDeletedProfileIds(ids);
@@ -28612,7 +28785,7 @@ function PerfHandApp() {
         });
       }, () => {});
     } catch(e) {}
-    const refProfiles = window.__perfhand_db.ref('perfhand/playerProfiles');
+    const refProfiles = ecoute('perfhand/playerProfiles');
     refProfiles.on('value', snap => {
       const raw = snap.val();
       if (!raw) return;
@@ -28626,7 +28799,7 @@ function PerfHandApp() {
     });
 
     // Charger la bibliothèque custom partagée depuis Firebase
-    const refBiblio = window.__perfhand_db.ref('bibliothequeCustom');
+    const refBiblio = ecoute('bibliothequeCustom');
     refBiblio.on('value', snap => {
       const raw = snap.val();
       if (!raw) return;
@@ -28636,7 +28809,7 @@ function PerfHandApp() {
     });
 
     // Charger les corrections de lien vidéo/image (mouvements de base cassés) depuis Firebase
-    const refOverrides = window.__perfhand_db.ref('bibliothequeOverrides');
+    const refOverrides = ecoute('bibliothequeOverrides');
     refOverrides.on('value', snap => {
       const raw = snap.val() || {};
       window.__perfhand_biblio_overrides = raw;
@@ -28644,14 +28817,14 @@ function PerfHandApp() {
     });
 
     // Charger les médias custom (image/vidéo) attachés aux exercices mobilité/force amplitude
-    const refMedias = window.__perfhand_db.ref('exerciceMedias');
+    const refMedias = ecoute('exerciceMedias');
     refMedias.on('value', snap => {
       const raw = snap.val();
       setDb(d => ({ ...d, exerciceMedias: raw || {} }));
     });
 
     // Charger les comptes staff depuis Firebase (pour resolveRole)
-    const refStaff = window.__perfhand_db.ref('perfhand/staffAccounts');
+    const refStaff = ecoute('perfhand/staffAccounts');
     refStaff.on('value', snap => {
       const raw = snap.val();
       if (!raw) return;
@@ -28660,7 +28833,7 @@ function PerfHandApp() {
     });
 
     // Charger la prépa estivale depuis Firebase
-    const refPrepa = window.__perfhand_db.ref('perfhand/prepaEstivale');
+    const refPrepa = ecoute('perfhand/prepaEstivale');
     refPrepa.on('value', snap => {
       const raw = snap.val();
       if (!raw) return;
@@ -28668,7 +28841,7 @@ function PerfHandApp() {
     });
 
     // Charger la planif club depuis Firebase
-    const refClubPlanif = window.__perfhand_db.ref('perfhand/clubPlanif');
+    const refClubPlanif = ecoute('perfhand/clubPlanif');
     refClubPlanif.on('value', snap => {
       const raw = snap.val();
       if (!raw) return;
@@ -28676,14 +28849,14 @@ function PerfHandApp() {
     });
 
     // Charger les schémas tactiques depuis Firebase
-    const refTactique = window.__perfhand_db.ref('perfhand/tactique');
+    const refTactique = ecoute('perfhand/tactique');
     refTactique.on('value', snap => {
       const raw = snap.val();
       if (raw && typeof raw === 'object') setDb(d => ({ ...d, tactique: raw }));
     });
 
     // Charger le projet de jeu depuis Firebase
-    const refProjet = window.__perfhand_db.ref('perfhand/projetDeJeu');
+    const refProjet = ecoute('perfhand/projetDeJeu');
     refProjet.on('value', snap => {
       const val = snap.val();
       if (val && typeof val === 'object') {
@@ -28698,7 +28871,7 @@ function PerfHandApp() {
     // (ex: Eric) qui saisissait des stats en live pendant un match ne les rendait jamais
     // visibles au coach/admin sur un autre appareil. On écoute maintenant ce chemin en
     // continu, comme pour clubPlanif/prepaEstivale, pour que ce soit bien partagé entre tous.
-    const refMatchStats = window.__perfhand_db.ref('perfhand/matchStats');
+    const refMatchStats = ecoute('perfhand/matchStats');
     refMatchStats.on('value', snap => {
       const raw = snap.val();
       if (!raw) return;
@@ -28727,7 +28900,7 @@ function PerfHandApp() {
       });
     });
 
-    const ref = window.__perfhand_db.ref('perfhand/playersPerso');
+    const ref = ecoute('perfhand/playersPerso');
     ref.on('value', snapshot => {
       const raw = snapshot.val();
       console.log('[PerfHand] Firebase read:', raw);
@@ -28744,34 +28917,7 @@ function PerfHandApp() {
         // Remote always wins — source of truth is Firebase
         data.forEach(remote => {
           if (remote && remote.id) {
-            const local = localMap[remote.id] || {};
-            // Normalize muscuSeances: Firebase stores arrays as objects {0:{...},1:{...}} quand il y a
-            // des trous (ex: un élément supprimé au milieu) — même souci pour tous les champs de type
-            // liste, pas seulement muscu/endurance. On les normalise tous ici, sinon un champ comme
-            // testsEndurance peut arriver en objet et faire échouer silencieusement tout code qui
-            // s'attend à un tableau (.filter/.find/.map), ce qui faisait disparaître les tests VMA.
-            function toArr(v) {
-              if (!v) return null;
-              return Array.isArray(v) ? v : Object.values(v).filter(Boolean);
-            }
-            let muscuSeances = toArr(remote.muscuSeances);
-            let enduranceSeances = toArr(remote.enduranceSeances);
-            const testsEndurance = toArr(remote.testsEndurance) || [];
-            const tests = toArr(remote.tests) || [];
-            const customRM = toArr(remote.customRM) || [];
-            const wellnessCheckins = (remote.wellnessCheckins && typeof remote.wellnessCheckins === 'object' && !Array.isArray(remote.wellnessCheckins))
-              ? remote.wellnessCheckins : (toArr(remote.wellnessCheckins) || {});
-            // Remote wins, but keep local seances if remote has none (prevents data loss on first load)
-            localMap[remote.id] = {
-              ...local,
-              ...remote,
-              muscuSeances: (muscuSeances && muscuSeances.length > 0) ? muscuSeances : (local.muscuSeances || []),
-              enduranceSeances: (enduranceSeances && enduranceSeances.length > 0) ? enduranceSeances : (local.enduranceSeances || []),
-              testsEndurance: testsEndurance.length > 0 ? testsEndurance : (local.testsEndurance || []),
-              tests: tests.length > 0 ? tests : (local.tests || []),
-              customRM: customRM.length > 0 ? customRM : (local.customRM || []),
-              wellnessCheckins: (wellnessCheckins && Object.keys(wellnessCheckins).length > 0) ? wellnessCheckins : (local.wellnessCheckins || {}),
-            };
+            localMap[remote.id] = fusionnerPersoDistant(localMap[remote.id] || {}, remote);
           }
         });
         const newPerso = sansProfilsSupprimes(Object.values(localMap));
@@ -28793,8 +28939,11 @@ function PerfHandApp() {
       if (window.__perfhand_db) connectFirebase();
       else setTimeout(() => { if (!annule) connectFirebase(); }, 1000);
     });
-    return () => { annule = true; };
-  }, []);
+    return () => {
+      annule = true;
+      abonnements.forEach(([r, ev, h]) => { try { r.off(ev, h); } catch(e) {} });
+    };
+  }, [cleConnexion]);
 
   // ── TELEGRAM NOTIFICATIONS ─────────────────────────────────────────────────
   const TG_TOKEN  = "8322941345:AAH8f3_qu4BojnmFlb2vMJk15q1UyircuMA";
@@ -28817,7 +28966,7 @@ function PerfHandApp() {
       });
     });
     return () => { annule = true; if (cb) ref.off("value", cb); };
-  }, []);
+  }, [cleConnexion]);
 
   function markSent(key) {
     const today = localDateStr();
@@ -29229,6 +29378,19 @@ function ClubStaffManager({ club, db, setDb }) {
               setSession(fallback);
               try { localStorage.setItem("perfhand_session_v2", JSON.stringify(fallback)); } catch {}
             } else {
+              // La liste complète des joueurs n'étant plus lisible par tous, on cherche d'abord
+              // coach / joueur club / joueur perso via les index d'accès, puis staff, puis tenant.
+              chercherRoleParIndex(fbUser).then(roleIdx => {
+                if (roleIdx) {
+                  setSession(roleIdx);
+                  try { localStorage.setItem('perfhand_session_v2', JSON.stringify(roleIdx)); } catch {}
+                  console.log('[Auth] Rôle trouvé via index:', roleIdx.role);
+                  return;
+                }
+                fallbackStaff();
+              }).catch(() => fallbackStaff());
+
+              function fallbackStaff() {
               // Fallback STAFF : lire staffAccounts depuis Firebase
               window.__perfhand_db.ref('perfhand/staffAccounts').once('value').then(staffSnap => {
                 const rawStaff = staffSnap.val();
@@ -29250,6 +29412,7 @@ function ClubStaffManager({ club, db, setDb }) {
                 // Sinon, continuer vers la résolution tenant
                 resolveTenantFallback();
               }).catch(() => resolveTenantFallback());
+              } // fin fallbackStaff
 
               function resolveTenantFallback() {
               window.__perfhand_db.ref('tenants_by_uid/' + fbUser.uid).once('value').then(snap => {
@@ -29267,7 +29430,21 @@ function ClubStaffManager({ club, db, setDb }) {
                       console.warn('[Auth] tenantId trouvé mais tenant vide');
                     });
                   } else {
-                    // Chercher si c'est un joueur d'un tenant (scan tous les tenants)
+                    // Joueur d'un tenant : d'abord l'index acces/joueursTenant, sinon parcours de tous les tenants
+                    const kT = cleEmail(fbUser.email);
+                    (kT ? window.__perfhand_db.ref('acces/joueursTenant/' + kT).once('value').then(s => s.val()).catch(() => null) : Promise.resolve(null)).then(jt => {
+                      if (jt && jt.tenantId && jt.playerId) {
+                        return window.__perfhand_db.ref('tenants/' + jt.tenantId + '/playersPerso/' + jt.playerId).once('value').then(ps => {
+                          const pl = ps.val();
+                          if (!pl) return scanTousTenants();
+                          const role = { role:'tenant_perso', name:pl.name, email:fbUser.email, playerId:jt.playerId, tenantId:jt.tenantId, uid:fbUser.uid };
+                          setSession(role);
+                          try { localStorage.setItem('perfhand_session_v2', JSON.stringify(role)); } catch {}
+                        }).catch(() => scanTousTenants());
+                      }
+                      scanTousTenants();
+                    });
+                    function scanTousTenants() {
                     window.__perfhand_db.ref('tenants').once('value').then(allSnap => {
                       const allTenants = allSnap.val();
                       if (!allTenants) { console.warn('[Auth] Pas de tenants'); return; }
@@ -29287,7 +29464,8 @@ function ClubStaffManager({ club, db, setDb }) {
                       }
                       console.warn('[Auth] Role introuvable pour', fbUser.email);
                       console.warn('[Auth] Tenant non trouvé pour', fbUser.uid);
-                    });
+                    }).catch(e => console.warn('[Auth] Role introuvable pour', fbUser.email, '(lecture tenants refusée)'));
+                    } // fin scanTousTenants
                   }
                 });
               } // fin resolveTenantFallback
@@ -29355,8 +29533,85 @@ function ClubStaffManager({ club, db, setDb }) {
 
   // Nettoyage unique des anciens mots de passe stockés en base, fait avec les droits de l'admin.
   React.useEffect(() => {
-    if (session && session.role === 'admin') { purgerMotsDePasseStockes(); indexerTousLesCodesTenants(); }
+    if (session && session.role === 'admin') {
+      purgerMotsDePasseStockes();
+      indexerTousLesCodesTenants();
+      setTimeout(reconstruireIndexAcces, 2500); // index d'accès lus par les règles de sécurité
+    }
   }, [session && session.role]);
+
+  // Coach / staff / admin : complète les index d'accès quand un joueur ou un membre est ajouté.
+  const cleIndexLocale = (session && ['admin', 'coach', 'staff'].includes(session.role))
+    ? JSON.stringify(calculerIndexAcces({ clubs: db.clubs, staffAccounts: db.staffAccounts, playerProfiles: db.playerProfiles, playersPerso: db.playersPerso }))
+    : '';
+  React.useEffect(() => {
+    if (!cleIndexLocale) return;
+    const t = setTimeout(() => completerIndexAcces(db), 2000);
+    return () => clearTimeout(t);
+  }, [cleIndexLocale]);
+
+  // Joueur connecté (email ou code) : écoute de SA fiche uniquement. Les règles ne lui donnent plus
+  // accès à la liste complète des joueurs ; sans ça son espace resterait vide.
+  React.useEffect(() => {
+    if (!session || !session.playerId || !window.__perfhand_db) return;
+    const role = session.role;
+    const perso = role === 'perso';
+    if (!perso && role !== 'player' && role !== 'usm_code') return;
+    const chemin = (perso ? 'perfhand/playersPerso/' : 'perfhand/playerProfiles/') + session.playerId;
+    const cle = perso ? 'playersPerso' : 'playerProfiles';
+    let annule = false, r = null, h = null;
+    (window.__perfhand_auth_pret || Promise.resolve()).then(() => {
+      if (annule) return;
+      r = window.__perfhand_db.ref(chemin);
+      h = r.on('value', snap => {
+        const v = snap.val();
+        if (!v || typeof v !== 'object') return;
+        const remote = { ...v, id: v.id || session.playerId };
+        setDbRaw(prev => {
+          const liste = prev[cle] || [];
+          const local = liste.find(p => p && p.id === remote.id);
+          const fusion = perso ? fusionnerPersoDistant(local || {}, remote) : sanitizeProfile(remote);
+          if (!fusion || (local && JSON.stringify(local) === JSON.stringify(fusion))) return prev;
+          const next = { ...prev, [cle]: local ? liste.map(p => (p && p.id === remote.id) ? fusion : p) : [...liste, fusion] };
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+          return next;
+        });
+      }, e => console.warn('[fiche joueur] lecture refusée', chemin, e && e.code));
+    });
+    return () => { annule = true; if (r && h) r.off('value', h); };
+  }, [cleConnexion]);
+
+  // Session par code : vérifie que la session Firebase est bien liée au code (règles de sécurité).
+  // Session ouverte avant cette mise à jour (code non mémorisé) et fiche devenue illisible :
+  // on demande de ressaisir le code, au lieu d'afficher un espace vide.
+  React.useEffect(() => {
+    if (!session || session.email || !authUid || !window.__perfhand_db) return;
+    const estClub = session.role === 'usm_code', estTenant = session.role === 'tenant_perso';
+    if (!estClub && !estTenant) return;
+    const fdb = window.__perfhand_db;
+    let annule = false;
+    (async () => {
+      let lien = null;
+      try { lien = (await fdb.ref((estClub ? 'perfhand/codeSessions/' : 'tenantCodeSessions/') + authUid).once('value')).val(); }
+      catch(e) { return; } // anciennes règles : rien à vérifier
+      if (annule || (lien && lien.playerId === session.playerId)) return;
+      if (session.code) {
+        try {
+          if (estClub) await lierCodeClub(session.code, session.playerId, session.clubId);
+          else await lierCodeTenant(session.code, session.tenantId, session.playerId);
+          return;
+        } catch(e) {} // code supprimé entre-temps : on tombe dans la vérification ci-dessous
+      }
+      try {
+        await fdb.ref(estClub ? 'perfhand/playerProfiles/' + session.playerId : 'tenants/' + session.tenantId + '/playersPerso/' + session.playerId).once('value');
+      } catch(e) {
+        if (annule) return;
+        alert('Pour sécuriser ton compte, entre à nouveau ton code d\'accès.');
+        logout();
+      }
+    })();
+    return () => { annule = true; };
+  }, [cleConnexion]);
 
   const ctx = { session, login, logout, db, setDb, resetDb, user:session };
 

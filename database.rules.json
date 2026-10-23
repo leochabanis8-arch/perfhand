@@ -1,41 +1,133 @@
 {
   "rules": {
-    "perfhand": {
-      "codes": {
-        "$code": {
-          ".read": "auth != null",
-          ".write": "auth != null && auth.token.email != null"
+    "acces": {
+      ".read": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+      ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+      "equipe": {
+        "$k": {
+          ".read": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $k"
         }
       },
-      "$collection": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+      "joueurs": {
+        "$k": {
+          ".read": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $k"
+        }
+      },
+      "joueursTenant": {
+        "$k": {
+          ".read": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $k",
+          ".write": "auth != null && auth.token.email != null && newData.exists() && (auth != null && (root.child('tenants').child(newData.child('tenantId').val()).child('uid').val() === auth.uid || root.child('tenants_by_uid').child(auth.uid).val() === newData.child('tenantId').val())) && (!data.exists() || data.child('tenantId').val() === newData.child('tenantId').val())"
+        }
       }
     },
-
-    "bibliothequeCustom": { ".read": "auth != null", ".write": "auth != null" },
-
+    "perfhand": {
+      "codes": {
+        ".read": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        "$code": {
+          ".read": "auth != null"
+        }
+      },
+      "codeSessions": {
+        ".read": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (newData.child('playerId').isString() && newData.child('code').isString() && root.child('perfhand/codes').child(newData.child('code').val()).child('playerId').val() === newData.child('playerId').val()))"
+        }
+      },
+      "playerProfiles": {
+        ".read": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        "$pid": {
+          ".read": "(auth != null && ((auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'club' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $pid) || (root.child('perfhand/codeSessions').child(auth.uid).child('playerId').val() === $pid && root.child('perfhand/codes').child(root.child('perfhand/codeSessions').child(auth.uid).child('code').val()).child('playerId').val() === $pid)))",
+          ".write": "(auth != null && ((auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'club' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $pid) || (root.child('perfhand/codeSessions').child(auth.uid).child('playerId').val() === $pid && root.child('perfhand/codes').child(root.child('perfhand/codeSessions').child(auth.uid).child('code').val()).child('playerId').val() === $pid))) && newData.exists()"
+        }
+      },
+      "playersPerso": {
+        ".read": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        "$pid": {
+          ".read": "(auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'perso' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $pid)",
+          ".write": "(auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'perso' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $pid) && newData.exists()"
+        }
+      },
+      "staffAccounts": {
+        ".read": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))"
+      },
+      "muscuProgress": {
+        ".read": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        "$pid": {
+          ".read": "((auth != null && ((auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'club' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $pid) || (root.child('perfhand/codeSessions').child(auth.uid).child('playerId').val() === $pid && root.child('perfhand/codes').child(root.child('perfhand/codeSessions').child(auth.uid).child('code').val()).child('playerId').val() === $pid))) || (auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'perso' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $pid))",
+          ".write": "((auth != null && ((auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'club' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $pid) || (root.child('perfhand/codeSessions').child(auth.uid).child('playerId').val() === $pid && root.child('perfhand/codes').child(root.child('perfhand/codeSessions').child(auth.uid).child('code').val()).child('playerId').val() === $pid))) || (auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'perso' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $pid))"
+        }
+      },
+      "tactiqueQuiz": {
+        ".read": "(auth != null && ((auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) || root.child('perfhand/codeSessions').child(auth.uid).exists() || root.child('tenantCodeSessions').child(auth.uid).exists() || (auth != null && auth.token.email != null && (root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('tenants_by_uid').child(auth.uid).exists()))))",
+        ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))",
+        "$play": {
+          "$jid": {
+            ".write": "((auth != null && ((auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'club' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $jid) || (root.child('perfhand/codeSessions').child(auth.uid).child('playerId').val() === $jid && root.child('perfhand/codes').child(root.child('perfhand/codeSessions').child(auth.uid).child('code').val()).child('playerId').val() === $jid))) || (auth != null && auth.token.email != null && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('type').val() === 'perso' && root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).child('id').val() === $jid))"
+          }
+        }
+      },
+      "$autre": {
+        ".read": "(auth != null && ((auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) || root.child('perfhand/codeSessions').child(auth.uid).exists() || root.child('tenantCodeSessions').child(auth.uid).exists() || (auth != null && auth.token.email != null && (root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('tenants_by_uid').child(auth.uid).exists()))))",
+        ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))"
+      }
+    },
+    "bibliothequeCustom": {
+      ".read": "(auth != null && ((auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) || root.child('perfhand/codeSessions').child(auth.uid).exists() || root.child('tenantCodeSessions').child(auth.uid).exists() || (auth != null && auth.token.email != null && (root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('tenants_by_uid').child(auth.uid).exists()))))",
+      ".write": "(auth != null && ((auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) || root.child('perfhand/codeSessions').child(auth.uid).exists() || root.child('tenantCodeSessions').child(auth.uid).exists() || (auth != null && auth.token.email != null && (root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('tenants_by_uid').child(auth.uid).exists()))))"
+    },
+    "bibliothequeOverrides": {
+      ".read": "(auth != null && ((auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) || root.child('perfhand/codeSessions').child(auth.uid).exists() || root.child('tenantCodeSessions').child(auth.uid).exists() || (auth != null && auth.token.email != null && (root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('tenants_by_uid').child(auth.uid).exists()))))",
+      ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))"
+    },
+    "exerciceMedias": {
+      ".read": "(auth != null && ((auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) || root.child('perfhand/codeSessions').child(auth.uid).exists() || root.child('tenantCodeSessions').child(auth.uid).exists() || (auth != null && auth.token.email != null && (root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('tenants_by_uid').child(auth.uid).exists()))))",
+      ".write": "(auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true))"
+    },
     "tenants": {
-      ".read": "auth != null",
+      ".read": "(auth != null && auth.token.email != null && auth.token.email === 'leo.chabanis@gmail.com')",
       "$tenantId": {
-        ".write": "auth != null && (auth.token.email === 'leo.chabanis@gmail.com' || (!data.exists() && auth.token.email != null && newData.child('uid').val() === auth.uid && newData.child('id').val() === $tenantId) || ((data.child('uid').val() === auth.uid || root.child('tenants_by_uid').child(auth.uid).val() === $tenantId) && newData.child('uid').val() === data.child('uid').val()))"
+        ".read": "(auth != null && auth.token.email != null && auth.token.email === 'leo.chabanis@gmail.com') || (auth != null && (root.child('tenants').child($tenantId).child('uid').val() === auth.uid || root.child('tenants_by_uid').child(auth.uid).val() === $tenantId))",
+        ".write": "auth != null && ((auth != null && auth.token.email != null && auth.token.email === 'leo.chabanis@gmail.com') || (!data.exists() && auth.token.email != null && newData.child('uid').val() === auth.uid && newData.child('id').val() === $tenantId) || ((auth != null && (root.child('tenants').child($tenantId).child('uid').val() === auth.uid || root.child('tenants_by_uid').child(auth.uid).val() === $tenantId)) && newData.child('uid').val() === data.child('uid').val()))",
+        "codes": {
+          "$code": {
+            ".read": "auth != null"
+          }
+        },
+        "playersPerso": {
+          "$pid": {
+            ".read": "(auth != null && ((root.child('tenantCodeSessions').child(auth.uid).child('tenantId').val() === $tenantId && root.child('tenantCodeSessions').child(auth.uid).child('playerId').val() === $pid && root.child('tenants').child($tenantId).child('codes').child(root.child('tenantCodeSessions').child(auth.uid).child('code').val()).child('playerId').val() === $pid) || (auth != null && auth.token.email != null && root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).child('tenantId').val() === $tenantId && root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).child('playerId').val() === $pid)))",
+            ".write": "(auth != null && ((root.child('tenantCodeSessions').child(auth.uid).child('tenantId').val() === $tenantId && root.child('tenantCodeSessions').child(auth.uid).child('playerId').val() === $pid && root.child('tenants').child($tenantId).child('codes').child(root.child('tenantCodeSessions').child(auth.uid).child('code').val()).child('playerId').val() === $pid) || (auth != null && auth.token.email != null && root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).child('tenantId').val() === $tenantId && root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).child('playerId').val() === $pid))) && newData.exists()"
+          }
+        }
       }
     },
-
     "tenants_by_uid": {
-      ".read": "auth != null",
       "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || (auth != null && auth.token.email != null && auth.token.email === 'leo.chabanis@gmail.com'))",
         ".write": "auth != null && auth.uid === $uid && newData.isString() && root.child('tenants').child(newData.val()).child('uid').val() === auth.uid"
       }
     },
-
     "tenantCodes": {
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || (newData.isString() && (!data.exists() || data.val() === newData.val()) && (root.child('tenants').child(newData.val()).child('uid').val() === auth.uid || root.child('tenants_by_uid').child(auth.uid).val() === newData.val())))"
+        ".write": "auth != null && auth.token.email != null && ((auth != null && auth.token.email != null && auth.token.email === 'leo.chabanis@gmail.com') || (newData.isString() && (!data.exists() || data.val() === newData.val()) && (auth != null && (root.child('tenants').child(newData.val()).child('uid').val() === auth.uid || root.child('tenants_by_uid').child(auth.uid).val() === newData.val()))))"
       }
     },
-
-    "tg_notifications_sent": { ".read": "auth != null", ".write": "auth != null" }
+    "tenantCodeSessions": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (newData.child('tenantId').isString() && newData.child('code').isString() && root.child('tenants').child(newData.child('tenantId').val()).child('codes').child(newData.child('code').val()).child('playerId').val() === newData.child('playerId').val()))"
+      }
+    },
+    "tg_notifications_sent": {
+      ".read": "(auth != null && ((auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) || root.child('perfhand/codeSessions').child(auth.uid).exists() || root.child('tenantCodeSessions').child(auth.uid).exists() || (auth != null && auth.token.email != null && (root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('tenants_by_uid').child(auth.uid).exists()))))",
+      ".write": "(auth != null && ((auth != null && auth.token.email != null && (auth.token.email === 'leo.chabanis@gmail.com' || root.child('acces/equipe').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true)) || root.child('perfhand/codeSessions').child(auth.uid).exists() || root.child('tenantCodeSessions').child(auth.uid).exists() || (auth != null && auth.token.email != null && (root.child('acces/joueurs').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('acces/joueursTenant').child(auth.token.email.toLowerCase().replace('.', ',')).exists() || root.child('tenants_by_uid').child(auth.uid).exists()))))"
+    }
   }
 }
