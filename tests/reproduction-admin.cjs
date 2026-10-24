@@ -32,6 +32,14 @@ const latence = Number(process.argv[3] || 300);
   console.log('  clubs : Club Deux visible :', /Club Deux/.test(t2));
   await s.p.getByText('👤 Profils individuels').first().click(); await s.p.waitForTimeout(1500);
   console.log('  profils perso : Plante Cuc visible :', /Plante Cuc/.test(await body(s.p)));
+  // Rechargement avec session déjà ouverte (cas réel après publication des règles)
+  await s.p.reload(); await s.p.waitForTimeout(5000);
+  console.log('  après rechargement — tenant visible :', /Prépa Externe/.test(await body(s.p)));
+  await s.p.getByText('Mon espace').click(); await s.p.waitForTimeout(2500);
+  await s.p.getByText('🏐 Clubs & Effectifs').first().click(); await s.p.waitForTimeout(1500);
+  console.log('  après rechargement — Club Deux visible :', /Club Deux/.test(await body(s.p)));
+  await s.p.getByText('👤 Profils individuels').first().click(); await s.p.waitForTimeout(1500);
+  console.log('  après rechargement — Plante Cuc visible :', /Plante Cuc/.test(await body(s.p)));
   console.log('  refus Firebase :', s.denied.length, s.denied.slice(-3).map(d => d.slice(26, 110)));
   await s.b.close(); process.exit(0);
 })();
