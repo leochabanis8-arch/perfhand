@@ -24333,12 +24333,22 @@ function PlayerView() {
         setWellnessAutoOpened(true);
       };
       if (window.__perfhand_db) {
-        window.__perfhand_db.ref('perfhand/playerProfiles/' + pid + '/wellnessCheckins/' + today).once('value')
-          .then(function(snap) {
-            if (snap.exists()) markWellnessDoneLocally(pid, today);
-            else openPopup();
-          })
-          .catch(openPopup); // serveur injoignable : on ne peut pas vérifier, on propose le questionnaire
+        // Une lecture refusée ou impossible à l'ouverture vient souvent d'une connexion (ou d'une
+        // liaison du code joueur) pas encore prête : on attend la session puis on réessaie avant
+        // d'imposer un questionnaire peut-être déjà rempli. Après 3 échecs, on le propose.
+        const verifierServeur = function(essai) {
+          window.__perfhand_db.ref('perfhand/playerProfiles/' + pid + '/wellnessCheckins/' + today).once('value')
+            .then(function(snap) {
+              if (snap.exists()) markWellnessDoneLocally(pid, today);
+              else openPopup();
+            })
+            .catch(function() {
+              if (cancelled) return;
+              if (essai < 3) setTimeout(function() { verifierServeur(essai + 1); }, 3000);
+              else openPopup();
+            });
+        };
+        (window.__perfhand_auth_pret || Promise.resolve()).then(function() { if (!cancelled) verifierServeur(1); });
       } else {
         openPopup();
       }
