@@ -483,11 +483,11 @@
 <script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.js"></script>
 
 <script>
-// PerfHand v1789770000
-console.log("PerfHand v1789770000 - chargement...");
+// PerfHand v1789789000
+console.log("PerfHand v1789789000 - chargement...");
 // Force cache bust: si version en cache différente, reload
 (function() {
-  var VER = "1789770000";
+  var VER = "1789789000";
   var stored = sessionStorage.getItem("perfhand_ver");
   if (stored && stored !== VER) { sessionStorage.setItem("perfhand_ver", VER); window.location.reload(true); }
   else { sessionStorage.setItem("perfhand_ver", VER); }
@@ -3914,7 +3914,7 @@ const METHODES_MUSCU = [
         note: "Recuperation SNC obligatoire. Ne pas chercher a progresser. Travail technique uniquement.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre", "Developpe militaire", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre", "Developpe militaire", "Rowing barre"],
     assistance: "Apres series principales : 50-100 reps assistance (Pulling, Core, Single-leg). Option BBB : 5x10 @ 50-60% TM sur le mouvement principal.",
   },
   {
@@ -3952,7 +3952,7 @@ const METHODES_MUSCU = [
         note: "Ne pas tenter le 1RM si fatigue. Reporter si besoin.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre", "Rowing barre"],
     assistance: "2-3 exercices accessoires en 3x8-12 apres les series principales.",
   },
   {
@@ -4014,7 +4014,7 @@ const METHODES_MUSCU = [
         note: "Fin de cycle : reevaluer le 1RM avant de relancer un nouveau bloc de 6 semaines a charges actualisees.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre", "Rowing barre"],
     assistance: "1-2 exercices accessoires en 3x10-12 apres les series principales. Rester simple, l'accent est sur les mouvements principaux.",
   },
   {
@@ -4042,7 +4042,7 @@ const METHODES_MUSCU = [
         note: "6 series de 3 reps a 60% du 1RM, chaque repetition executee a vitesse maximale. Repos court 45-60s. L'objectif n'est pas la charge mais l'explosivite.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre", "Rowing barre"],
     assistance: "Jour Max Effort : 2-3 accessoires en 3x8. Jour Effort Dynamique : travail de core et gainage explosif.",
   },
   {
@@ -4070,7 +4070,7 @@ const METHODES_MUSCU = [
         note: "+5% seulement quand les 10 series de 10 sont toutes completees a la seance precedente. Bloc court : 2-3 semaines maximum, methode tres fatigante.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Rowing barre"],
     assistance: "Aucun accessoire lourd le meme jour - le mouvement principal en 10x10 suffit largement en volume. Core leger uniquement.",
   },
   {
@@ -4088,7 +4088,7 @@ const METHODES_MUSCU = [
         note: "Repos 2-3 min sur les 2 premieres series, 90s ensuite. La charge lourde en premier permet une meilleure qualite technique qu'en fin de seance.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre"],
     assistance: "1-2 exercices accessoires en 3x10-12 apres la pyramide.",
   },
   {
@@ -4229,7 +4229,7 @@ const METHODES_MUSCU = [
       { sem: "J2", label: "RDL + Rowing",     series: 3, reps: "5-3-1", pct: [70, 85, 100] },
       { sem: "J3", label: "Re-test + ajust.", series: 2, reps: "3",     pct: [90, 100]      },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Romanian Deadlift", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Romanian Deadlift", "Rowing barre"],
     isTesting: true,
     niveaux: {
       squat:  { debutant:1.0, intermediaire:1.3, avance:1.6, elite:1.8 },
@@ -4595,7 +4595,7 @@ const METHODES_MUSCU = [
           {
             sem: "S13-S14", titre: "Retour jeu - validation",
             exercices: [
-              { nom: "Squat barre", series: 4, reps: "8", charge: "60-70% 1RM", repos: "2 min", notes: "Retour au squat barre si hop tests > 90%. Meme charge que cote sain." },
+              { nom: "Back Squat", series: 4, reps: "8", charge: "60-70% 1RM", repos: "2 min", notes: "Retour au back squat si hop tests > 90%. Meme charge que cote sain." },
               { nom: "Sprint progressif 50-70-90-100%", series: 4, reps: "20m", charge: "Corps", repos: "120s", notes: "S13 max 90%. S14 autoriser 100% si no pain. Critere retour jeu." },
               { nom: "Nordic Hamstring Curl maintenance", series: 3, reps: "6", charge: "Corps", repos: "120s", notes: "Maintenir toute la saison en prevention. Ne jamais supprimer." },
               { nom: "Hop test unilateral", series: 1, reps: "3 essais/jambe", charge: "Corps", repos: "-", notes: "Critere retour : > 90% de la jambe saine. Mesurer et noter." },
@@ -5299,7 +5299,7 @@ function TestingCalculator({ player, methode, onCreateSeance, onClose }) {
   };
 
   const MOUVEMENTS = [
-    { key:'squat',  nom:'Squat barre',       emoji:'🏋️', color:'#FF4455', group:'lower',
+    { key:'squat',  nom:'Back Squat',       emoji:'🏋️', color:'#FF4455', group:'lower',
       info:'Force fondamentale. Standard elite N1: 1.8× PC' },
     { key:'rdl',    nom:'Romanian Deadlift',  emoji:'🔥', color:'#FFA420', group:'lower',
       info:'Ischio-jambiers & fessiers. Clé prévention & explosivité.' },
@@ -6356,8 +6356,121 @@ function TestsEnduranceView({ player, setDb, isCoach }) {
 
 
 // Calcule les temps cibles d'une séance endurance selon VMA et type
+// ── Séances de piste mixtes (800 / 400 / 200…) : une ligne claire PAR distance, avec allure propre à chaque distance
+const PISTE_PCT = { 200:[95,105], 300:[92,100], 400:[85,95], 600:[80,90], 800:[75,85], 1000:[75,85], 1200:[75,82], 1600:[75,82] };
+const PISTE_RECUP_DEF = { 200:'1 min', 400:'1 min 30', 800:'3 min' };
+function pistePctPour(d) { return PISTE_PCT[d] || (d <= 200 ? [95,105] : d <= 400 ? [85,95] : [75,85]); }
+function parseBlocsPiste(s) {
+  const txt = (s && s.distance) || '';
+  const blocs = []; let m;
+  const re = /(\d+)\s*[x×]\s*(\d{3,4})\s*m?(?:\s*@\s*(\d+)(?:\s*-\s*(\d+))?\s*%)?/gi;
+  while ((m = re.exec(txt))) blocs.push({ reps: +m[1], dist: +m[2], pct: m[3] ? [+m[3], +(m[4] || m[3])] : null });
+  if (blocs.length >= 2) return blocs;
+  const pm = (((s && s.nom) || '') + ' ' + txt).match(/\d{3,4}(?:\s*-\s*\d{3,4}){2,}/);
+  if (pm) return pm[0].split(/\s*-\s*/).map(d => ({ reps: 1, dist: +d, pct: null }));
+  return [];
+}
+function recupPisteDist(s, d) {
+  const r = (s && s.recup) || '';
+  const parts = r.split(/[,;\/]/).map(x => x.trim()).filter(Boolean);
+  const mine = parts.find(x => new RegExp('(^|\\D)' + d + '\\s*m').test(x));
+  if (mine) { const t = mine.match(/\d+(?:[.,]\d+)?\s*(?:min|mn|sec|s)\w*/i); if (t) return t[0]; }
+  if (parts.length && !parts.some(x => /\d{3,4}\s*m/.test(x))) return r;
+  return PISTE_RECUP_DEF[d] || '';
+}
+function fmtTpsPiste(sec) { sec = Math.round(sec); return sec >= 60 ? Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0') : sec + ' s'; }
+function allureBlocPiste(vma, b) {
+  const p = b.pct || pistePctPour(b.dist);
+  const vMin = Math.round(vma * p[0] / 100 * 10) / 10, vMax = Math.round(vma * p[1] / 100 * 10) / 10;
+  const kmPace = v => { const sk = Math.round(3600 / v); return Math.floor(sk/60) + ':' + String(sk%60).padStart(2,'0'); };
+  return { p, vMin, vMax, tFast: fmtTpsPiste(b.dist / vMax * 3.6), tSlow: fmtTpsPiste(b.dist / vMin * 3.6), paceFast: kmPace(vMax), paceSlow: kmPace(vMin) };
+}
+const TYPE_PCT_ENDU = {
+  continu_ext:[70,75], continu_int:[80,85], interval:[95,105], fractionne:[105,115], spl:[75,100], recup_active:[55,65],
+  piste_fond:[75,95], anaerobie_lactique:[95,110], anaerobie_alactique:[105,120], capacite_aerobie:[82,88]
+};
+// Découpe n'importe quelle séance d'endurance en blocs lisibles : {reps, repsMax, dist (m) | sec, pct, recup}
+function blocsEndu(s) {
+  if (!s) return [];
+  const multi = parseBlocsPiste(s);
+  if (multi.length) return multi.map(b => ({ reps: b.reps, repsMax: b.reps, dist: b.dist, pct: b.pct || pistePctPour(b.dist), recup: recupPisteDist(s, b.dist) }));
+  const txt = ((s.distance || '') + ' ' + (s.nom || '')).replace(/,/g, '.');
+  const notes = s.notes || '';
+  let reps = 1, repsMax = 1, dist = null, sec = null;
+  const mx = txt.match(/(\d+)(?:\s*-\s*(\d+))?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(km|min|mn|sec|m|s)\b/i);
+  const mq = (s.distance || '').replace(/,/g, '.').match(/(\d+(?:\.\d+)?)\s*(km|min|mn|sec|m|s)\b/i);
+  const mu = (u, q) => { u = u.toLowerCase(); q = parseFloat(q); if (u === 'km') dist = q * 1000; else if (u === 'm') dist = q; else if (u === 's' || u === 'sec') sec = q; else sec = q * 60; };
+  if (mx) { reps = +mx[1]; repsMax = mx[2] ? +mx[2] : reps; mu(mx[4], mx[3]); const r2 = notes.match(/(\d+)\s*-\s*(\d+)\s*reps?\b/i); if (r2 && +r2[1] === reps) repsMax = +r2[2]; }
+  else if (mq) {
+    mu(mq[2], mq[1]);
+    const rn = notes.match(/(\d+)(?:\s*-\s*(\d+))?\s*reps?\b/i) || (s.nom || '').match(/(\d+)(?:\s*-\s*(\d+))?\s*[x×]/);
+    if (rn) { reps = +rn[1]; repsMax = rn[2] ? +rn[2] : reps; }
+  } else if (s.duree > 0) sec = s.duree * 60;
+  else return [];
+  const src = (s.distance || '') + ' ' + notes;
+  const pm = src.match(/(\d+)\s*-\s*(\d+)\s*%/) || src.match(/(\d+)\s*%\s*(?:de\s*)?VMA/i);
+  let pct = pm ? (pm[2] ? [+pm[1], +pm[2]] : [+pm[1], +pm[1]]) : null;
+  if (!pct) pct = dist && PISTE_PCT[dist] ? PISTE_PCT[dist] : (TYPE_PCT_ENDU[s.type] || [70, 80]);
+  return [{ reps, repsMax, dist, sec, pct, recup: s.recup || '' }];
+}
+function fmtDistEndu(m) { return m >= 1000 ? (Math.round(m / 100) / 10).toString().replace('.', ',') + ' km' : Math.round(m / 10) * 10 + ' m'; }
+function PisteBlocsEl(s, vma, blocs, extra) {
+  const rep = ((s.notes || '').match(/^\s*(\d+(?:-\d+)?)\s*(fois|pyramides?|s[ée]ries?|circuits?|tours?)/i));
+  const multi = blocs.length > 1;
+  const kmPace = v => { const sk = Math.round(3600 / v); return Math.floor(sk/60) + ':' + String(sk%60).padStart(2,'0'); };
+  let totDist = 0, totDistMax = 0, totSec = 0, totSecMax = 0;
+  const rows = blocs.map((b, i) => {
+    const rMax = b.repsMax || b.reps;
+    const repsTxt = rMax !== b.reps ? b.reps + '-' + rMax : String(b.reps);
+    const vMin = vma ? Math.round(vma * b.pct[0] / 100 * 10) / 10 : null;
+    const vMax = vma ? Math.round(vma * b.pct[1] / 100 * 10) / 10 : null;
+    let cible = null, action = null;
+    if (b.dist) {
+      totDist += b.reps * b.dist; totDistMax += rMax * b.dist;
+      if (vma) { cible = fmtTpsPiste(b.dist / vMax * 3.6) + ' – ' + fmtTpsPiste(b.dist / vMin * 3.6); totSec += b.reps * b.dist / vMax * 3.6; totSecMax += rMax * b.dist / vMin * 3.6; }
+    } else if (b.sec) {
+      totSec += b.reps * b.sec; totSecMax += rMax * b.sec;
+      if (vma) { const d1 = vMin * 1000 / 3600 * b.sec, d2 = vMax * 1000 / 3600 * b.sec; cible = fmtDistEndu(d1) + ' – ' + fmtDistEndu(d2); totDist += b.reps * d1; totDistMax += rMax * d2; }
+    }
+    const effort = b.dist ? fmtDistEndu(b.dist) : (b.sec >= 60 ? (b.sec % 60 ? Math.floor(b.sec/60) + ' min ' + (b.sec%60) + ' s' : (b.sec/60) + ' min') : b.sec + ' s');
+    if (vma && cible) {
+      action = 'Cours ' + effort + (b.dist ? ' en ' + cible : ' à ' + vMin + '–' + vMax + ' km/h (≈ ' + cible + ')') + (b.recup ? ', récup ' + b.recup : '') + (rMax > 1 ? ', ×' + repsTxt : '');
+    }
+    return _h`<div key=${i} style=${{ background:'rgba(255,255,255,.04)', borderRadius:8, padding:'9px 11px', marginBottom:6 }}>
+      <div style=${{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap' }}>
+        ${multi ? _h`<span style=${{ fontSize:11, fontWeight:800, color:'rgba(255,255,255,.35)' }}>${i+1}.</span>` : null}
+        ${rMax > 1 || b.reps > 1 ? _h`<span style=${{ fontSize:20, fontWeight:900, color:'#7C6FFF' }}>${repsTxt}×</span>` : null}
+        <span style=${{ fontSize:17, fontWeight:800, color:'#fff' }}>${effort}</span>
+        <span style=${{ fontSize:10, color:'rgba(255,255,255,.45)' }}>${b.pct[0] === b.pct[1] ? b.pct[0] : b.pct[0] + '–' + b.pct[1]}% VMA</span>
+        ${b.recup ? _h`<span style=${{ marginLeft:'auto', fontSize:11, color:'#FFA420', fontWeight:700 }}>⏸ récup ${b.recup}</span>` : null}
+      </div>
+      ${vma && cible ? _h`<div style=${{ marginTop:6, display:'flex', flexDirection:'column', gap:3 }}>
+        <div style=${{ fontSize:15, fontWeight:800, color:'#38BDF8' }}>${b.dist ? '⏱ Temps cible : ' : '📏 Distance cible : '}${cible}${(rMax > 1 || b.reps > 1) ? ' / rép.' : ''}</div>
+        <div style=${{ fontSize:11, color:'rgba(255,255,255,.55)' }}>Vitesse ${vMin}–${vMax} km/h · allure ${kmPace(vMax)}–${kmPace(vMin)} /km</div>
+        <div style=${{ fontSize:11, color:'rgba(255,255,255,.7)', fontWeight:600 }}>👉 ${action}</div>
+      </div>` : null}
+    </div>`;
+  });
+  const hasRange = blocs.some(b => (b.repsMax || b.reps) !== b.reps);
+  const totTxt = totDist > 0 ? (hasRange ? fmtDistEndu(totDist) + ' à ' + fmtDistEndu(totDistMax) : fmtDistEndu(totDist)) : '';
+  const noteTxt = (s.notes || '').replace(/^\s*\d+(?:-\d+)?\s*(fois|pyramides?|s[ée]ries?|circuits?|tours?)\s*(—|-)?\s*/i, '').trim();
+  return _h`<div style=${{ background:'rgba(34,211,238,.05)', border:'1px solid rgba(34,211,238,.22)', borderRadius:10, padding:'10px 12px', marginBottom:8 }}>
+    <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:8 }}>
+      <div style=${{ fontSize:10, fontWeight:800, color:'#22D3EE', letterSpacing:1, textTransform:'uppercase' }}>🏃 Ce que tu dois faire${rep ? ' — ' + rep[1] + ' ' + (/pyramide/i.test(rep[2]) ? (parseInt(rep[1]) > 1 ? 'pyramides' : 'pyramide') : 'fois') : ''}</div>
+      ${extra || null}
+    </div>
+    ${rows}
+    <div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', marginTop:2, display:'flex', gap:10, flexWrap:'wrap' }}>
+      ${totTxt ? _h`<span>📊 Volume ${hasRange ? '' : 'total '}: <b style=${{ color:'#fff' }}>${totTxt}</b></span>` : null}
+      ${vma ? _h`<span style=${{ color:'rgba(255,255,255,.35)' }}>VMA ${vma} km/h</span>` : _h`<span>💡 Fais un test VMA pour voir tes temps cibles</span>`}
+    </div>
+    ${noteTxt ? _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:5, lineHeight:1.4 }}>💡 ${noteTxt}</div>` : null}
+  </div>`;
+}
+
 function calcTempsSeance(seance, vma) {
   if (!vma || !seance.distance) return null;
+  if (blocsEndu(seance).length) return null; // l'affichage calcule les temps en direct : notes intactes
   const pcts = {
     continu_ext:[70,75], continu_int:[80,85], interval:[95,105],
     fractionne:[105,115], spl:[75,100], recup_active:[55,65],
@@ -6671,6 +6784,7 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                   const repsMatch = (s.notes||'').match(/(\d+(?:-\d+)?)\s*reps?\b/i);
                   const repsCount = repsMatch ? repsMatch[1] : null;
                   const isInterval = !!repsCount || (s.distance && /@/.test(s.distance));
+                  const blocsP = blocsEndu(s);
                   return _h`<div key=${s.id} style=${{ background:'rgba(255,255,255,.025)', border:'1px solid '+border, borderRadius:12, padding:'12px 14px', marginBottom:8, marginLeft:8, opacity:isF?.65:1 }}>
                     <!-- Ligne 1 : titre + date, toujours en haut -->
                     <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, marginBottom:8 }}>
@@ -6686,6 +6800,7 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                       </div>
                     </div>
 
+                    ${blocsP.length ? PisteBlocsEl(s, vma, blocsP, s.rpeCible ? _h`<span style=${{ fontSize:11, padding:'2px 9px', borderRadius:20, background:'rgba(255,164,32,.12)', color:'#FFA420', fontWeight:700 }}>RPE ${s.rpeCible}/10</span>` : null) : _h`<div>
                     <!-- Ligne 2 : structure de la séance — l'info essentielle, en gros, tout de suite visible -->
                     <div style=${{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', padding:'8px 10px', background:'rgba(255,255,255,.03)', borderRadius:9, marginBottom: (allures || s.notes) ? 8 : 0 }}>
                       <span style=${{ fontSize:16 }}>${s.modalite==='velo'?'🚴':'🏃'}</span>
@@ -6710,12 +6825,13 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                         <span style=${{ fontSize:12, color:'rgba(255,255,255,.55)', fontWeight:600 }}>${allures.paceMax}–${allures.paceMin} /km</span>
                       </div>
                     </div>` : vma ? null : _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.25)', marginBottom: s.notes?8:0, fontStyle:'italic' }}>💡 Fais un test VMA pour voir tes allures personnalisées</div>`}
+                    </div>`}
 
                     <!-- Ligne 4 : métadonnées secondaires (type de séance) + consigne -->
                     <div style=${{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                       <span style=${{ fontSize:9, color:tc2.color, fontWeight:700 }}>${tc2.icon} ${tc2.label}</span>
                     </div>
-                    ${s.notes ? _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:4, lineHeight:1.4 }}>💡 ${s.notes}</div>` : null}
+                    ${(s.notes && !blocsP.length) ? _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:4, lineHeight:1.4 }}>💡 ${s.notes}</div>` : null}
                   </div>`;
                 };
 
@@ -6813,6 +6929,8 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
               </div>`
             : seancesToday.map(s => {
                 const tc2 = TYPES_CARDIO.find(t=>t.id===s.type)||TYPES_CARDIO[0];
+                const blocsT = blocsEndu(s);
+                const vmaT = getPlayerVMA(livePlayerEndu);
                 return _h`<div key=${s.id} style=${{ background:tc2.color+'08', border:'2px solid '+tc2.color+'50', borderRadius:14, padding:'14px 16px', marginBottom:12 }}>
                   <div style=${{ fontSize:10, fontWeight:800, color:tc2.color, letterSpacing:1.5, textTransform:'uppercase', marginBottom:6 }}>⚡ Séance du jour</div>
                   <div style=${{ fontSize:16, fontWeight:800, marginBottom:6 }}>${s.nom||tc2.label}</div>
@@ -6820,11 +6938,12 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                     <span style=${{ fontSize:11, background:tc2.color+'15', color:tc2.color, padding:'2px 8px', borderRadius:20, fontWeight:700 }}>${tc2.icon} ${tc2.label}</span>
                     <span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>${s.modalite==='velo'?'🚴 Vélo':'🏃 Course'}</span>
                     ${s.duree ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>⏱ ${s.duree} min</span>` : null}
-                    ${s.distance ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>📏 ${s.distance}</span>` : null}
-                    ${s.intensite ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>💓 ${s.intensite}</span>` : null}
-                    ${s.recup ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.4)' }}>⏱ Récup: ${s.recup}</span>` : null}
+                    ${(s.distance && !blocsT.length) ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>📏 ${s.distance}</span>` : null}
+                    ${(s.intensite && !blocsT.length) ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>💓 ${s.intensite}</span>` : null}
+                    ${(s.recup && !blocsT.length) ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.4)' }}>⏱ Récup: ${s.recup}</span>` : null}
                   </div>
-                  ${s.notes ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.6)', background:'rgba(255,255,255,.04)', borderRadius:8, padding:'8px 10px', marginBottom:10 }}>💡 ${s.notes}</div>` : null}
+                  ${blocsT.length ? PisteBlocsEl(s, vmaT, blocsT, null) : null}
+                  ${(s.notes && !blocsT.length) ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.6)', background:'rgba(255,255,255,.04)', borderRadius:8, padding:'8px 10px', marginBottom:10 }}>💡 ${s.notes}</div>` : null}
                   <button class="btn btn-primary" style=${{ width:'100%' }}
                     onClick=${()=>{ setWellnessSeance(s); }}>
                     ✅ Séance terminée
@@ -6832,12 +6951,62 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                 </div>`;
               })}
 
+          ${seancesARattraper.length > 0 ? _h`<div style=${{ marginTop:16 }}>
+            <div style=${{ fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', marginBottom:10, color:'#FF6B35' }}>⚠ À rattraper (${seancesARattraper.length})</div>
+            ${seancesARattraper.map(s => {
+              const tc2 = TYPES_CARDIO.find(t=>t.id===s.type)||TYPES_CARDIO[0];
+              const open = closedEndu !== s.id;
+              const setOpen = (v) => setClosedEndu(open ? s.id : null);
+              const blocsN = blocsEndu(s);
+              const vmaN = getPlayerVMA(livePlayerEndu);
+              return _h`<div key=${s.id} style=${{ background:'rgba(255,255,255,.025)', border:'1px solid rgba(255,107,53,.3)', borderRadius:12, marginBottom:8, overflow:'hidden' }}>
+                <div style=${{ padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }} onClick=${()=>setOpen(o=>!o)}>
+                  <div>
+                    <div style=${{ fontSize:13, fontWeight:700 }}>${s.nom||tc2.label}</div>
+                    <div style=${{ fontSize:11, color:'#FF6B35', marginTop:2 }}>
+                      ${new Date(s.datePrevu+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}
+                    </div>
+                  </div>
+                  <div style=${{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style=${{ fontSize:12, color:tc2.color }}>${tc2.icon} ${s.duree?s.duree+' min':''}</span>
+                    <span style=${{ color:'rgba(255,255,255,.3)', fontSize:11 }}>${open?'▲':'▼'}</span>
+                  </div>
+                </div>
+                ${open ? _h`<div style=${{ padding:'0 14px 12px', borderTop:'1px solid rgba(255,255,255,.06)' }}>
+                  ${(tc2.protocole && tc2.protocole.objectif) ? _h`<div style=${{ fontSize:11, color:'#38BDF8', marginTop:10, fontWeight:600 }}>🎯 Objectif</div><div style=${{ fontSize:12, color:'rgba(255,255,255,.65)', marginTop:3, lineHeight:1.6 }}>${tc2.protocole.objectif}</div>` : null}
+                  ${(tc2.protocole && tc2.protocole.structure && tc2.protocole.structure.length) ? _h`<div style=${{ marginTop:12 }}>
+                    <div style=${{ fontSize:11, color:'#FFA420', fontWeight:700, marginBottom:8, textTransform:'uppercase' }}>📋 Déroulé de la séance</div>
+                    ${tc2.protocole.structure.map((ph, pi) => _h`<div key=${pi} style=${{ background:'rgba(255,255,255,.03)', borderRadius:8, padding:'10px 12px', marginBottom:6, borderLeft:'3px solid #38BDF8' }}>
+                      <div style=${{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                        <span style=${{ fontSize:12, fontWeight:700, color:'#fff' }}>${ph.phase||''}</span>
+                        <span style=${{ fontSize:11, color:'#38BDF8', fontWeight:600 }}>${ph.duree||''}</span>
+                      </div>
+                      <div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', lineHeight:1.5 }}>${ph.detail||''}</div>
+                    </div>`)}
+                  </div>` : null}
+                  ${(tc2.protocole && tc2.protocole.allures) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', marginTop:8, padding:'8px 10px', background:'rgba(56,189,248,.06)', borderRadius:8 }}>⏱️ Allures : ${tc2.protocole.allures}</div>` : null}
+                  ${(tc2.protocole && tc2.protocole.notes) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.45)', marginTop:8, fontStyle:'italic', padding:'8px 10px', background:'rgba(255,255,255,.02)', borderRadius:8 }}>💡 ${tc2.protocole.notes}</div>` : null}
+                  ${blocsN.length ? _h`<div style=${{ marginTop:10 }}>${PisteBlocsEl(s, vmaN, blocsN, null)}</div>` : null}
+                  ${(s.intensite && !blocsN.length) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:8 }}>Intensité : <span style=${{ color:tc2.color, fontWeight:700 }}>${s.intensite}</span></div>` : null}
+                  ${s.description ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:6, lineHeight:1.5 }}>${s.description}</div>` : null}
+                  ${s.rpeCible ? _h`<div style=${{ fontSize:11, color:'#FFA420', marginTop:6 }}>RPE cible : ${s.rpeCible}/10</div>` : null}
+                  ${s.fcCible ? _h`<div style=${{ fontSize:11, color:'#FF4455', marginTop:4 }}>FC cible : ${s.fcCible} bpm</div>` : null}
+                  ${(s.notes && !blocsN.length) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.4)', marginTop:6, fontStyle:'italic' }}>${s.notes}</div>` : null}
+                  <button class="btn btn-primary btn-sm" style=${{ marginTop:10, width:'100%' }}
+                    onClick=${()=>{ setWellnessSeance(s); }}>✅ Faite aujourd'hui</button>
+                </div>` : null}
+              </div>`;
+            })}
+          </div>` : null}
+
           ${seancesNext.length > 0 ? _h`<div style=${{ marginTop:16 }}>
             <div style=${{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,.4)', letterSpacing:1.5, textTransform:'uppercase', marginBottom:10 }}>Prochaines séances</div>
             ${seancesNext.slice(0,5).map(s => {
               const tc2 = TYPES_CARDIO.find(t=>t.id===s.type)||TYPES_CARDIO[0];
               const open = closedEndu !== s.id;
               const setOpen = (v) => setClosedEndu(open ? s.id : null);
+              const blocsN = blocsEndu(s);
+              const vmaN = getPlayerVMA(livePlayerEndu);
               return _h`<div key=${s.id} style=${{ background:'rgba(255,255,255,.025)', border:'1px solid rgba(255,255,255,.07)', borderRadius:12, marginBottom:8, overflow:'hidden' }}>
                 <div style=${{ padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }} onClick=${()=>setOpen(o=>!o)}>
                   <div>
@@ -6865,11 +7034,12 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                   </div>` : null}
                   ${(tc2.protocole && tc2.protocole.allures) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', marginTop:8, padding:'8px 10px', background:'rgba(56,189,248,.06)', borderRadius:8 }}>⏱️ Allures : ${tc2.protocole.allures}</div>` : null}
                   ${(tc2.protocole && tc2.protocole.notes) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.45)', marginTop:8, fontStyle:'italic', padding:'8px 10px', background:'rgba(255,255,255,.02)', borderRadius:8 }}>💡 ${tc2.protocole.notes}</div>` : null}
-                  ${s.intensite ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:8 }}>Intensité : <span style=${{ color:tc2.color, fontWeight:700 }}>${s.intensite}</span></div>` : null}
+                  ${blocsN.length ? _h`<div style=${{ marginTop:10 }}>${PisteBlocsEl(s, vmaN, blocsN, null)}</div>` : null}
+                  ${(s.intensite && !blocsN.length) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:8 }}>Intensité : <span style=${{ color:tc2.color, fontWeight:700 }}>${s.intensite}</span></div>` : null}
                   ${s.description ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:6, lineHeight:1.5 }}>${s.description}</div>` : null}
                   ${s.rpeCible ? _h`<div style=${{ fontSize:11, color:'#FFA420', marginTop:6 }}>RPE cible : ${s.rpeCible}/10</div>` : null}
                   ${s.fcCible ? _h`<div style=${{ fontSize:11, color:'#FF4455', marginTop:4 }}>FC cible : ${s.fcCible} bpm</div>` : null}
-                  ${s.notes ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.4)', marginTop:6, fontStyle:'italic' }}>${s.notes}</div>` : null}
+                  ${(s.notes && !blocsN.length) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.4)', marginTop:6, fontStyle:'italic' }}>${s.notes}</div>` : null}
                   <button class="btn btn-primary btn-sm" style=${{ marginTop:10, width:'100%' }}
                     onClick=${()=>{ setWellnessSeance(s); }}>✅ Faite aujourd'hui</button>
                 </div>` : null}
@@ -7494,20 +7664,36 @@ function ProgrammeJour({ player }) {
 // ── Lien automatique exercice ↔ bibliothèque (éditeur de séance coach) ─────────────────────────
 // Reconnaît le nom saisi dans la bibliothèque : renseigne `biblio` (nom de la fiche) et reprend
 // l'image de la fiche si l'exercice n'en a pas déjà une saisie à la main.
+// Nom à utiliser pour retrouver la fiche d'un exercice de séance : le lien explicite (bilans…)
+// sinon uniquement le nom lui-même — jamais un ancien lien automatique devenu faux.
+function biblioNomPour(ex) {
+  if (!ex) return '';
+  return (ex.biblio && (ex.biblioExplicit || !ex.biblioFor)) ? ex.biblio : (ex.nom || '');
+}
+function imageExoPour(ex) {
+  if (!ex) return '';
+  try {
+    if (ex.imageUrl && !ex.imageAuto) return ex.imageUrl;
+    const m = findBiblioMatch(biblioNomPour(ex));
+    return (m && m.imageUrl) || '';
+  } catch (e) { return ex.imageAuto ? '' : (ex.imageUrl || ''); }
+}
+
 function applyBiblioLink(ex) {
   if (!ex) return ex;
   const nom = (ex.nom || '').trim();
   const m = nom ? findBiblioMatch(nom) : null;
   const r = { ...ex };
   if (m) {
-    r.biblio = m.nom; r.biblioFor = ex.nom;
+    r.biblio = m.nom; r.biblioFor = ex.nom; delete r.biblioExplicit;
     if (m.imageUrl && (!ex.imageUrl || ex.imageAuto)) { r.imageUrl = m.imageUrl; r.imageAuto = true; }
     else if (!m.imageUrl && ex.imageAuto) { r.imageUrl = ''; delete r.imageAuto; }
     return r;
   }
   // Pas de correspondance : on garde un lien explicite posé à la création (ex. bilans de départ)
   // tant que le nom n'a pas été modifié depuis.
-  if (ex.biblio && (!ex.biblioFor || ex.biblioFor === ex.nom)) { r.biblioFor = ex.nom; return r; }
+  // (lien explicite = posé par une méthode/bilan : pas de biblioFor, ou drapeau biblioExplicit)
+  if (ex.biblio && (ex.biblioExplicit || !ex.biblioFor)) { r.biblioFor = ex.nom; r.biblioExplicit = true; return r; }
   delete r.biblio; delete r.biblioFor;
   if (r.imageAuto) { r.imageUrl = ''; delete r.imageAuto; }
   return r;
@@ -7627,11 +7813,11 @@ function MuscuSeanceEditor({ seance, onSave, onClose, player }) {
       const pw = poidsCorpsJoueur(player);
       if (!pw) return { ok:false, text: `Poids du corps non renseigné pour ${player ? player.name : 'ce joueur'} (onglet Poids / Composition)` };
       const kgPc = Math.round((pw * pct / 100) / 2.5) * 2.5;
-      return { ok:true, text: `≈ +${kgPc} kg de lest  (${pct}% de ${pw} kg — poids du corps)` };
+      return { ok:true, text: `≈ ${kgPc} kg  (${pct}% de ${pw} kg — poids de corps)` };
     }
     // Rappel pratique : mouvement au poids du corps sans charge saisie
     if (detectMouvement(ex.nom) === 'poids_corps' && !(ex.charge||'').toString().trim()) {
-      return { ok:false, text: `Mouvement au poids du corps : écris par ex. « 20% PC » pour un lest en % du poids du corps${poidsCorpsJoueur(player) ? ' (' + poidsCorpsJoueur(player) + ' kg)' : ''}` };
+      return { ok:false, text: `Mouvement au poids du corps : écris par ex. « 20% PC » pour une intensité en % du poids de corps${poidsCorpsJoueur(player) ? ' (' + poidsCorpsJoueur(player) + ' kg)' : ''}` };
     }
     const mvtId = detectMouvement(ex.nom);
     const pct = parsePct(ex.charge);
@@ -8304,7 +8490,7 @@ function chargeHintRM(ex, player) {
   if (mvtId === 'poids_corps') {
     if (!rm) return { ok:false, text: `Poids du corps non renseigné pour ${player ? player.name : 'ce joueur'} (onglet Poids / Composition)` };
     const kgPc = Math.round((rm * pct / 100) / 2.5) * 2.5;
-    return { ok:true, text: `≈ +${kgPc} kg de lest  (${pct}% de ${rm} kg — poids du corps)`, kg: '+' + kgPc, pct, mvtLabel: 'poids du corps' };
+    return { ok:true, text: `≈ ${kgPc} kg  (${pct}% de ${rm} kg — poids de corps)`, kg: String(kgPc), pct, mvtLabel: 'poids du corps' };
   }
   const mvtLabel = (MOUVEMENTS_RM.find(m => m.id === mvtId) || (player && player.customRM || []).find(m => m.id === mvtId) || {}).label;
   if (!rm) {
@@ -8344,11 +8530,12 @@ function blocInfo(exercices, i) {
 function blocHeaderEl(exercices, i, key) {
   const b = blocInfo(exercices, i);
   if (!b) return null;
-  return _h`<div key=${key} style=${{ display:'flex', alignItems:'center', gap:10, margin:'16px 0 8px', padding:'10px 14px', borderRadius:12,
+  return _h`<div key=${key} style=${{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:'4px 10px', margin:'16px 0 8px', padding:'10px 14px', borderRadius:12,
     background:b.col+'1A', border:'1px solid '+b.col+'55', borderLeft:'5px solid '+b.col }}>
     <span style=${{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:22, fontWeight:800, color:b.col, letterSpacing:1 }}>BLOC ${b.n}</span>
     ${b.nom ? _h`<span style=${{ fontSize:15, fontWeight:800, textTransform:'uppercase', letterSpacing:.5 }}>${b.nom}</span>` : null}
     <span style=${{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.45)' }}>${b.nb} exercice${b.nb>1?'s':''}</span>
+    ${blocDescription(b.nom) ? _h`<div style=${{ flexBasis:'100%', fontSize:11.5, color:'rgba(255,255,255,.6)', lineHeight:1.45, marginTop:-2 }}>${blocDescription(b.nom)}</div>` : null}
   </div>`;
 }
 
@@ -8416,6 +8603,51 @@ function GroupedExercicesRenderer({ exercices, seanceId, player }) {
   return _h`<div>${blocks}</div>`;
 }
 
+// ── Vue coach : détail série par série + phrase « en clair » (pour que tout le staff comprenne la séance) ──
+function detailSeriesCoach(ex, player) {
+  const hint = chargeHintRM(ex, player);
+  const det = ex.chargeDetails || [];
+  const rows = [];
+  if (det.length) {
+    det.forEach((d, i) => rows.push({ n: d.serie || i + 1, reps: String(d.reps == null ? '' : d.reps), amrap: !!d.amrap, pct: d.pct || null, charge: liveChargeDetailText(ex, d, player), note: d.note || '' }));
+  } else {
+    const nb = Math.max(1, parseInt(ex.series) || 1);
+    const rp = String(ex.reps == null ? '' : ex.reps).split(/\s*[\/;,]\s*/).filter(Boolean);
+    const perSerie = rp.length === nb && nb > 1;
+    for (let i = 0; i < nb; i++) rows.push({ n: i + 1, reps: perSerie ? rp[i] : (rp.length === 1 ? rp[0] : String(ex.reps || '')), amrap: false, pct: hint && hint.ok ? hint.pct : null, charge: hint && hint.ok ? String(hint.kg).replace('.', ',') + ' kg' : (ex.charge || ''), note: '' });
+  }
+  return rows.map(r => ({ ...r, charge: String(r.charge || '').replace(/(\d)\.(\d)/g, '$1,$2') }));
+}
+function enClairExo(ex, rows) {
+  const nb = rows.length;
+  const reps = Array.from(new Set(rows.map(r => r.reps).filter(Boolean)));
+  const kgs = Array.from(new Set(rows.map(r => r.charge).filter(Boolean)));
+  const unit = r => /^\d+(\s*-\s*\d+)?$/.test(String(r).trim()) ? r + ' répétition' + (/^1$/.test(String(r).trim()) ? '' : 's') : r;
+  let t = nb + ' série' + (nb > 1 ? 's' : '');
+  if (reps.length === 1) t += ' de ' + unit(reps[0]);
+  else if (reps.length > 1) t += ' (répétitions : ' + reps.join(' / ') + ')';
+  if (kgs.length === 1) t += ' à ' + kgs[0];
+  else if (kgs.length > 1) t += ' — charge qui évolue : ' + kgs.join(' → ');
+  if (ex.repos) t += ' · repos ' + ex.repos;
+  return t;
+}
+// Rôle de chaque type de bloc, en une phrase (pour les stagiaires / le staff)
+function blocDescription(nom) {
+  const n = String(nom || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const D = [
+    [/force/, 'Développer la force maximale : charges lourdes, peu de répétitions, repos longs.'],
+    [/hypertroph|volume|muscle/, 'Faire grossir / renforcer le muscle : charges modérées, plus de répétitions.'],
+    [/prevention|rehab|epaule|coude|stabil/, 'Protéger les articulations (épaules, coudes, dos) pour éviter les blessures — charges légères, exécution propre.'],
+    [/vitesse|plyo|explos|puissance|saut|detente/, 'Devenir plus explosif : mouvements rapides et sauts. La qualité d\'exécution prime sur la fatigue.'],
+    [/renfo|core|gain|abdo|tronc/, 'Renforcer le tronc et les muscles stabilisateurs, base de tous les gestes du handball.'],
+    [/mobil|souplesse|etir/, 'Gagner en amplitude de mouvement et préparer le corps.'],
+    [/echauff|activation/, 'Préparer le corps à l\'effort : monter progressivement en intensité.'],
+    [/cardio|conditionnement|metabol|finisher/, 'Travail de condition physique : résister à la fatigue sur la durée.'],
+  ];
+  const f = D.find(x => x[0].test(n));
+  return f ? f[1] : '';
+}
+
 // Libellé clair séries × reps : si les reps varient d'une série à l'autre (« 3 / 3 / 2-3 »),
 // « 3 × 3 / 3 / 2-3 » est ambigu → on affiche « 3 séries » et, s'il n'y a pas de détail par
 // série, les reps en petit dessous. Avec un détail par série (S1, S2…), il suffit de « N séries ».
@@ -8435,7 +8667,7 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
   // par minute (60s fixes, par définition), pas une série qu'on valide manuellement comme en muscu.
   const totalSeries = ex.emom ? (parseInt(ex.emomDuree) || 10) : (parseInt(ex.series) || 3);
   const chargeCalc = React.useMemo(() => chargeHintRM(ex, player), [ex.nom, ex.charge, player && player.rmHistory, player && player.customRM]);
-  const imgSrc = ex.imageUrl || (function(){ try { const m = findBiblioMatch(ex.biblio || ex.nom); return (m && m.imageUrl) || ''; } catch(e){ return ''; } })();
+  const imgSrc = imageExoPour(ex);
 
   function parseRepos(str) {
     if (!str) return 60;
@@ -8586,7 +8818,7 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
             display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
             ${ex.nom}
             ${ex.emom ? _h`<span style=${{ fontSize:9, padding:'2px 7px', borderRadius:20, fontWeight:800, background:'rgba(56,189,248,.15)', color:'#38BDF8' }}>⏱ EMOM</span>` : null}
-            ${React.createElement(BiblioLinkButton, { nomExercice: ex.biblio || ex.nom })}
+            ${React.createElement(BiblioLinkButton, { nomExercice: biblioNomPour(ex) })}
           </div>
           <div style=${{ display:"flex", gap:10, marginTop:3, flexWrap:"wrap" }}>
             ${ex.emom
@@ -9552,7 +9784,7 @@ const ECHAUFF_MUSCU = [
         id: "b4", titre: "Bloc 4 — Montee en charge specifique", duree: "4-5 min", couleur: "#FF4455",
         description: "Serie d'echauffement sur le mouvement principal. Montee progressive obligatoire avant toute charge lourde.",
         exercices: [
-          { exercice: "Gobelet squat x15 (16-20kg)", duree: "1 serie", detail: "Squat gobelet profond avec kettlebell ou haltere. Profondeur maximale. Activer la chaine posterieure. Verifier la position.", note: "Meme si la seance est squat barre — commence toujours par gobelet" },
+          { exercice: "Gobelet squat x15 (16-20kg)", duree: "1 serie", detail: "Squat gobelet profond avec kettlebell ou haltere. Profondeur maximale. Activer la chaine posterieure. Verifier la position.", note: "Meme si la seance est back squat — commence toujours par gobelet" },
           { exercice: "50% charge de travail x8 (mouvement principal)", duree: "1 serie", detail: "Ex : seance squat a 100kg → 50kg x8. Sentir le mouvement. Ajuster la stance. 2 min repos.", note: "" },
           { exercice: "70% charge de travail x5", duree: "1 serie", detail: "Ex : 70kg x5. Proche de la charge de travail. Technique parfaite. 2-3 min repos avant les vraies series.", note: "Apres cette serie : go pour les series de travail" },
         ]
@@ -9696,6 +9928,38 @@ function StatsLiveDefense({ club, matchs, saveMatchsDirect, players, initialMatc
   const [showRelanceList, setShowRelanceList] = React.useState(false);
   const [activeRelanceGardien, setActiveRelanceGardien] = React.useState(() => (gardiens[0] && gardiens[0].id) || null);
   const [tjTick, setTjTick] = React.useState(0);
+  // Côté de jeu (gauche/droite) de chaque joueur sur le terrain — partagé via Firebase + copie locale
+  const [cotes, setCotes] = React.useState(() => { try { return JSON.parse(localStorage.getItem('perfhand_cotes_jeu') || '{}'); } catch (e) { return {}; } });
+  React.useEffect(() => {
+    if (!window.__perfhand_db) return;
+    const ref = window.__perfhand_db.ref('perfhand/coteJeu');
+    const cb = ref.on('value', sn => { const v = sn.val(); if (v && typeof v === 'object') { setCotes(c => ({ ...c, ...v })); try { localStorage.setItem('perfhand_cotes_jeu', JSON.stringify({ ...v })); } catch (e) {} } });
+    return () => { try { ref.off('value', cb); } catch (e) {} };
+  }, []);
+  // Positions libres des « stickers » joueurs sur le terrain (en % du terrain) — partagées via Firebase
+  const [posJ, setPosJ] = React.useState(() => { try { return JSON.parse(localStorage.getItem('perfhand_pos_terrain') || '{}'); } catch (e) { return {}; } });
+  const courtRef = React.useRef(null);
+  const dragRef = React.useRef(null);
+  const justDragged = React.useRef(false);
+  React.useEffect(() => {
+    if (!window.__perfhand_db) return;
+    const ref = window.__perfhand_db.ref('perfhand/terrainPos');
+    const cb = ref.on('value', sn => { const v = sn.val(); if (v && typeof v === 'object') { setPosJ(c => { const n = { ...c, ...v }; try { localStorage.setItem('perfhand_pos_terrain', JSON.stringify(n)); } catch (e) {} return n; }); } });
+    return () => { try { ref.off('value', cb); } catch (e) {} };
+  }, []);
+  function sauverPos(playerId, pos) {
+    setPosJ(c => { const n = { ...c, [playerId]: pos }; try { localStorage.setItem('perfhand_pos_terrain', JSON.stringify(n)); } catch (e) {} return n; });
+    try { if (window.__perfhand_db) window.__perfhand_db.ref('perfhand/terrainPos/' + playerId).set(pos); } catch (e) {}
+  }
+  function resetPositions() {
+    if (!confirm('Remettre tous les joueurs à leur place par défaut ?')) return;
+    setPosJ({}); try { localStorage.removeItem('perfhand_pos_terrain'); } catch (e) {}
+    try { if (window.__perfhand_db) window.__perfhand_db.ref('perfhand/terrainPos').remove(); } catch (e) {}
+  }
+  function changerCote(playerId, cote) {
+    setCotes(c => { const n = { ...c, [playerId]: cote }; try { localStorage.setItem('perfhand_cotes_jeu', JSON.stringify(n)); } catch (e) {} return n; });
+    try { if (window.__perfhand_db) window.__perfhand_db.ref('perfhand/coteJeu/' + playerId).set(cote); } catch (e) {}
+  }
 
   const match = matchs.find(m => m.id === selMatchId);
   const events = (match && match.liveDefense) || [];
@@ -9704,8 +9968,70 @@ function StatsLiveDefense({ club, matchs, saveMatchsDirect, players, initialMatc
   const contres = (match && match.contres) || [];
   const neutralisations = (match && match.neutralisations) || [];
   const relancesGardien = (match && match.relancesGardien) || [];
-  const tempsJeu = (match && match.tempsJeu) || {};
-  const chronoMatchEnCours = !match || match.chronoMatchActif !== false; // par défaut, en cours
+  // ── TEMPS DE JEU : magasin « live » dédié, écrit joueur par joueur (aucune transaction sur la liste
+  // de matchs) → réactif au 1er clic et sans conflit entre clics rapprochés / appareils. Chaque
+  // entrée porte un horodatage `ts` : à données concurrentes, la plus récente gagne toujours.
+  const liveKey = selMatchId ? String(selMatchId).replace(/[.#$\[\]\/]/g, '_') : null;
+  const livePath = liveKey && club ? 'perfhand/tempsJeuLive/' + club.id + '/' + liveKey : null;
+  const liveLocalKey = 'perfhand_tjlive_' + (club ? club.id : '') + '_' + liveKey;
+  const lireLocal = () => { try { return JSON.parse(localStorage.getItem(liveLocalKey) || '{}') || {}; } catch (e) { return {}; } };
+  const [tjLive, setTjLive] = React.useState(lireLocal);
+  const tjLiveRef = React.useRef(tjLive);
+  const matchRef = React.useRef(null);
+  function appliquerLive(fn) {
+    const next = fn(tjLiveRef.current || {});
+    tjLiveRef.current = next;
+    setTjLive(next);
+    try { localStorage.setItem(liveLocalKey, JSON.stringify(next)); } catch (e) {}
+    return next;
+  }
+  // Données effectives = entrée la plus récente entre l'ancien stockage (match.tempsJeu) et le magasin live
+  function calcEff(m, live) {
+    const legacy = (m && m.tempsJeu) || {};
+    const lp = (live && live.players) || {};
+    const players2 = {};
+    new Set([...Object.keys(legacy), ...Object.keys(lp)]).forEach(pid => {
+      const a = legacy[pid], b = lp[pid];
+      players2[pid] = (!b || (a && (a.ts || 0) > (b.ts || 0))) ? a : b;
+    });
+    const ch = live && live.chrono;
+    const running = (ch && (ch.ts || 0) >= ((m && m.chronoTs) || 0)) ? ch.actif !== false : (!m || m.chronoMatchActif !== false);
+    return { players: players2, running };
+  }
+  matchRef.current = match;
+  React.useEffect(() => {
+    tjLiveRef.current = lireLocal(); setTjLive(tjLiveRef.current);
+    if (!livePath || !window.__perfhand_db) return;
+    const ref = window.__perfhand_db.ref(livePath);
+    const cb = ref.on('value', sn => {
+      const v = sn.val(); if (!v) return;
+      appliquerLive(l => {
+        const players2 = { ...(l.players || {}) };
+        Object.entries(v.players || {}).forEach(([pid, rv]) => { const lv = players2[pid]; if (!lv || (rv && (rv.ts || 0) >= (lv.ts || 0))) players2[pid] = rv; });
+        const chrono = (v.chrono && (!l.chrono || (v.chrono.ts || 0) >= (l.chrono.ts || 0))) ? v.chrono : l.chrono;
+        return { ...l, players: players2, ...(chrono ? { chrono } : {}) };
+      });
+    });
+    return () => { try { ref.off('value', cb); } catch (e) {} };
+  }, [livePath]);
+  const effRender = calcEff(match, tjLive);
+  const tempsJeu = effRender.players;
+  const chronoMatchEnCours = !match || effRender.running; // par défaut, en cours
+  // Recopie (différée) dans la fiche du match pour les stats / PDF — hors chemin critique du clic
+  const syncMatchRef = React.useRef(null);
+  syncMatchRef.current = () => {
+    if (!selMatchId) return;
+    const e = calcEff(matchRef.current, tjLiveRef.current);
+    if (!Object.keys(e.players).length) return;
+    const chTs = (tjLiveRef.current && tjLiveRef.current.chrono && tjLiveRef.current.chrono.ts) || Date.now();
+    saveMatchsDirect(prev => prev.map(m => m.id === selMatchId ? { ...m, tempsJeu: e.players, chronoMatchActif: e.running, chronoTs: chTs } : m));
+  };
+  React.useEffect(() => {
+    if (!tjLive || !tjLive.players) return;
+    const t = setTimeout(() => { try { syncMatchRef.current(); } catch (er) {} }, 3000);
+    return () => clearTimeout(t);
+  }, [tjLive]);
+  React.useEffect(() => () => { try { syncMatchRef.current(); } catch (er) {} }, []);
 
   // Temps de jeu : chaque joueur a une liste de segments {in, out} (out === null tant que le
   // segment est en cours) + un flag persistant "onField" (est-il sur le terrain, indépendamment
@@ -9759,56 +10085,51 @@ function StatsLiveDefense({ club, matchs, saveMatchsDirect, players, initialMatc
   // qu'il venait pourtant d'être sorti.
   function toggleTerrain(playerId) {
     if (!selMatchId) return;
-    saveMatchsDirect(prevMatchs => prevMatchs.map(m => {
-      if (m.id !== selMatchId) return m;
-      const tj = m.tempsJeu || {};
-      const data = tj[playerId] || { segments: [], onField: false };
-      const wasOnField = estOnField(data);
-      const running = m.chronoMatchActif !== false;
-      const now = Date.now();
-      // On ferme SYSTÉMATIQUEMENT tout segment encore ouvert à CHAQUE clic, quel que soit le sens
-      // du basculement — jamais conditionné à ce que dit le flag onField. C'est ce qui garantit
-      // qu'un segment orphelin (peu importe son origine) ne survit jamais à un clic sur ce joueur.
-      let newSegs = fermerSegmentsOuverts(data.segments, now);
-      if (!wasOnField && running) {
-        // il entre sur le terrain et le chrono du match tourne : on ouvre un nouveau segment
-        newSegs = newSegs.concat([{ in: now, out: null }]);
-      }
-      return { ...m, tempsJeu: { ...tj, [playerId]: { segments: newSegs, onField: !wasOnField } } };
-    }));
+    const eff = calcEff(matchRef.current, tjLiveRef.current);
+    const data = eff.players[playerId] || { segments: [], onField: false };
+    const wasOnField = estOnField(data);
+    const now = Date.now();
+    // On ferme SYSTÉMATIQUEMENT tout segment encore ouvert, quel que soit le sens du basculement
+    let newSegs = fermerSegmentsOuverts(data.segments, now);
+    if (!wasOnField && eff.running) newSegs = newSegs.concat([{ in: now, out: null }]); // entre + chrono en marche
+    const entry = { segments: newSegs, onField: !wasOnField, ts: now };
+    appliquerLive(l => ({ ...l, players: { ...(l.players || {}), [playerId]: entry } }));
+    try { if (window.__perfhand_db && livePath) window.__perfhand_db.ref(livePath + '/players/' + playerId).set(entry); } catch (e) {}
   }
   function resetTempsJoueur(playerId) {
     if (!selMatchId) return;
     if (!confirm('Réinitialiser le temps de jeu de ce joueur pour ce match ?')) return;
-    saveMatchsDirect(prevMatchs => prevMatchs.map(m => m.id === selMatchId
-      ? { ...m, tempsJeu: { ...(m.tempsJeu||{}), [playerId]: { segments: [], onField: false } } }
-      : m));
+    const entry = { segments: [], onField: false, ts: Date.now() };
+    appliquerLive(l => ({ ...l, players: { ...(l.players || {}), [playerId]: entry } }));
+    try { if (window.__perfhand_db && livePath) window.__perfhand_db.ref(livePath + '/players/' + playerId).set(entry); } catch (e) {}
   }
   function toggleChronoMatch() {
     if (!selMatchId) return;
-    saveMatchsDirect(prevMatchs => prevMatchs.map(m => {
-      if (m.id !== selMatchId) return m;
-      const now = Date.now();
-      const running = m.chronoMatchActif !== false;
-      const nowRunning = !running; // on passe à l'état inverse
-      const newTempsJeu = { ...(m.tempsJeu||{}) };
-      (players||[]).forEach(p => {
-        const data = newTempsJeu[p.id];
-        if (!estOnField(data)) return;
-        const segs = (data && data.segments) || [];
-        if (!nowRunning) {
-          // on arrête le chrono du match : on ferme tous les segments ouverts (répare aussi les
-          // segments orphelins)
-          newTempsJeu[p.id] = { ...data, segments: fermerSegmentsOuverts(segs, now), onField: true };
-        } else {
-          const last = segs[segs.length - 1];
-          if (!last || last.out != null) {
-            newTempsJeu[p.id] = { ...data, segments: segs.concat([{ in: now, out: null }]), onField: true };
-          }
-        }
-      });
-      return { ...m, chronoMatchActif: nowRunning, tempsJeu: newTempsJeu };
-    }));
+    const eff = calcEff(matchRef.current, tjLiveRef.current);
+    const now = Date.now();
+    const nowRunning = !eff.running; // on passe à l'état inverse
+    const maj = {};
+    (players||[]).forEach(p => {
+      const data = eff.players[p.id];
+      if (!estOnField(data)) return;
+      const segs = (data && data.segments) || [];
+      if (!nowRunning) {
+        // arrêt du chrono : on ferme tous les segments ouverts (répare aussi les orphelins)
+        maj[p.id] = { ...data, segments: fermerSegmentsOuverts(segs, now), onField: true, ts: now };
+      } else {
+        const last = segs[segs.length - 1];
+        if (!last || last.out != null) maj[p.id] = { ...data, segments: segs.concat([{ in: now, out: null }]), onField: true, ts: now };
+      }
+    });
+    const chrono = { actif: nowRunning, ts: now };
+    appliquerLive(l => ({ ...l, players: { ...(l.players || {}), ...maj }, chrono }));
+    try {
+      if (window.__perfhand_db && livePath) {
+        const upd = { chrono };
+        Object.entries(maj).forEach(([pid, e]) => { upd['players/' + pid] = e; });
+        window.__perfhand_db.ref(livePath).update(upd);
+      }
+    } catch (e) {}
   }
   function fmtChrono(ms) {
     const totalSec = Math.floor(ms / 1000);
@@ -10001,27 +10322,91 @@ function StatsLiveDefense({ club, matchs, saveMatchsDirect, players, initialMatc
           </button>
         </div>
         <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:10 }}>Touche un joueur pour le faire entrer/sortir · le chrono du match arrête le temps de tout le monde</div>
-        <div style=${{ display:'flex', flexDirection:'column', gap:5, maxHeight:280, overflowY:'auto' }}>
-          ${(players||[]).slice().sort((a,b) => a.name.localeCompare(b.name)).map(p => {
+        ${(() => {
+          // Terrain de handball : stickers joueurs déplaçables (glisser) — toucher = entrer / sortir
+          const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+          const tous = (players||[]).slice().sort((a,b) => (a.num||99) - (b.num||99) || a.name.localeCompare(b.name));
+          const poste = (p) => { const x = norm(p.pos); if (x.includes('gardien')) return 'G'; if (x.includes('pivot')) return 'P'; if (x.includes('ailier')) return 'A'; if (x.includes('demi') || x.includes('centr')) return 'DC'; if (x.includes('arriere')) return 'AR'; return 'AUTRE'; };
+          const par = { G:[], P:[], A:[], DC:[], AR:[], AUTRE:[] };
+          tous.forEach(p => par[poste(p)].push(p));
+          const DEFAUT_COTE = { 'gabin lambert': 'G', 'sulyvan joseph': 'D' };
+          const moitie = (arr) => {
+            const g = [], d = [], sans = [];
+            arr.forEach(p => { const c = cotes[p.id] || DEFAUT_COTE[norm(p.name).trim()] || null; if (c === 'G') g.push(p); else if (c === 'D') d.push(p); else sans.push(p); });
+            sans.forEach(p => { if (g.length <= d.length) g.push(p); else d.push(p); });
+            return [g, d];
+          };
+          // Positions par défaut (en %, origine en haut à gauche ; la cage est en bas)
+          const defaut = {};
+          const etaler = (arr, a, b, y, zigzag) => arr.forEach((p, i) => { const x = arr.length === 1 ? (a + b) / 2 : a + i * (b - a) / (arr.length - 1); defaut[p.id] = { x, y: y + (zigzag && i % 2 ? zigzag : 0) }; });
+          const coin = (arr, x, y0) => arr.forEach((p, i) => { defaut[p.id] = { x, y: y0 - i * 13 }; });
+          const [ailG, ailD] = moitie(par.A);
+          const [arG, arD] = moitie(par.AR);
+          coin(ailG, 7, 80); coin(ailD, 93, 80);                 // ailiers : coins bas du terrain
+          etaler(par.G, 38, 62, 92);                               // gardiens : sur la ligne de cage
+          etaler(par.P, 36, 64, 66, 0);                            // pivots : devant le 6 m
+          etaler(arG, 8, 40, 42, 11);                              // arrières gauche
+          etaler(arD, 60, 92, 42, 11);                             // arrières droite
+          etaler(par.DC, 40, 60, 34, 0);                           // demi-centres
+          etaler(par.AUTRE, 12, 88, 8, 0);                         // sans poste : en haut
+          const nbSur = tous.filter(p => isSurLeTerrain(p.id)).length;
+          const posDe = (p) => posJ[p.id] || defaut[p.id] || { x: 50, y: 50 };
+          const onDown = (e, p) => {
+            if (e.target && e.target.closest && e.target.closest('[data-nodrag]')) return;
+            const rect = courtRef.current && courtRef.current.getBoundingClientRect();
+            if (!rect) return;
+            try { e.currentTarget.setPointerCapture(e.pointerId); } catch (er) {}
+            dragRef.current = { id: p.id, sx: e.clientX, sy: e.clientY, moved: false, rect, last: posDe(p) };
+          };
+          const onMove = (e, p) => {
+            const d = dragRef.current; if (!d || d.id !== p.id) return;
+            if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) return;
+            d.moved = true;
+            const x = Math.min(96, Math.max(4, (e.clientX - d.rect.left) / d.rect.width * 100));
+            const y = Math.min(96, Math.max(4, (e.clientY - d.rect.top) / d.rect.height * 100));
+            d.last = { x, y };
+            setPosJ(c => ({ ...c, [p.id]: { x, y } }));
+          };
+          const onUp = (e, p) => {
+            const d = dragRef.current; dragRef.current = null;
+            if (!d || d.id !== p.id) return;
+            if (d.moved) { justDragged.current = true; sauverPos(p.id, d.last); setTimeout(() => { justDragged.current = false; }, 350); }
+          };
+          // Le toucher (entrer/sortir) passe par onClick, fiable sur mobile ; ignoré juste après un glissement
+          const onTap = (p) => { if (justDragged.current) return; toggleTerrain(p.id); };
+          const chip = (p) => {
             const on = isSurLeTerrain(p.id);
             const accumule = on && chronoMatchEnCours;
             const ms = tempsJoueurMs(p.id);
             const col = accumule ? '#4CAF50' : on ? '#FFA420' : 'rgba(255,255,255,.5)';
-            return _h`<div key=${p.id} style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', borderRadius:9,
-              background: on ? col+'1A' : 'rgba(255,255,255,.02)', border: on ? '1px solid '+col+'59' : '1px solid rgba(255,255,255,.05)' }}>
-              <button onClick=${() => toggleTerrain(p.id)}
-                style=${{ display:'flex', alignItems:'center', gap:8, background:'none', border:'none', cursor:'pointer', flex:1, textAlign:'left', padding:0 }}>
-                <span style=${{ fontSize:13 }}>${accumule ? '🟢' : on ? '⏸️' : '⚪'}</span>
-                <span style=${{ fontSize:12, fontWeight:700, color: on ? col : 'rgba(255,255,255,.7)' }}>${p.name}</span>
-              </button>
-              <span style=${{ display:'flex', alignItems:'center', gap:6 }}>
-                <span style=${{ fontSize:13, fontWeight:800, color: on ? col : 'rgba(255,255,255,.5)', fontFamily:"'Barlow Condensed',sans-serif" }}>${fmtChrono(ms)}</span>
-                ${ms > 0 ? _h`<button onClick=${() => resetTempsJoueur(p.id)} title="Réinitialiser"
-                  style=${{ background:'none', border:'none', color:'rgba(255,255,255,.25)', fontSize:12, cursor:'pointer' }}>↺</button>` : null}
-              </span>
+            const ps = posDe(p);
+            return _h`<div key=${p.id}
+              onClick=${() => onTap(p)} onPointerDown=${(e) => onDown(e, p)} onPointerMove=${(e) => onMove(e, p)} onPointerUp=${(e) => onUp(e, p)} onPointerCancel=${() => { dragRef.current = null; }}
+              style=${{ position:'absolute', left:ps.x+'%', top:ps.y+'%', transform:'translate(-50%,-50%)', width:92, touchAction:'none', cursor:'grab', userSelect:'none', WebkitUserSelect:'none',
+                zIndex: dragRef.current && dragRef.current.id === p.id ? 20 : 2,
+                display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'6px 5px', borderRadius:12,
+                background: on ? 'rgba(20,24,20,.92)' : 'rgba(0,0,0,.72)', border: on ? '2px solid '+col : '1px solid rgba(255,255,255,.2)', boxShadow:'0 2px 8px rgba(0,0,0,.5)', color:'#fff' }}>
+              <span style=${{ fontSize:11, fontWeight:800, color: on ? col : 'rgba(255,255,255,.8)', lineHeight:1.15, textAlign:'center', wordBreak:'break-word' }}>${p.num ? '#'+p.num+' ' : ''}${p.name}</span>
+              <span style=${{ fontSize:14, fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif", color: on ? col : 'rgba(255,255,255,.5)' }}>${accumule ? '🟢 ' : on ? '⏸️ ' : ''}${fmtChrono(ms)}</span>
+              ${ms > 0 ? _h`<button data-nodrag="1" onPointerDown=${(e) => e.stopPropagation()} onClick=${(e) => { e.stopPropagation(); resetTempsJoueur(p.id); }} title="Réinitialiser le temps"
+                style=${{ position:'absolute', top:-7, right:-7, width:20, height:20, borderRadius:'50%', background:'#1b1d22', border:'1px solid rgba(255,255,255,.25)', color:'rgba(255,255,255,.6)', fontSize:11, cursor:'pointer', padding:0, lineHeight:1 }}>↺</button>` : null}
             </div>`;
-          })}
-        </div>
+          };
+          return _h`<div>
+            <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style=${{ fontSize:10, color:'rgba(255,255,255,.4)' }}>${nbSur} joueur${nbSur>1?'s':''} sur le terrain · touche = entrer/sortir · glisse pour déplacer</div>
+              <button onClick=${resetPositions} style=${{ fontSize:10, padding:'3px 8px', borderRadius:8, border:'1px solid rgba(255,255,255,.15)', background:'none', color:'rgba(255,255,255,.45)', cursor:'pointer' }}>↺ Positions</button>
+            </div>
+            <div ref=${courtRef} style=${{ position:'relative', width:'100%', height:'min(78vh, 640px)', minHeight:520, borderRadius:14, background:'linear-gradient(180deg, rgba(34,139,34,.10), rgba(34,139,34,.22))', border:'2px solid rgba(255,255,255,.2)', overflow:'hidden' }}>
+              <!-- Lignes du terrain : zone de 6 m (pleine), 9 m (pointillés), cage en bas -->
+              <div style=${{ position:'absolute', left:'18%', right:'18%', bottom:-40, height:'62%', borderRadius:'50% 50% 0 0 / 100% 100% 0 0', border:'2px solid rgba(255,255,255,.28)', background:'rgba(255,255,255,.04)', pointerEvents:'none' }}></div>
+              <div style=${{ position:'absolute', left:'6%', right:'6%', bottom:-40, height:'84%', borderRadius:'50% 50% 0 0 / 100% 100% 0 0', border:'2px dashed rgba(255,255,255,.18)', pointerEvents:'none' }}></div>
+              <div style=${{ position:'absolute', left:'38%', right:'38%', bottom:0, height:14, border:'2px solid rgba(255,255,255,.4)', borderBottom:'none', pointerEvents:'none' }}></div>
+              <div style=${{ position:'absolute', top:8, left:0, right:0, textAlign:'center', fontSize:9, letterSpacing:2, color:'rgba(255,255,255,.25)', fontWeight:800, pointerEvents:'none' }}>MILIEU DE TERRAIN</div>
+              ${tous.map(chip)}
+            </div>
+          </div>`;
+        })()}
       </div>
 
       <!-- Sélecteur de critère (actif = ce qui sera posé au prochain tap) -->
@@ -12851,7 +13236,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
 
   // Map exercise name → rmHistory key
   const RM_MAP = {
-    'Squat barre': 'squat', 'Squat': 'squat', 'Squat sauté (barre légère)': 'squat',
+    'Squat barre': 'squat', 'Back Squat': 'squat', 'Back squat': 'squat', 'Squat': 'squat', 'Squat sauté (barre légère)': 'squat',
     'Squat Jump chargé': 'squat', 'Squat jump 30% 1RM': 'squat',
     'Développé couché': 'bench', 'Developpe couche': 'bench', 'Bench Press': 'bench',
     'Développé couché explosif': 'bench', 'Développé militaire': null,
@@ -12902,7 +13287,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
         // Exercices de la bibliothèque (bilans de départ) : lien + image/vidéo repris automatiquement
         ...(ex.biblio ? (() => {
           const b = findBiblioMatch(ex.biblio);
-          return { biblio: ex.biblio, ...(b && b.imageUrl ? { imageUrl: b.imageUrl } : {}) };
+          return { biblio: ex.biblio, biblioExplicit: true, ...(b && b.imageUrl ? { imageUrl: b.imageUrl } : {}) };
         })() : {}),
         // CORRECTIF EMOM : cette liste blanche de champs ne reprenait pas emom/emomDuree — un
         // exercice EMOM sauvegardé dans une méthode personnalisée perdait donc son chrono EMOM
@@ -13362,11 +13747,30 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
           const isFaite = !!s.dateFaite;
           const cardBorder = isFaite ? 'rgba(76,175,80,.25)' : isToday ? 'rgba(255,164,32,.4)' : isPast ? 'rgba(255,68,85,.2)' : 'rgba(255,255,255,.07)';
           const cardBg = isFaite ? 'rgba(76,175,80,.03)' : isToday ? 'rgba(255,164,32,.04)' : 'rgba(255,255,255,.02)';
+          // Bandeau « JOUR » : lisible au premier coup d'œil (jour de la semaine + date + statut)
+          const jourBandeau = (() => {
+            if (!s.datePrevu) return _h`<div style=${{ margin:'-14px -16px 12px', padding:'8px 16px', background:'rgba(255,68,85,.1)', borderBottom:'1px solid rgba(255,68,85,.25)', borderRadius:'14px 14px 0 0', fontSize:12, fontWeight:800, color:'#FF6B6B', letterSpacing:1 }}>📅 SANS DATE — à planifier</div>`;
+            const d = new Date(s.datePrevu + 'T12:00:00');
+            const jour = d.toLocaleDateString('fr-FR', { weekday:'long' }).toUpperCase();
+            const dateTxt = d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' }).toUpperCase().replace('.', '');
+            const diff = Math.round((d - new Date(today + 'T12:00:00')) / 86400000);
+            const rel = isFaite ? '✓ FAITE' : isToday ? "⚡ AUJOURD'HUI" : diff === 1 ? 'DEMAIN' : diff > 1 ? 'DANS ' + diff + ' J' : diff === -1 ? '⚠ HIER — NON FAITE' : '⚠ NON FAITE (il y a ' + (-diff) + ' j)';
+            const col = isFaite ? '#4CAF50' : isToday ? '#FFA420' : isPast ? '#FF6B6B' : '#38BDF8';
+            const bg = isFaite ? 'rgba(76,175,80,.12)' : isToday ? 'rgba(255,164,32,.16)' : isPast ? 'rgba(255,68,85,.12)' : 'rgba(56,189,248,.10)';
+            return _h`<div style=${{ margin:'-14px -16px 12px', padding:'9px 16px', background:bg, borderBottom:'2px solid '+col, borderRadius:'14px 14px 0 0', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+              <div style=${{ display:'flex', alignItems:'baseline', gap:8 }}>
+                <span style=${{ fontSize:18, fontWeight:900, color:col, letterSpacing:1.5 }}>${jour}</span>
+                <span style=${{ fontSize:14, fontWeight:800, color:'#fff' }}>${dateTxt}</span>
+              </div>
+              <span style=${{ fontSize:11, fontWeight:800, color:col, letterSpacing:.8 }}>${rel}</span>
+            </div>`;
+          })();
           return _h`<div key=${s.id} style=${{
             background:cardBg, border:'1px solid '+cardBorder,
             borderRadius:14, padding:'14px 16px', marginBottom:10,
-            opacity: isFaite ? 0.6 : 1
+            opacity: isFaite ? 0.6 : 1, overflow:'hidden'
           }}>
+            ${jourBandeau}
             <!-- Header séance -->
             <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
               <div>
@@ -13377,11 +13781,6 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
                 <div style=${{ display:'flex', gap:6, marginTop:4, flexWrap:'wrap' }}>
                   ${s.methode ? _h`<span style=${{ fontSize:10, padding:'2px 8px', borderRadius:20, background:'rgba(255,164,32,.15)', color:'#FFA420', fontWeight:700 }}>${s.methode}</span>` : null}
                   ${s.contexte ? _h`<span style=${{ fontSize:10, padding:'2px 8px', borderRadius:20, background:'rgba(255,255,255,.08)', color:'rgba(255,255,255,.5)' }}>${s.contexte}</span>` : null}
-                  ${s.datePrevu ? _h`<span style=${{ fontSize:10, padding:'2px 9px', borderRadius:20, fontWeight:700,
-                    background: isFaite ? 'rgba(76,175,80,.12)' : isToday ? 'rgba(255,164,32,.15)' : isPast ? 'rgba(255,68,85,.1)' : 'rgba(56,189,248,.1)',
-                    color: isFaite ? '#4CAF50' : isToday ? '#FFA420' : isPast ? '#FF6B6B' : '#38BDF8' }}>
-                    ${isFaite ? '✓ Faite' : isToday ? '⚡ Auj.' : isPast ? '⚠ Passée' : '📅'} ${s.datePrevu}
-                  </span>` : _h`<span style=${{ fontSize:10, color:'rgba(255,68,85,.5)', padding:'2px 8px', borderRadius:20, background:'rgba(255,68,85,.08)' }}>Sans date</span>`}
                 </div>
               </div>
               <div style=${{ display:'flex', gap:6 }}>
@@ -13444,9 +13843,26 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
             ${s.exercices && s.exercices.length > 0 && _h`<div style=${{ borderTop:'1px solid rgba(255,255,255,.05)', paddingTop:10 }}>
               ${isCoach
                 ? _h`<div>
+                  ${(() => {
+                    let nbS = 0, ton = 0;
+                    s.exercices.forEach(e => { try { const r0 = rpExoSets(e, player, rpD(s.datePrevu) || localDateStr()); nbS += r0.sets.length; ton += r0.sets.reduce((a, x) => (x.kg != null && x.reps != null) ? a + x.kg * x.reps : a, 0); } catch (er) {} });
+                    const nbBlocs = s.exercices.filter(e => e.blocNom != null).length;
+                    const chip2 = (t) => _h`<span style=${{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:20, background:'rgba(255,255,255,.07)', color:'rgba(255,255,255,.85)' }}>${t}</span>`;
+                    return _h`<div style=${{ background:'rgba(56,189,248,.06)', border:'1px solid rgba(56,189,248,.2)', borderRadius:10, padding:'9px 12px', marginBottom:6 }}>
+                      <div style=${{ fontSize:10, fontWeight:800, color:'#38BDF8', textTransform:'uppercase', letterSpacing:1, marginBottom:6 }}>📋 En un coup d'œil</div>
+                      <div style=${{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        ${chip2(s.exercices.length + ' exercice' + (s.exercices.length > 1 ? 's' : ''))}
+                        ${nbBlocs ? chip2(nbBlocs + ' bloc' + (nbBlocs > 1 ? 's' : '')) : null}
+                        ${chip2(nbS + ' séries au total')}
+                        ${ton > 0 ? chip2('≈ ' + Math.round(ton).toLocaleString('fr-FR') + ' kg soulevés') : null}
+                        ${s.rpeCible ? chip2('effort visé : ' + s.rpeCible + '/10') : null}
+                      </div>
+                      <div style=${{ fontSize:10.5, color:'rgba(255,255,255,.4)', marginTop:6, lineHeight:1.45 }}>Les kg sont calculés automatiquement : % × 1RM actuel du joueur (1RM = charge maximale qu'il peut soulever 1 fois). Chaque exercice détaille ci-dessous le poids de chaque série.</div>
+                    </div>`;
+                  })()}
                   ${s.exercices.map((ex0, i) => { const ex = liveCharge(ex0); const chargeHint = chargeHintRM(ex0, player); return [blocHeaderEl(s.exercices, i, 'bh'+i), _h`<div key=${i} style=${{ padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,.05)' }}>
                     <div style=${{ display:'flex', gap:10, alignItems:'center' }}>
-                      ${ex.imageUrl ? _h`<${ZoomableImage} src=${ex.imageUrl} alt=${ex.nom}
+                      ${imageExoPour(ex) ? _h`<${ZoomableImage} src=${imageExoPour(ex)} alt=${ex.nom}
                         style=${{ width:44, height:44, objectFit:'cover', borderRadius:7,
                           border:'1px solid rgba(255,255,255,.1)', flexShrink:0 }}
                         onError=${e => e.target.style.display='none'} />` : null}
@@ -13455,12 +13871,26 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
                           <div style=${{ fontSize:13, fontWeight:700 }}>${ex.nom}</div>
                           <span style=${{ fontSize:20, lineHeight:1.1, color:'#FFA420', fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif", flexShrink:0, whiteSpace:'nowrap', background:'rgba(255,164,32,.12)', border:'1px solid rgba(255,164,32,.3)', borderRadius:8, padding:'3px 10px', letterSpacing:.3 }}>${seriesRepsLabel(ex).main}</span>
                         </div>
-                        <div style=${{ display:'flex', gap:10, marginTop:3, flexWrap:'wrap', alignItems:'baseline' }}>
-                          <span style=${{ fontSize:14, color:'#38BDF8', fontWeight:700 }}>${chargeHint && chargeHint.ok ? chargeHint.kg + ' kg' : ex.charge}</span>
-                          ${chargeHint && chargeHint.ok ? _h`<span style=${{ fontSize:10, color:'rgba(255,255,255,.3)' }}>(${chargeHint.pct}% de ${chargeHint.mvtLabel})</span>` : null}
-                          ${seriesRepsLabel(ex).sub ? _h`<span style=${{ fontSize:12, color:'rgba(255,255,255,.6)' }}>${seriesRepsLabel(ex).sub}</span>` : null}
-                          <span style=${{ fontSize:13, color:'rgba(255,255,255,.5)' }}>⏱ ${ex.repos}</span>
-                        </div>
+                        ${(() => {
+                          const rows = detailSeriesCoach(ex, player);
+                          const uniforme = rows.length > 0 && rows.every(r => r.charge === rows[0].charge && r.reps === rows[0].reps && !r.amrap);
+                          return _h`<div>
+                            <div style=${{ fontSize:12.5, color:'#fff', fontWeight:600, marginTop:4, lineHeight:1.4 }}>${enClairExo(ex, rows)}</div>
+                            ${chargeHint && chargeHint.ok ? _h`<div style=${{ fontSize:10.5, color:'rgba(255,255,255,.4)', marginTop:1 }}>${chargeHint.pct} % de son 1RM ${chargeHint.mvtLabel} (${String(getPlayerRMValue(detectMouvementRM(ex.nom, player) || (parsePctPC(ex.charge) != null ? 'poids_corps' : null), player) || '').replace('.', ',')} kg)</div>` : null}
+                            ${rows.length > 0 && rows.some(r => r.charge) ? _h`<div style=${{ marginTop:6, borderRadius:8, overflow:'hidden', border:'1px solid rgba(56,189,248,.18)' }}>
+                              <div style=${{ display:'grid', gridTemplateColumns:'42px 1fr 1.3fr 58px', gap:6, padding:'4px 8px', background:'rgba(56,189,248,.10)', fontSize:9, fontWeight:800, letterSpacing:.8, color:'rgba(255,255,255,.5)', textTransform:'uppercase' }}>
+                                <span>Série</span><span>Reps</span><span>Poids</span><span style=${{ textAlign:'right' }}>% 1RM</span>
+                              </div>
+                              ${rows.map((r, ri) => _h`<div key=${ri} style=${{ display:'grid', gridTemplateColumns:'42px 1fr 1.3fr 58px', gap:6, padding:'5px 8px', alignItems:'baseline', borderTop:'1px solid rgba(255,255,255,.05)', background: r.amrap ? 'rgba(255,164,32,.08)' : (ri % 2 ? 'rgba(255,255,255,.02)' : 'transparent') }}>
+                                <span style=${{ fontSize:11, fontWeight:800, color:'rgba(255,255,255,.55)' }}>S${r.n}</span>
+                                <span style=${{ fontSize:14, fontWeight:800 }}>${r.reps}${r.amrap ? ' 🔥' : ''}</span>
+                                <span style=${{ fontSize:15, fontWeight:800, color:'#38BDF8' }}>${r.charge || '—'}</span>
+                                <span style=${{ fontSize:11, color:'rgba(255,255,255,.4)', textAlign:'right' }}>${r.pct ? r.pct + ' %' : ''}</span>
+                                ${r.note ? _h`<span style=${{ gridColumn:'1 / -1', fontSize:10.5, color:'rgba(255,255,255,.45)', fontStyle:'italic' }}>${r.amrap ? 'AMRAP = autant de répétitions que possible. ' : ''}${r.note}</span>` : (r.amrap ? _h`<span style=${{ gridColumn:'1 / -1', fontSize:10.5, color:'rgba(255,164,32,.8)', fontStyle:'italic' }}>AMRAP = autant de répétitions propres que possible</span>` : null)}
+                              </div>`)}
+                            </div>` : null}
+                          </div>`;
+                        })()}
                         ${ex.notes ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.7)', marginTop:5, lineHeight:1.5, background:'rgba(255,164,32,.06)', borderLeft:'3px solid rgba(255,164,32,.5)', borderRadius:6, padding:'5px 9px', whiteSpace:'pre-wrap' }}>💡 ${ex.notes}</div>` : null}
                       </div>
                     </div>
@@ -15901,25 +16331,10 @@ function findBiblioMatch(nomExercice) {
   if (match) return match;
   match = validMvts.find(m => norm(m.nom) === nom);
   if (match) return appliquerOverride(match);
-  // 2. Correspondance prudente : TOUS les mots significatifs de l'un des deux noms doivent se
-  // retrouver dans l'autre. « Développé écarté aux haltères » ne tombe donc plus sur « Rowing
-  // haltère unilatéral » juste parce qu'ils partagent « haltère » : pas de fiche vaut mieux
-  // qu'une fiche qui n'a rien à voir.
-  function score(m) {
-    const tm = toks(m.nom);
-    if (!tm.size || !tNom.size) return 0;
-    const small = tm.size <= tNom.size ? tm : tNom, big = tm.size <= tNom.size ? tNom : tm;
-    for (const w of small) if (!big.has(w)) return 0;
-    // un nom d'un seul mot générique ne suffit pas à lui seul quand l'autre est long : on préfère les plus proches
-    return small.size * 10 - Math.abs(tm.size - tNom.size);
-  }
-  let best = null, bestScore = 0;
-  customMvts.forEach(m => { const sc = score(m); if (sc > bestScore) { best = m; bestScore = sc; } });
-  let bestBase = null, bestBaseScore = 0;
-  validMvts.forEach(m => { const sc = score(m); if (sc > bestBaseScore) { bestBase = m; bestBaseScore = sc; } });
-  if (best && bestScore >= bestBaseScore) return best;
-  if (bestBase) return appliquerOverride(bestBase);
-  return best || null;
+  // Correspondance STRICTE : uniquement le même nom (casse, accents, ponctuation et pluriel ignorés).
+  // « Curl avant-bras à la barre » ne tombe donc plus sur « Curl barre » : pas de fiche vaut mieux
+  // qu'une fiche d'un autre exercice. Les liens voulus (ex. bilans) passent par le champ `biblio`.
+  return null;
 }
 
 function BiblioLinkButton({ nomExercice }) {
@@ -16075,7 +16490,7 @@ function BibliothequeView({ db, setDb, readOnly }) {
     tousJoueurs.forEach(p => {
       (p.muscuSeances||[]).forEach(s => {
         (s.exercices||[]).forEach(ex => {
-          if (!ex.imageUrl || !ex.nom) return;
+          if (!ex.imageUrl || !ex.nom || ex.imageAuto) return;
           const key = ex.nom.trim().toLowerCase();
           if (!key) return;
           if (vus.has(key)) { vus.get(key).nbUtilisations++; return; }
@@ -16581,9 +16996,808 @@ function MentalPrepView({ player, savePlayer }) {
   </div>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// RAPPORT D'ENTRAÎNEMENT (PDF + Excel) — synthèse complète d'un joueur sur une période :
+// musculation (séances, tonnage, progression par exercice, 1RM), endurance, charge (UA, ACWR),
+// tests, composition corporelle, bien-être, blessures. Tout est calculé à partir des données
+// déjà saisies dans l'app (aucune saisie supplémentaire).
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+function rpArr(x) { return Array.isArray(x) ? x : (x && typeof x === 'object' ? Object.values(x) : []); }
+function rpNum(v) { if (v == null || v === '') return null; const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+function rpD(d) { return String(d || '').slice(0, 10); }
+function rpFr(d) { d = rpD(d); return d.length === 10 ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(2, 4) : ''; }
+function rpAddDays(dStr, n) { const d = new Date(dStr + 'T12:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function rpMonday(dStr) { const d = new Date(rpD(dStr) + 'T12:00:00'); return rpAddDays(rpD(dStr), -((d.getDay() + 6) % 7)); }
+function rpDiffDays(a, b) { return Math.round((new Date(rpD(b) + 'T12:00:00') - new Date(rpD(a) + 'T12:00:00')) / 86400000); }
+function rpAvg(a) { a = a.filter(v => v != null && !isNaN(v)); return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }
+function rpR(v, n) { if (v == null) return null; const f = Math.pow(10, n == null ? 1 : n); return Math.round(v * f) / f; }
+function rpRepsNum(r) {
+  const t = String(r == null ? '' : r).toLowerCase();
+  if (!t || /\d\s*(s|sec|secondes?|min)\b|amrap|max|[ée]chec/.test(t)) return null;
+  const m = t.match(/(\d+)(?:\s*[-–/]\s*(\d+))?/);
+  if (!m) return null;
+  return m[2] ? (parseInt(m[1]) + parseInt(m[2])) / 2 : parseInt(m[1]);
+}
+// 1RM (ou poids de corps) du joueur À UNE DATE DONNÉE (dernière valeur connue avant, sinon la première)
+function rpRefAt(player, mvtId, date) {
+  if (mvtId === 'poids_corps') {
+    const ms = rpArr(player.masseMesures).filter(m => rpNum(m.poids) > 0).sort((a, b) => rpD(a.date).localeCompare(rpD(b.date)));
+    if (!ms.length) return rpNum(player.poids);
+    const before = ms.filter(m => rpD(m.date) <= date);
+    return rpNum((before.length ? before[before.length - 1] : ms[0]).poids);
+  }
+  const h = rpArr(player.rmHistory && player.rmHistory[mvtId]).filter(e => rpNum(e.rm) > 0).sort((a, b) => rpD(a.date).localeCompare(rpD(b.date)));
+  if (!h.length) return null;
+  const before = h.filter(e => rpD(e.date) <= date);
+  return rpNum((before.length ? before[before.length - 1] : h[0]).rm);
+}
+function rpMvtLabel(player, id) {
+  if (id === 'poids_corps') return 'Poids du corps';
+  const m = (typeof MOUVEMENTS_RM !== 'undefined' ? MOUVEMENTS_RM : []).find(x => x.id === id) || rpArr(player.customRM).find(x => x.id === id);
+  return m && m.label ? m.label : null;
+}
+// Charges PRESCRITES d'un exercice à la date de la séance (kg calculés avec le 1RM de l'époque)
+function rpExoSets(ex, player, date) {
+  const pc = parsePctPC(ex.charge);
+  const mvt = pc != null ? 'poids_corps' : detectMouvementRM(ex.nom, player);
+  const kgOf = (pct, txt) => {
+    let p = pct;
+    if (p == null) { const mm = String(txt || '').match(/\((\d+(?:[.,]\d+)?)\s*%/); if (mm) p = parseFloat(mm[1].replace(',', '.')); }
+    if (p != null && mvt) { const r = rpRefAt(player, mvt, date); if (r) return Math.round(r * p / 100 / 2.5) * 2.5; }
+    const k = String(txt || '').match(/(\d+(?:[.,]\d+)?)\s*kg/i);
+    return k ? parseFloat(k[1].replace(',', '.')) : null;
+  };
+  const details = rpArr(ex.chargeDetails);
+  const pctGlobal = pc != null ? pc : resolvePctRM(ex);
+  const sets = [];
+  if (details.length) {
+    details.forEach(d => sets.push({ pct: pc != null ? pc : (d.pct != null ? d.pct : null), kg: kgOf(pc != null ? pc : d.pct, d.charge || ex.charge), reps: rpRepsNum(d.reps != null && d.reps !== '' ? d.reps : ex.reps) }));
+  } else {
+    const n = Math.max(1, parseInt(ex.series) || 1);
+    const kg = kgOf(pctGlobal, ex.charge);
+    for (let i = 0; i < n; i++) sets.push({ pct: pctGlobal, kg, reps: rpRepsNum(ex.reps) });
+  }
+  return { mvt, sets };
+}
+function rpNormNom(n) { return String(n || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+
+function buildRapportJoueur(player, from, to) {
+  const today = localDateStr();
+  const inP = d => { d = rpD(d); return d && d >= from && d <= to; };
+  const refDate = s => rpD(s.dateFaite || s.datePrevu);
+  const r = { player, from, to, generated: today };
+
+  // ── Musculation ──────────────────────────────────────────────────────────────────────
+  const muscuAll = rpArr(player.muscuSeances);
+  const muscu = muscuAll.filter(s => inP(refDate(s))).sort((a, b) => refDate(a).localeCompare(refDate(b)));
+  const exoMap = {};        // nom normalisé → { nom, lignes:[{date,kg,series,reps,tonnage,pct}] }
+  r.muscuRows = muscu.map(s => {
+    const exs = rpArr(s.exercices);
+    const date = refDate(s);
+    const fait = !!s.dateFaite;
+    let series = 0, tonnage = 0;
+    exs.forEach(ex => {
+      const { sets } = rpExoSets(ex, player, date);
+      const kgs = sets.map(x => x.kg).filter(v => v != null);
+      const ton = sets.reduce((a, x) => a + ((x.kg != null && x.reps != null) ? x.kg * x.reps : 0), 0);
+      series += sets.length; tonnage += ton;
+      if (fait && ex.nom && sets.length) {
+        const k = rpNormNom(ex.nom);
+        (exoMap[k] = exoMap[k] || { nom: ex.nom, lignes: [] }).lignes.push({
+          date, seance: s.nom || '', series: sets.length, reps: ex.reps != null ? String(ex.reps) : '',
+          kgMax: kgs.length ? Math.max.apply(null, kgs) : null, kgMoy: rpR(rpAvg(kgs), 1),
+          pct: (sets.find(x => x.pct != null) || {}).pct != null ? sets.find(x => x.pct != null).pct : null,
+          tonnage: ton, repsTot: sets.reduce((a, x) => a + (x.reps || 0), 0),
+        });
+      }
+    });
+    const duree = Math.max(30, Math.min(100, exs.length * 9));
+    return {
+      datePrevu: rpD(s.datePrevu), dateFaite: rpD(s.dateFaite), nom: s.nom || '', methode: s.methode || '', contexte: s.contexte || '',
+      nbExos: exs.length, series, tonnage: Math.round(tonnage), fait,
+      statut: fait ? 'Faite' : (rpD(s.datePrevu) && rpD(s.datePrevu) < today ? 'Non faite' : 'À venir'),
+      rpeCible: rpNum(s.rpeCible), rpeReel: rpNum(s.rpeReel), fatigue: rpNum(s.fatigue), energie: rpNum(s.energie), sommeil: rpNum(s.sommeil),
+      douleurs: rpNum(s.douleurs), duree, charge: (fait && rpNum(s.rpeReel) != null) ? Math.round(duree * rpNum(s.rpeReel)) : null,
+      notesJoueur: s.notesJoueur || '',
+    };
+  });
+  r.exos = Object.values(exoMap).map(e => {
+    const l = e.lignes.sort((a, b) => a.date.localeCompare(b.date));
+    const withKg = l.filter(x => x.kgMax != null);
+    const first = withKg[0], last = withKg[withKg.length - 1];
+    return {
+      nom: e.nom, apparitions: l.length, lignes: l,
+      kgDebut: first ? first.kgMax : null, kgFin: last ? last.kgMax : null,
+      deltaKg: first && last ? rpR(last.kgMax - first.kgMax, 1) : null,
+      deltaPct: first && last && first.kgMax ? rpR((last.kgMax - first.kgMax) / first.kgMax * 100, 1) : null,
+      kgPic: withKg.length ? Math.max.apply(null, withKg.map(x => x.kgMax)) : null,
+      tonnage: Math.round(l.reduce((a, x) => a + x.tonnage, 0)), seriesTot: l.reduce((a, x) => a + x.series, 0), repsTot: l.reduce((a, x) => a + x.repsTot, 0),
+    };
+  }).sort((a, b) => b.apparitions - a.apparitions || (b.tonnage - a.tonnage));
+
+  // ── 1RM ──────────────────────────────────────────────────────────────────────────────
+  const rmKeys = Object.keys(player.rmHistory || {});
+  const pcNow = rpRefAt(player, 'poids_corps', to);
+  r.rm = rmKeys.map(id => {
+    const h = rpArr(player.rmHistory[id]).filter(e => rpNum(e.rm) > 0).sort((a, b) => rpD(a.date).localeCompare(rpD(b.date)));
+    if (!h.length) return null;
+    const dansP = h.filter(e => inP(e.date));
+    const avant = h.filter(e => rpD(e.date) < from);
+    const debut = avant.length ? avant[avant.length - 1] : (dansP[0] || h[0]);
+    const fin = dansP.length ? dansP[dansP.length - 1] : (avant.length ? avant[avant.length - 1] : h[h.length - 1]);
+    const d = rpR(rpNum(fin.rm) - rpNum(debut.rm), 1);
+    return {
+      id, label: rpMvtLabel(player, id) || 'Mouvement personnalisé (supprimé)', orphelin: rpMvtLabel(player, id) == null, historique: h.map(e => ({ date: rpD(e.date), rm: rpNum(e.rm) })),
+      debut: rpNum(debut.rm), debutDate: rpD(debut.date), fin: rpNum(fin.rm), finDate: rpD(fin.date),
+      delta: d, deltaPct: rpNum(debut.rm) ? rpR(d / rpNum(debut.rm) * 100, 1) : null,
+      ratioPC: pcNow ? rpR(rpNum(fin.rm) / pcNow, 2) : null, record: Math.max.apply(null, h.map(e => rpNum(e.rm))),
+    };
+  }).filter(Boolean);
+
+  // ── Endurance ────────────────────────────────────────────────────────────────────────
+  const endu = rpArr(player.enduranceSeances).filter(s => inP(refDate(s))).sort((a, b) => refDate(a).localeCompare(refDate(b)));
+  const vmaPlayer = typeof getPlayerVMA === 'function' ? getPlayerVMA(player) : null;
+  r.vma = vmaPlayer;
+  r.enduRows = endu.map(s => {
+    const tc = (typeof TYPES_CARDIO !== 'undefined' ? TYPES_CARDIO : []).find(t => t.id === s.type);
+    const fait = !!s.dateFaite;
+    const bl = typeof blocsEndu === 'function' ? blocsEndu(s) : [];
+    let volM = null;
+    if (bl.length) {
+      volM = bl.reduce((a, b) => a + (b.dist ? b.reps * b.dist : ((b.sec && vmaPlayer) ? b.reps * (vmaPlayer * ((b.pct[0] + b.pct[1]) / 2) / 100) * 1000 / 3600 * b.sec : 0)), 0);
+    }
+    const duree = rpNum(s.duree) || 45;
+    return {
+      datePrevu: rpD(s.datePrevu), dateFaite: rpD(s.dateFaite), nom: s.nom || (tc ? tc.label : ''), type: tc ? tc.label : '',
+      structure: s.distance || (s.duree ? s.duree + ' min' : ''), recup: s.recup || '', intensite: s.intensite || '',
+      volumeM: volM ? Math.round(volM) : null, duree, fait,
+      statut: fait ? 'Faite' : (rpD(s.datePrevu) && rpD(s.datePrevu) < today ? 'Non faite' : 'À venir'),
+      rpeCible: rpNum(s.rpeCible), rpeReel: rpNum(s.rpeReel), fatigue: rpNum(s.fatigue),
+      charge: (fait && rpNum(s.rpeReel) != null) ? Math.round(duree * rpNum(s.rpeReel)) : null,
+    };
+  });
+
+  // ── Charge (UA = durée × RPE) — même convention que « Charge équipe » ───────────────────
+  const terrain = rpArr(player.bilans).filter(b => b.type === 'Terrain' && inP(b.date));
+  const events = [];
+  r.muscuRows.filter(x => x.fait && x.charge != null).forEach(x => events.push({ date: x.dateFaite, type: 'Muscu', ua: x.charge, rpe: x.rpeReel }));
+  r.enduRows.filter(x => x.fait && x.charge != null).forEach(x => events.push({ date: x.dateFaite, type: 'Endurance', ua: x.charge, rpe: x.rpeReel }));
+  terrain.forEach(b => events.push({ date: rpD(b.date), type: 'Terrain', ua: rpNum(b.chargeSession) || 0, rpe: rpNum(b.rpe) }));
+  r.terrainRows = terrain.map(b => ({ date: rpD(b.date), type: b.typeSeance || 'Terrain', duree: rpNum(b.duree), rpe: rpNum(b.rpe), charge: rpNum(b.chargeSession), fatigue: rpNum(b.fatigue), notes: b.notes || '' }));
+  const wkStart = rpMonday(from), wkEnd = rpMonday(to);
+  r.semaines = [];
+  for (let w = wkStart; w <= wkEnd; w = rpAddDays(w, 7)) {
+    const we = rpAddDays(w, 6);
+    const evs = events.filter(e => e.date >= w && e.date <= we);
+    const mp = muscu.filter(s => rpD(s.datePrevu) >= w && rpD(s.datePrevu) <= we);
+    const ep = endu.filter(s => rpD(s.datePrevu) >= w && rpD(s.datePrevu) <= we);
+    const mDone = r.muscuRows.filter(x => x.fait && x.dateFaite >= w && x.dateFaite <= we);
+    const eDone = r.enduRows.filter(x => x.fait && x.dateFaite >= w && x.dateFaite <= we);
+    r.semaines.push({
+      debut: w, fin: we, label: rpFr(w).slice(0, 5),
+      muscuPrevues: mp.length, muscuFaites: mDone.length, enduPrevues: ep.length, enduFaites: eDone.length,
+      uaMuscu: evs.filter(e => e.type === 'Muscu').reduce((a, e) => a + e.ua, 0),
+      uaEndu: evs.filter(e => e.type === 'Endurance').reduce((a, e) => a + e.ua, 0),
+      uaTerrain: evs.filter(e => e.type === 'Terrain').reduce((a, e) => a + e.ua, 0),
+      ua: evs.reduce((a, e) => a + e.ua, 0), rpe: rpR(rpAvg(evs.map(e => e.rpe)), 1),
+      tonnage: mDone.reduce((a, x) => a + x.tonnage, 0), volumeM: eDone.reduce((a, x) => a + (x.volumeM || 0), 0),
+    });
+  }
+  // ACWR glissant (charge de la semaine / moyenne des 4 semaines précédentes)
+  r.semaines.forEach((s, i) => {
+    const prev = r.semaines.slice(Math.max(0, i - 4), i).map(x => x.ua);
+    s.acwr = prev.length >= 3 && rpAvg(prev) > 0 ? rpR(s.ua / rpAvg(prev), 2) : null;
+  });
+  // ACWR « actuel » : 7 derniers jours / (28 jours / 4), comme dans Charge équipe
+  const toEff = to < today ? to : today;
+  const acute = events.filter(e => rpDiffDays(e.date, toEff) >= 0 && rpDiffDays(e.date, toEff) < 7).reduce((a, e) => a + e.ua, 0);
+  const chronic = events.filter(e => rpDiffDays(e.date, toEff) >= 0 && rpDiffDays(e.date, toEff) < 28).reduce((a, e) => a + e.ua, 0) / 4;
+  r.acwr = (chronic > 0 && acute > 0) ? rpR(acute / chronic, 2) : null;
+  r.chargeAigue = acute; r.chargeChronique = Math.round(chronic);
+
+  // ── Tests ────────────────────────────────────────────────────────────────────────────
+  const TEST_DEFS = [['sprint10', 'Sprint 10 m (s)', true], ['sprint20', 'Sprint 20 m (s)', true], ['sprint30', 'Sprint 30 m (s)', true], ['detente', 'Détente CMJ (cm)', false],
+    ['vma', 'VMA (km/h)', false], ['yoyo', 'Yo-Yo (niv.)', false], ['squat1RM', 'Squat 1RM (kg)', false], ['bench1RM', 'Bench 1RM (kg)', false],
+    ['souleveTerre', 'Soulevé de terre (kg)', false], ['lancerMedecine', 'Lancer médecine-ball (m)', false], ['agilite505', 'Agilité 5-0-5 (s)', true]];
+  const tests = rpArr(player.tests).filter(t => inP(t.date) || true).sort((a, b) => rpD(a.date).localeCompare(rpD(b.date)));
+  r.testsRows = tests.map(t => { const o = { date: rpD(t.date), contexte: t.contexte || '', notes: t.notes || '' }; TEST_DEFS.forEach(([k]) => { o[k] = rpNum(t[k]); }); return o; })
+    .filter(o => TEST_DEFS.some(([k]) => o[k] != null));
+  r.testsDefs = TEST_DEFS.filter(([k]) => r.testsRows.some(o => o[k] != null));
+  r.testsEvol = r.testsDefs.map(([k, label, lower]) => {
+    const pts = r.testsRows.filter(o => o[k] != null);
+    const f = pts[0], l = pts[pts.length - 1];
+    const d = rpR(l[k] - f[k], 2);
+    return { k, label, lower, premier: f[k], premierDate: f.date, dernier: l[k], dernierDate: l.date, delta: d, mieux: pts.length > 1 ? (lower ? d < 0 : d > 0) : null, n: pts.length };
+  });
+
+  // ── Composition corporelle ───────────────────────────────────────────────────────────
+  r.mesures = rpArr(player.masseMesures).filter(m => m && m.date).sort((a, b) => rpD(a.date).localeCompare(rpD(b.date)))
+    .map(m => ({ date: rpD(m.date), poids: rpNum(m.poids), masseGrasse: rpNum(m.masseGrasse), masseMusc: rpNum(m.masseMusc), hanches: rpNum(m.tour_hanches), epaule: rpNum(m.tour_epaule), cuisse: rpNum(m.tour_cuisse) }));
+
+  // ── Bien-être (check-ins quotidiens) ─────────────────────────────────────────────────
+  const wcObj = player.wellnessCheckins && !Array.isArray(player.wellnessCheckins) ? player.wellnessCheckins : null;
+  const wcList = wcObj ? Object.keys(wcObj).map(d => ({ date: d, ...wcObj[d] })) : rpArr(player.wellnessCheckins);
+  r.wellness = wcList.filter(w => w && inP(w.date)).sort((a, b) => rpD(a.date).localeCompare(rpD(b.date)))
+    .map(w => ({ date: rpD(w.date), energie: rpNum(w.energie), sommeil: rpNum(w.sommeil), humeur: rpNum(w.humeur), stress: rpNum(w.stress), douleurs: rpNum(w.douleurs) }));
+  r.wellnessSem = r.semaines.map(s => {
+    const ws = r.wellness.filter(w => w.date >= s.debut && w.date <= s.fin);
+    return { label: s.label, debut: s.debut, n: ws.length, energie: rpR(rpAvg(ws.map(w => w.energie)), 1), sommeil: rpR(rpAvg(ws.map(w => w.sommeil)), 1), humeur: rpR(rpAvg(ws.map(w => w.humeur)), 1), stress: rpR(rpAvg(ws.map(w => w.stress)), 1), douleurs: rpR(rpAvg(ws.map(w => w.douleurs)), 1) };
+  });
+
+  // ── Blessures ────────────────────────────────────────────────────────────────────────
+  r.blessures = rpArr(player.blessures).map(b => ({ zone: b.zone || '', type: b.type || '', debut: rpD(b.dateDebut), statut: b.statut || '', protocole: b.protocole || '' }));
+
+  // ── Cycles / méthodes ────────────────────────────────────────────────────────────────
+  const cyc = {};
+  r.muscuRows.forEach(x => {
+    const k = x.methode || x.contexte || 'Sans méthode';
+    const c = cyc[k] = cyc[k] || { nom: k, prevues: 0, faites: 0, debut: x.datePrevu || x.dateFaite, fin: x.datePrevu || x.dateFaite, rpe: [], cible: [], tonnage: 0 };
+    c.prevues++; if (x.fait) { c.faites++; c.tonnage += x.tonnage; if (x.rpeReel != null) c.rpe.push(x.rpeReel); }
+    if (x.rpeCible != null) c.cible.push(x.rpeCible);
+    const d = x.datePrevu || x.dateFaite; if (d && d < c.debut) c.debut = d; if (d && d > c.fin) c.fin = d;
+  });
+  r.cycles = Object.values(cyc).map(c => ({ nom: c.nom, debut: c.debut, fin: c.fin, prevues: c.prevues, faites: c.faites, taux: c.prevues ? Math.round(c.faites / c.prevues * 100) : null, rpeReel: rpR(rpAvg(c.rpe), 1), rpeCible: rpR(rpAvg(c.cible), 1), tonnage: c.tonnage })).sort((a, b) => String(a.debut).localeCompare(String(b.debut)));
+
+  // ── Synthèse chiffrée ────────────────────────────────────────────────────────────────
+  const mDue = r.muscuRows.filter(x => x.statut !== 'À venir'), eDue = r.enduRows.filter(x => x.statut !== 'À venir');
+  const kpi = r.kpi = {
+    muscuPrevues: mDue.length, muscuFaites: mDue.filter(x => x.fait).length, enduPrevues: eDue.length, enduFaites: eDue.filter(x => x.fait).length,
+    rpeMoy: rpR(rpAvg(events.map(e => e.rpe)), 1), rpeCibleMoy: rpR(rpAvg(r.muscuRows.map(x => x.rpeCible)), 1),
+    uaTotal: events.reduce((a, e) => a + e.ua, 0), tonnage: r.muscuRows.filter(x => x.fait).reduce((a, x) => a + x.tonnage, 0),
+    seriesTot: r.muscuRows.filter(x => x.fait).reduce((a, x) => a + x.series, 0), volumeEnduM: r.enduRows.filter(x => x.fait).reduce((a, x) => a + (x.volumeM || 0), 0),
+  };
+  const due = kpi.muscuPrevues + kpi.enduPrevues, did = kpi.muscuFaites + kpi.enduFaites;
+  kpi.taux = due ? Math.round(did / due * 100) : null;
+  kpi.tauxMuscu = kpi.muscuPrevues ? Math.round(kpi.muscuFaites / kpi.muscuPrevues * 100) : null;
+  kpi.tauxEndu = kpi.enduPrevues ? Math.round(kpi.enduFaites / kpi.enduPrevues * 100) : null;
+  kpi.sommeilMoy = rpR(rpAvg(r.wellness.map(w => w.sommeil)), 1); kpi.energieMoy = rpR(rpAvg(r.wellness.map(w => w.energie)), 1); kpi.douleursMoy = rpR(rpAvg(r.wellness.map(w => w.douleurs)), 1);
+
+  // ── Lecture rapide (constats automatiques) ───────────────────────────────────────────
+  const ins = r.insights = [];
+  if (kpi.taux != null) ins.push((kpi.taux >= 85 ? '[+] ' : kpi.taux >= 65 ? '[=] ' : '[!] ') + 'Assiduité : ' + did + ' séance(s) faite(s) sur ' + due + ' prévue(s) (' + kpi.taux + '%)' + (kpi.tauxMuscu != null ? ' — muscu ' + kpi.tauxMuscu + '%' : '') + (kpi.tauxEndu != null ? ', endurance ' + kpi.tauxEndu + '%' : '') + '.');
+  r.rm.filter(m => !m.orphelin && m.delta != null && (m.delta !== 0 || m.historique.length > 1)).forEach(m => {
+    ins.push((m.delta > 0 ? '[+] ' : m.delta < 0 ? '[!] ' : '[=] ') + m.label + ' : 1RM ' + m.debut + ' > ' + m.fin + ' kg (' + (m.delta > 0 ? '+' : '') + m.delta + ' kg' + (m.deltaPct != null ? ', ' + (m.deltaPct > 0 ? '+' : '') + m.deltaPct + '%' : '') + ')' + (m.ratioPC ? ' — ' + m.ratioPC + ' × poids de corps' : '') + '.');
+  });
+  const prog = r.exos.filter(e => e.deltaPct != null && e.apparitions >= 2).sort((a, b) => b.deltaPct - a.deltaPct);
+  if (prog.length && prog[0].deltaPct > 0) ins.push('[+] Plus forte progression de charge prescrite : ' + prog[0].nom + ' (' + prog[0].kgDebut + ' > ' + prog[0].kgFin + ' kg, +' + prog[0].deltaPct + '%).');
+  const stag = r.exos.filter(e => e.apparitions >= 3 && e.deltaKg === 0);
+  if (stag.length) ins.push('[=] Charge inchangée sur ' + stag.slice(0, 4).map(e => e.nom).join(', ') + ' (3 séances ou plus) : progression à relancer si l\'objectif est la force.');
+  if (kpi.rpeMoy != null) {
+    const ecart = kpi.rpeCibleMoy != null ? rpR(kpi.rpeMoy - kpi.rpeCibleMoy, 1) : null;
+    ins.push((ecart != null && Math.abs(ecart) > 1.5 ? '[!] ' : '[=] ') + 'RPE moyen ressenti : ' + kpi.rpeMoy + '/10' + (kpi.rpeCibleMoy != null ? ' (cible muscu ' + kpi.rpeCibleMoy + ', écart ' + (ecart > 0 ? '+' : '') + ecart + ')' : '') + '.');
+  }
+  if (r.acwr == null && r.chargeChronique > 0) ins.push('[=] Aucune charge enregistrée sur les 7 derniers jours (charge chronique : ' + r.chargeChronique + ' UA/semaine).');
+  if (r.acwr != null) ins.push((r.acwr > 1.5 ? '[!] ' : r.acwr > 1.3 || r.acwr < 0.8 ? '[=] ' : '[+] ') + 'Charge aiguë/chronique (ACWR) : ' + r.acwr + ' — ' + (r.acwr > 1.5 ? 'zone de risque (montée de charge trop rapide)' : r.acwr > 1.3 ? 'zone de vigilance' : r.acwr < 0.8 ? 'sous-charge relative' : 'zone optimale (0,8 à 1,3)') + '.');
+  if (kpi.sommeilMoy != null && kpi.sommeilMoy < 3) ins.push('[!] Sommeil moyen bas (' + kpi.sommeilMoy + '/5) sur la période.');
+  if (kpi.douleursMoy != null && kpi.douleursMoy < 3) ins.push('[!] Douleurs / courbatures élevées en moyenne (' + kpi.douleursMoy + '/5, 5 = aucune douleur).');
+  const act = r.blessures.filter(b => /cours|surveill/i.test(b.statut));
+  if (act.length) ins.push('[!] Blessure(s) / surveillance : ' + act.map(b => b.zone + (b.type ? ' (' + b.type + ')' : '')).join(', ') + '.');
+  const te = r.testsEvol.filter(t => t.n > 1 && t.mieux != null);
+  te.slice(0, 4).forEach(t => ins.push((t.mieux ? '[+] ' : '[!] ') + 'Test ' + t.label + ' : ' + t.premier + ' > ' + t.dernier + ' (' + (t.delta > 0 ? '+' : '') + t.delta + ').'));
+  if (!ins.length) ins.push('[=] Peu de données sur la période : renseigne les séances, RPE et 1RM pour enrichir la synthèse.');
+  return r;
+}
+
+// ── Périodes prédéfinies ───────────────────────────────────────────────────────────────
+function rpPeriodes(player) {
+  const today = localDateStr();
+  const all = [];
+  rpArr(player.muscuSeances).forEach(s => all.push(rpD(s.dateFaite || s.datePrevu)));
+  rpArr(player.enduranceSeances).forEach(s => all.push(rpD(s.dateFaite || s.datePrevu)));
+  Object.keys(player.rmHistory || {}).forEach(k => rpArr(player.rmHistory[k]).forEach(e => all.push(rpD(e.date))));
+  const first = all.filter(Boolean).sort()[0] || rpAddDays(today, -90);
+  const last = all.filter(Boolean).sort().slice(-1)[0] || today;
+  const to = last > today ? last : today;
+  const yr = new Date().getMonth() >= 7 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+  return [
+    { id: '4s', label: '4 dernières semaines', from: rpAddDays(today, -27), to: today },
+    { id: '8s', label: '8 dernières semaines', from: rpAddDays(today, -55), to: today },
+    { id: '12s', label: '12 dernières semaines', from: rpAddDays(today, -83), to: today },
+    { id: 'saison', label: 'Saison ' + yr + '-' + (yr + 1), from: yr + '-08-01', to: (to < (yr + 1) + '-07-31' ? to : (yr + 1) + '-07-31') },
+    { id: 'tout', label: 'Depuis le début', from: first, to },
+  ];
+}
+
+// ── PDF ────────────────────────────────────────────────────────────────────────────────
+function rpP(s) {
+  return String(s == null ? '' : s).replace(/[\u202f\u00a0]/g, ' ').replace(/→/g, '>').replace(/≈/g, '~').replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
+    .replace(/[^\u0000-ÿ–—•…€]/g, '');
+}
+function rpFmtKg(v) { return v == null ? '-' : String(v).replace('.', ','); }
+function exporterRapportJoueurPDF(r) {
+  try {
+    const J = window.jspdf && window.jspdf.jsPDF;
+    if (!J) { alert("La librairie d'export PDF n'a pas pu charger. Vérifie ta connexion et réessaie."); return; }
+    const doc = new J({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 34;
+    const C = { orange: [255, 164, 32], dark: [22, 24, 30], grey: [110, 110, 118], light: [247, 247, 249], line: [226, 226, 230],
+      green: [34, 160, 80], amber: [232, 130, 10], red: [214, 48, 64], blue: [14, 150, 220], violet: [118, 100, 245], indigo: [72, 70, 210], teal: [16, 160, 130], pink: [225, 70, 150] };
+    const T = (s, x, y, o) => doc.text(rpP(s), x, y, o);
+    const fill = c => doc.setFillColor(c[0], c[1], c[2]);
+    const txt = c => doc.setTextColor(c[0], c[1], c[2]);
+    const draw = c => doc.setDrawColor(c[0], c[1], c[2]);
+    const tint = (c, a) => [Math.round(255 - (255 - c[0]) * a), Math.round(255 - (255 - c[1]) * a), Math.round(255 - (255 - c[2]) * a)];
+    const fr = v => String(v).replace('.', ',');
+    const sg = v => (v > 0 ? '+' : '') + fr(v);
+    let y = 0;
+    const need = h => { if (y + h > H - 42) { doc.addPage(); y = 40; return true; } return false; };
+    const pl = r.player, k = r.kpi;
+
+    // ── Bandeau de section coloré (pour le détail) ────────────────────────────────────
+    const banner = (titre, sous, col) => {
+      need(96);
+      fill(col); doc.roundedRect(M, y, W - 2 * M, 30, 5, 5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255); T(titre, M + 12, y + 14);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(255, 255, 255); T(sous || '', M + 12, y + 25);
+      y += 48;
+    };
+    const sub = (titre, col) => { need(60); fill(col); doc.rect(M, y - 9, 3, 12, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); txt(C.dark); T(titre, M + 9, y); y += 12; };
+    const note = (t) => { doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); txt(C.grey); const l = doc.splitTextToSize(rpP(t), W - 2 * M); doc.text(l, M, y); y += l.length * 9.5 + 6; };
+    const tbl2 = (head, body, col, opts) => {
+      need(50);
+      const o = opts || {};
+      doc.autoTable({
+        head: [head], body, startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: Object.assign({ font: 'helvetica', fontSize: 8, cellPadding: 3.5, halign: 'center', textColor: C.dark, lineColor: C.line, lineWidth: 0.4, overflow: 'linebreak' }, o.styles || {}),
+        headStyles: { fillColor: col, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+        alternateRowStyles: { fillColor: C.light }, rowPageBreak: 'avoid', columnStyles: o.columnStyles || {},
+        didParseCell: d => { d.cell.text = d.cell.text.map(rpP); if (o.cell) o.cell(d); },
+      });
+      y = doc.lastAutoTable.finalY + 12;
+    };
+    const colorSigned = (idx) => d => { if (d.section === 'body' && idx.includes(d.column.index)) { const v = String(d.cell.raw); d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = /^\+(?!0([ ,%]|$))/.test(v) ? C.green : /^-/.test(v) ? C.red : C.grey; } };
+    const colorStatut = (idx) => d => { if (d.section === 'body' && d.column.index === idx) { const v = d.cell.raw; d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = v === 'Faite' ? C.green : v === 'Non faite' ? C.red : C.grey; } };
+
+    // ── Sparkline (mini courbe) ───────────────────────────────────────────────────────
+    const tOf = d => new Date(d + 'T12:00:00').getTime();
+    const spark = (x, yy, w, h, pts, col) => {
+      if (!pts.length) return;
+      const ts = pts.map(p => p.t), vs = pts.map(p => p.v);
+      let t0 = Math.min.apply(null, ts), t1 = Math.max.apply(null, ts); if (t1 === t0) { t0 -= 86400000; t1 += 86400000; }
+      let v0 = Math.min.apply(null, vs), v1 = Math.max.apply(null, vs); const pad = (v1 - v0) * 0.2 || v1 * 0.05 || 1; v0 -= pad; v1 += pad;
+      const P = pts.map(p => [x + (p.t - t0) / (t1 - t0) * w, yy + h - (p.v - v0) / (v1 - v0) * h]);
+      draw(col); doc.setLineWidth(1.6);
+      for (let i = 1; i < P.length; i++) doc.line(P[i - 1][0], P[i - 1][1], P[i][0], P[i][1]);
+      fill(col); P.forEach((p, i) => doc.circle(p[0], p[1], i === P.length - 1 ? 3 : 1.8, 'F'));
+      doc.setLineWidth(0.4);
+    };
+
+    // ═════════════════════ PAGE 1 : FICHE RÉSUMÉE ═══════════════════════════════════════
+    fill([11, 13, 16]); doc.rect(0, 0, W, 86, 'F'); fill(C.orange); doc.rect(0, 86, W, 3, 'F');
+    txt(C.orange); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); T('PERFHAND  -  RAPPORT D\'ENTRAINEMENT', M, 24);
+    doc.setTextColor(255, 255, 255); doc.setFontSize(24); T(pl.name || 'Joueur', M, 52);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    const poidsNow = rpRefAt(pl, 'poids_corps', r.to);
+    T([pl.pos || pl.poste, pl.age ? pl.age + ' ans' : null, pl.taille ? pl.taille + ' cm' : null, poidsNow ? poidsNow + ' kg' : null].filter(Boolean).join('  |  '), M, 70);
+    doc.setTextColor(200, 200, 205); doc.setFontSize(9); T('Période : ' + rpFr(r.from) + ' au ' + rpFr(r.to), W - M, 40, { align: 'right' }); T('Généré le ' + rpFr(r.generated), W - M, 54, { align: 'right' });
+    y = 112;
+    fill(C.orange); doc.rect(M, y - 11, 4, 17, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); txt(C.dark); T('Fiche résumée', M + 11, y + 2);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); txt(C.grey); T('L\'essentiel en une minute — le détail complet est dans les pages suivantes.', W - M, y + 2, { align: 'right' });
+    y += 20;
+
+    // Statuts en langage simple
+    const rmOk = r.rm.filter(m => !m.orphelin && m.delta != null);
+    const ups = rmOk.filter(m => m.delta > 0), downs = rmOk.filter(m => m.delta < 0);
+    const bestUp = ups.slice().sort((a, b) => b.delta - a.delta)[0];
+    const wAll = [k.energieMoy, k.sommeilMoy, k.douleursMoy].filter(v => v != null);
+    const wAvg = wAll.length ? wAll.reduce((a, b) => a + b, 0) / wAll.length : null;
+    const ecartRpe = (k.rpeMoy != null && k.rpeCibleMoy != null) ? k.rpeMoy - k.rpeCibleMoy : null;
+    const cards = [
+      (() => { const t = k.taux; const c = t == null ? C.grey : t >= 85 ? C.green : t >= 65 ? C.amber : C.red;
+        return { label: 'ASSIDUITÉ', value: t != null ? t + ' %' : '-', verdict: t == null ? 'Aucune séance prévue' : t >= 85 ? 'Très régulier' : t >= 65 ? 'Plutôt régulier' : 'Séances souvent manquées', sub: (k.muscuFaites + k.enduFaites) + ' séances faites sur ' + (k.muscuPrevues + k.enduPrevues) + ' prévues', c }; })(),
+      (() => { const c = !rmOk.length ? C.grey : downs.length ? C.red : ups.length ? C.green : C.amber;
+        return { label: 'FORCE MAXIMALE', value: bestUp ? '+' + fr(bestUp.delta) + ' kg' : (rmOk.length ? (downs.length ? sg(downs[0].delta) + ' kg' : '0 kg') : '-'), verdict: !rmOk.length ? 'Pas de test 1RM' : downs.length ? 'En baisse' : ups.length ? 'En progression' : 'Stable',
+          sub: bestUp ? bestUp.label + ' : ' + fr(bestUp.debut) + ' > ' + fr(bestUp.fin) + ' kg' : (rmOk.length ? rmOk[0].label + ' : ' + fr(rmOk[0].fin) + ' kg' : 'Renseigne les 1RM dans l\'onglet Muscu'), c }; })(),
+      (() => { const a = r.acwr; const c = a == null ? C.grey : a > 1.5 ? C.red : a > 1.3 ? C.amber : a < 0.8 ? C.amber : C.green;
+        return { label: 'CHARGE DE TRAVAIL', value: a != null ? fr(a) : '-', verdict: a == null ? 'Pas de charge récente' : a > 1.5 ? 'Hausse trop rapide' : a > 1.3 ? 'En forte hausse' : a < 0.8 ? 'En baisse / faible' : 'Bien dosée',
+          sub: 'Semaine récente : ' + (r.chargeAigue || 0) + ' UA  |  habituel : ' + (r.chargeChronique || 0) + ' UA', c }; })(),
+      (() => { const c = wAvg == null ? C.grey : wAvg >= 3.8 ? C.green : wAvg >= 3 ? C.amber : C.red;
+        return { label: 'FORME DU JOUEUR', value: wAvg != null ? fr(Math.round(wAvg * 10) / 10) + ' / 5' : '-', verdict: wAvg == null ? 'Pas de questionnaire' : wAvg >= 3.8 ? 'Bonne forme' : wAvg >= 3 ? 'Forme moyenne' : 'Forme dégradée',
+          sub: wAvg == null ? 'Aucun check-in bien-être sur la période' : 'Sommeil ' + fr(k.sommeilMoy) + '  |  Énergie ' + fr(k.energieMoy) + '  |  Douleurs ' + fr(k.douleursMoy), c }; })(),
+      (() => { const c = ecartRpe == null ? (k.rpeMoy != null ? C.blue : C.grey) : Math.abs(ecartRpe) <= 1 ? C.green : C.amber;
+        return { label: 'EFFORT RESSENTI (RPE)', value: k.rpeMoy != null ? fr(k.rpeMoy) + ' / 10' : '-', verdict: ecartRpe == null ? (k.rpeMoy != null ? 'Effort moyen déclaré' : 'Pas de retour joueur') : Math.abs(ecartRpe) <= 1 ? 'Conforme au plan' : ecartRpe > 0 ? 'Plus dur que prévu' : 'Plus facile que prévu',
+          sub: k.rpeCibleMoy != null ? 'Cible du plan (muscu) : ' + fr(k.rpeCibleMoy) + ' / 10' : '10 = effort maximal', c }; })(),
+      (() => { return { label: 'VOLUME RÉALISÉ', value: k.tonnage >= 1000 ? fr(Math.round(k.tonnage / 100) / 10) + ' t' : Math.round(k.tonnage) + ' kg', verdict: k.seriesTot + ' séries de musculation',
+          sub: k.volumeEnduM ? fr(Math.round(k.volumeEnduM / 100) / 10) + ' km en endurance' : 'Tonnage = kg soulevés (estimé)', c: C.blue }; })(),
+    ];
+    const cw = (W - 2 * M - 20) / 3, ch = 74;
+    cards.forEach((c, i) => {
+      const x = M + (i % 3) * (cw + 10), yy = y + Math.floor(i / 3) * (ch + 10);
+      fill(tint(c.c, 0.10)); draw(tint(c.c, 0.45)); doc.setLineWidth(0.6); doc.roundedRect(x, yy, cw, ch, 6, 6, 'FD');
+      fill(c.c); doc.roundedRect(x, yy, 6, ch, 3, 3, 'F'); doc.rect(x + 3, yy, 3, ch, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); txt(C.grey); T(c.label, x + 14, yy + 13);
+      doc.setFontSize(19); txt(c.c); T(c.value, x + 14, yy + 35);
+      doc.setFontSize(9); txt(C.dark); T(c.verdict, x + 14, yy + 49);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3); txt(C.grey);
+      const l = doc.splitTextToSize(rpP(c.sub), cw - 22); doc.text(l.slice(0, 2), x + 14, yy + 60);
+    });
+    doc.setLineWidth(0.4);
+    y += 2 * (ch + 10) + 8;
+
+    // Points positifs / points d'attention (phrases simples)
+    const pos = [], att = [];
+    if (k.taux != null && k.taux >= 85) pos.push('Très régulier : ' + (k.muscuFaites + k.enduFaites) + ' séances faites sur ' + (k.muscuPrevues + k.enduPrevues) + ' prévues.');
+    ups.sort((a, b) => b.delta - a.delta).slice(0, 3).forEach(m => pos.push(m.label + ' : force maximale en hausse de ' + fr(m.delta) + ' kg (' + fr(m.debut) + ' > ' + fr(m.fin) + ' kg).'));
+    r.testsEvol.filter(t => t.n > 1 && t.mieux === true).slice(0, 3).forEach(t => pos.push('Test ' + t.label.replace(/\s*\(.*\)/, '') + ' amélioré : ' + fr(t.premier) + ' > ' + fr(t.dernier) + '.'));
+    const bestEx = r.exos.filter(e => e.deltaPct != null && e.deltaPct >= 5 && e.apparitions >= 2).sort((a, b) => b.deltaPct - a.deltaPct)[0];
+    if (bestEx) pos.push('Charges de travail en hausse sur ' + bestEx.nom + ' (+' + fr(bestEx.deltaPct) + ' %).');
+    if (r.acwr != null && r.acwr >= 0.8 && r.acwr <= 1.3) pos.push('Charge d\'entraînement bien dosée (ni trop, ni trop peu).');
+    if (wAvg != null && wAvg >= 3.8) pos.push('Bonne forme générale déclarée (sommeil, énergie, douleurs).');
+    const nonFaites = r.muscuRows.concat(r.enduRows).filter(x => x.statut === 'Non faite');
+    if (nonFaites.length) att.push(nonFaites.length + ' séance(s) non faite(s) : ' + nonFaites.slice(0, 3).map(x => x.nom.replace(/^Séance\s*[—-]\s*/, '') + ' (' + rpFr(x.datePrevu).slice(0, 5) + ')').join(', ') + (nonFaites.length > 3 ? '…' : '') + '.');
+    if (k.taux != null && k.taux < 65) att.push('Assiduité faible (' + k.taux + ' %) : voir avec le joueur ce qui bloque.');
+    if (r.acwr != null && r.acwr > 1.3) att.push('La charge a augmenté trop vite récemment : risque de fatigue ou de blessure. Prévoir de lever le pied.');
+    if (r.acwr == null && r.chargeChronique > 0) att.push('Aucune séance enregistrée ces 7 derniers jours.');
+    downs.forEach(m => att.push(m.label + ' : force maximale en baisse de ' + fr(Math.abs(m.delta)) + ' kg.'));
+    if (k.sommeilMoy != null && k.sommeilMoy < 3) att.push('Sommeil insuffisant en moyenne (' + fr(k.sommeilMoy) + ' / 5).');
+    if (k.douleursMoy != null && k.douleursMoy < 3) att.push('Douleurs / courbatures fréquentes (' + fr(k.douleursMoy) + ' / 5).');
+    if (k.energieMoy != null && k.energieMoy < 3) att.push('Niveau d\'énergie bas (' + fr(k.energieMoy) + ' / 5).');
+    r.blessures.filter(b => /cours|surveill/i.test(b.statut)).forEach(b => att.push('Blessure : ' + b.zone + (b.type ? ' (' + b.type + ')' : '') + ' — ' + b.statut + '.'));
+    if (ecartRpe != null && ecartRpe > 1.5) att.push('Les séances sont ressenties beaucoup plus dures que prévu (RPE ' + fr(k.rpeMoy) + ' pour ' + fr(k.rpeCibleMoy) + ' visé).');
+    r.testsEvol.filter(t => t.n > 1 && t.mieux === false && t.delta !== 0).slice(0, 2).forEach(t => att.push('Test ' + t.label.replace(/\s*\(.*\)/, '') + ' en recul : ' + fr(t.premier) + ' > ' + fr(t.dernier) + '.'));
+    const stag = r.exos.filter(e => e.apparitions >= 3 && e.deltaKg === 0 && e.kgFin != null && e.kgFin > 20);
+    if (stag.length) att.push('Charge inchangée sur ' + stag.slice(0, 3).map(e => e.nom).join(', ') + ' : à faire évoluer si l\'objectif est la force.');
+    if (!pos.length) pos.push('Pas encore assez de données pour dégager des progrès : pense à saisir les RPE et les 1RM.');
+    if (!att.length) att.push('Rien de particulier à signaler sur la période.');
+
+    const bw = (W - 2 * M - 12) / 2;
+    const bulletsH = (arr) => arr.slice(0, 6).reduce((a, t) => a + doc.splitTextToSize(rpP(t), bw - 28).length * 10.5 + 4, 0);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    const bh = Math.max(bulletsH(pos), bulletsH(att)) + 34;
+    [['POINTS POSITIFS', pos, C.green, M, '+'], ['POINTS D\'ATTENTION', att, C.amber, M + bw + 12, '!']].forEach(([titre, arr, col, x0, sym]) => {
+      fill(tint(col, 0.08)); draw(tint(col, 0.5)); doc.setLineWidth(0.6); doc.roundedRect(x0, y, bw, bh, 6, 6, 'FD');
+      fill(col); doc.roundedRect(x0, y, bw, 20, 6, 6, 'F'); doc.rect(x0, y + 10, bw, 10, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255); T(titre, x0 + 10, y + 14);
+      let yy = y + 34;
+      arr.slice(0, 6).forEach(t => {
+        const l = doc.splitTextToSize(rpP(t), bw - 28);
+        fill(col); doc.circle(x0 + 13, yy - 2.5, 5, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255); doc.text(sym, x0 + 13, yy, { align: 'center' });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); txt(C.dark); doc.text(l, x0 + 24, yy);
+        yy += l.length * 10.5 + 4;
+      });
+    });
+    doc.setLineWidth(0.4);
+    y += bh + 14;
+
+    // Mini-cartes de force (remplacent le graphique 1RM)
+    const cardsRm = r.rm.filter(m => !m.orphelin).slice(0, 8);
+    if (cardsRm.length) {
+      fill(C.red); doc.rect(M, y - 9, 3, 12, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); txt(C.dark); T('Force maximale (1RM) : où en est le joueur ?', M + 9, y); y += 10;
+      const n = Math.min(4, cardsRm.length), rw = (W - 2 * M - (n - 1) * 8) / n, rh = 92;
+      cardsRm.forEach((m, i) => {
+        const x = M + (i % n) * (rw + 8), yy = y + Math.floor(i / n) * (rh + 8);
+        const col = m.delta > 0 ? C.green : m.delta < 0 ? C.red : C.grey;
+        fill([255, 255, 255]); draw(C.line); doc.roundedRect(x, yy, rw, rh, 6, 6, 'FD');
+        fill(col); doc.rect(x + 8, yy, rw - 16, 3, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); txt(C.grey); T(doc.splitTextToSize(rpP(m.label.toUpperCase()), rw - 12)[0], x + 8, yy + 16);
+        doc.setFontSize(18); txt(C.dark); T(fr(m.fin) + ' kg', x + 8, yy + 38);
+        doc.setFontSize(8.5); txt(col); T(m.delta === 0 ? 'stable' : sg(m.delta) + ' kg' + (m.deltaPct != null ? ' (' + sg(m.deltaPct) + ' %)' : ''), x + 8, yy + 50);
+        spark(x + 10, yy + 58, rw - 20, 22, m.historique.map(e => ({ t: tOf(e.date), v: e.rm })), col);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); txt(C.grey); T(m.ratioPC ? fr(m.ratioPC) + ' × poids de corps' : '', x + 8, yy + rh - 4);
+      });
+      y += Math.ceil(cardsRm.length / n) * (rh + 8) + 4;
+    }
+
+    // Mini-glossaire
+    need(54);
+    fill(C.light); draw(C.line); doc.roundedRect(M, y, W - 2 * M, 48, 5, 5, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); txt(C.grey); T('MINI-GLOSSAIRE', M + 8, y + 11);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); txt(C.dark);
+    const gl = doc.splitTextToSize(rpP('RPE : effort ressenti par le joueur, de 1 (très facile) à 10 (maximal).  UA : unité de charge = durée de la séance × RPE.  1RM : charge maximale soulevable sur 1 répétition.  Charge de travail : charge de la semaine récente comparée à l\'habitude du joueur (entre 0,8 et 1,3 = bien dosée ; au-delà de 1,5 = risque).  Tonnage : total des kilos soulevés (estimé).'), W - 2 * M - 16);
+    doc.text(gl, M + 8, y + 22);
+
+    // ═════════════════════ DÉTAILS ═══════════════════════════════════════════════════════
+    doc.addPage(); y = 44;
+    fill(C.dark); doc.roundedRect(M, y - 4, W - 2 * M, 24, 5, 5, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255); T('DÉTAIL COMPLET', M + 12, y + 12);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(190, 190, 195); T('Toutes les données de la période, par thème', W - M - 10, y + 12, { align: 'right' }); y += 38;
+
+    // 1) CHARGE
+    banner('Charge d\'entraînement', 'Combien le joueur a travaillé semaine après semaine (UA = durée × effort ressenti).', C.violet);
+    if (r.semaines.length) {
+      const x0 = M + 30, w = W - 2 * M - 34, h = 110, y0 = y + 6;
+      const maxV = Math.max(10, Math.max.apply(null, r.semaines.map(s => s.ua)));
+      const step = maxV > 400 ? 200 : maxV > 150 ? 100 : 50, top = Math.ceil(maxV * 1.05 / step) * step;
+      draw(C.line); doc.setLineWidth(0.4);
+      for (let v = 0; v <= top; v += step) { const yy = y0 + h - h * v / top; doc.line(x0, yy, x0 + w, yy); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); txt(C.grey); T(String(v), x0 - 4, yy + 2.5, { align: 'right' }); }
+      const n = r.semaines.length, bw2 = Math.min(26, w / n * 0.7);
+      r.semaines.forEach((s, i) => {
+        const cx = x0 + w * (i + 0.5) / n; let yy = y0 + h;
+        [[s.uaMuscu, C.orange], [s.uaEndu, C.blue], [s.uaTerrain, C.green]].forEach(([v, c]) => { if (v > 0) { const bh2 = v / top * h; fill(c); doc.rect(cx - bw2 / 2, yy - bh2, bw2, bh2, 'F'); yy -= bh2; } });
+        if (n <= 22) { doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); txt(C.grey); T(s.label, cx, y0 + h + 9, { align: 'center' }); }
+        if (s.ua > 0 && n <= 16) { doc.setFontSize(6.5); txt(C.dark); T(String(s.ua), cx, yy - 2, { align: 'center' }); }
+      });
+      y = y0 + h + 22;
+      [['Musculation', C.orange], ['Endurance', C.blue], ['Terrain / match', C.green]].forEach((l, i) => { fill(l[1]); doc.rect(M + 30 + i * 100, y - 6, 8, 8, 'F'); doc.setFontSize(8); txt(C.dark); T(l[0], M + 42 + i * 100, y + 1); });
+      y += 16;
+    }
+    tbl2(['Semaine', 'Muscu\nfaites/prév.', 'Endu.\nfaites/prév.', 'UA\nmuscu', 'UA\nendu.', 'UA\nterrain', 'UA\ntotal', 'RPE\nmoy.', 'Charge vs\nhabitude', 'Tonnage\n(kg)'],
+      r.semaines.map(s => [rpFr(s.debut) + ' > ' + rpFr(s.fin).slice(0, 5), s.muscuFaites + '/' + s.muscuPrevues, s.enduFaites + '/' + s.enduPrevues, s.uaMuscu || '', s.uaEndu || '', s.uaTerrain || '', s.ua || '', s.rpe != null ? fr(s.rpe) : '', s.acwr != null ? fr(s.acwr) : '', s.tonnage ? Math.round(s.tonnage).toLocaleString('fr-FR') : '']), C.violet,
+      { columnStyles: { 0: { halign: 'left' } }, cell: d => { if (d.section === 'body' && d.column.index === 8) { const v = parseFloat(String(d.cell.raw).replace(',', '.')); if (!isNaN(v)) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = v > 1.5 ? C.red : v > 1.3 ? C.amber : v < 0.8 ? C.grey : C.green; } } } });
+    note('« Charge vs habitude » = charge de la semaine ÷ moyenne des 4 semaines précédentes : entre 0,8 et 1,3 = bien dosée, au-delà de 1,5 = hausse trop rapide. Durée muscu estimée à 9 min par exercice (30 à 100 min), comme dans « Charge équipe ».');
+
+    // 2) FORCE
+    banner('Force et progression par exercice', 'Charge maximale (1RM) et charges de travail prescrites, séance après séance.', C.red);
+    if (r.rm.length) {
+      sub('1RM — charge maximale sur 1 répétition', C.red);
+      tbl2(['Mouvement', 'Début', 'Date', 'Actuel', 'Date', 'Évolution', '%', '× poids de corps', 'Record'],
+        r.rm.map(m => [m.label, fr(m.debut), rpFr(m.debutDate), fr(m.fin), rpFr(m.finDate), sg(m.delta) + ' kg', m.deltaPct != null ? sg(m.deltaPct) + ' %' : '', m.ratioPC != null ? fr(m.ratioPC) : '', fr(m.record)]), C.red,
+        { columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } }, styles: { fontSize: 8.5, cellPadding: 4 }, cell: colorSigned([5, 6]) });
+    }
+    if (r.exos.length) {
+      sub('Charges de travail par exercice (séances validées)', C.red);
+      tbl2(['Exercice', 'Séances', 'Charge début', 'Charge fin', 'Évol. (kg)', 'Évol. %', 'Pic (kg)', 'Séries', 'Tonnage (kg)'],
+        r.exos.map(e => [e.nom, e.apparitions, e.kgDebut != null ? fr(e.kgDebut) : '-', e.kgFin != null ? fr(e.kgFin) : '-', e.deltaKg != null ? sg(e.deltaKg) : '', e.deltaPct != null ? sg(e.deltaPct) + ' %' : '', e.kgPic != null ? fr(e.kgPic) : '-', e.seriesTot, e.tonnage ? Math.round(e.tonnage).toLocaleString('fr-FR') : '']), C.red,
+        { columnStyles: { 0: { halign: 'left' } }, cell: colorSigned([4, 5]) });
+      const dates = Array.from(new Set([].concat.apply([], r.exos.map(e => e.lignes.map(l => l.date))))).sort().slice(-8);
+      const exM = r.exos.filter(e => e.lignes.some(l => l.kgMax != null)).slice(0, 14);
+      if (dates.length > 1 && exM.length) {
+        sub('Charge prescrite et séries × reps, séance par séance', C.red);
+        tbl2(['Exercice'].concat(dates.map(d => rpFr(d).slice(0, 5))), exM.map(e => [e.nom].concat(dates.map(d => { const l = e.lignes.filter(x => x.date === d); if (!l.length) return ''; const m = l[l.length - 1]; return (m.kgMax != null ? fr(m.kgMax) + ' kg' : '') + '\n' + m.series + '×' + m.reps; }))), C.red,
+          { columnStyles: { 0: { halign: 'left', fontStyle: 'bold', cellWidth: 100 } }, styles: { fontSize: 7.5, cellPadding: 3 } });
+      }
+      note('Charges = kg PRESCRITS (% du 1RM du joueur à la date de la séance). Tonnage = estimation (séries × répétitions × charge prescrite), hors exercices au poids de corps non lestés.');
+    }
+
+    // 3) MUSCULATION
+    if (r.muscuRows.length) {
+      banner('Séances de musculation', 'Ce qui était prévu, ce qui a été fait, et comment le joueur l\'a vécu.', C.orange);
+      if (r.cycles.length) {
+        sub('Par cycle / méthode', C.orange);
+        tbl2(['Cycle / méthode', 'Début', 'Fin', 'Séances\nfaites/prév.', 'Réalisation', 'RPE cible', 'RPE réel', 'Tonnage (kg)'],
+          r.cycles.map(c => [c.nom, rpFr(c.debut), rpFr(c.fin), c.faites + '/' + c.prevues, c.taux != null ? c.taux + ' %' : '', c.rpeCible != null ? fr(c.rpeCible) : '', c.rpeReel != null ? fr(c.rpeReel) : '', c.tonnage ? Math.round(c.tonnage).toLocaleString('fr-FR') : '']), C.orange, { columnStyles: { 0: { halign: 'left' } } });
+      }
+      sub('Séance par séance', C.orange);
+      tbl2(['Prévue', 'Faite', 'Séance', 'Méthode', 'Exos', 'Séries', 'Tonnage', 'RPE\ncible', 'RPE\nréel', 'Fatigue', 'Statut'],
+        r.muscuRows.map(x => [rpFr(x.datePrevu), rpFr(x.dateFaite), x.nom, x.methode, x.nbExos, x.series, x.tonnage ? x.tonnage.toLocaleString('fr-FR') : '', x.rpeCible != null ? fr(x.rpeCible) : '', x.rpeReel != null ? fr(x.rpeReel) : '', x.fatigue != null ? x.fatigue + '/5' : '', x.statut]), C.orange,
+        { columnStyles: { 2: { halign: 'left' }, 3: { halign: 'left' } }, styles: { fontSize: 7.5, cellPadding: 3 }, cell: colorStatut(10) });
+    }
+
+    // 4) ENDURANCE
+    if (r.enduRows.length) {
+      banner('Endurance et préparation physique', 'Séances de course / vélo : structure, volume et ressenti.', C.blue);
+      tbl2(['Prévue', 'Faite', 'Séance', 'Structure', 'Récup', 'Volume', 'RPE\ncible', 'RPE\nréel', 'UA', 'Statut'],
+        r.enduRows.map(x => [rpFr(x.datePrevu), rpFr(x.dateFaite), x.nom, x.structure, x.recup, x.volumeM ? (x.volumeM >= 1000 ? fr((x.volumeM / 1000).toFixed(1)) + ' km' : x.volumeM + ' m') : '', x.rpeCible != null ? fr(x.rpeCible) : '', x.rpeReel != null ? fr(x.rpeReel) : '', x.charge != null ? x.charge : '', x.statut]), C.blue,
+        { columnStyles: { 2: { halign: 'left' }, 3: { halign: 'left' }, 4: { halign: 'left' } }, styles: { fontSize: 7.5, cellPadding: 3 }, cell: colorStatut(9) });
+      if (r.vma) note('VMA de référence : ' + fr(r.vma) + ' km/h. Volume = distance cumulée de la séance (estimée sur la VMA quand l\'effort est défini en durée).');
+    }
+
+    // 5) TESTS
+    if (r.testsRows.length) {
+      banner('Tests physiques', 'Vitesse, détente, endurance… et leur évolution.', C.indigo);
+      const ev = r.testsEvol.filter(t => t.n > 1);
+      if (ev.length) tbl2(['Test', 'Premier', 'Dernier', 'Évolution', 'Verdict'], ev.map(t => [t.label, fr(t.premier), fr(t.dernier), sg(t.delta), t.mieux ? 'Amélioration' : t.delta === 0 ? 'Stable' : 'Recul']), C.indigo,
+        { columnStyles: { 0: { halign: 'left' } }, styles: { fontSize: 8.5, cellPadding: 4 }, cell: d => { if (d.section === 'body' && d.column.index === 4) { const v = d.cell.raw; d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = v === 'Amélioration' ? C.green : v === 'Recul' ? C.red : C.grey; } } });
+      const defs = r.testsDefs;
+      sub('Tous les résultats', C.indigo);
+      tbl2(['Date', 'Contexte'].concat(defs.map(d => d[1])), r.testsRows.map(t => [rpFr(t.date), t.contexte].concat(defs.map(d => t[d[0]] != null ? fr(t[d[0]]) : ''))), C.indigo, { columnStyles: { 1: { halign: 'left' } }, styles: { fontSize: 7.5, cellPadding: 3 } });
+      note('Pour les sprints et l\'agilité, un chiffre plus petit = meilleur résultat.');
+    }
+
+    // 6) CORPS & SANTÉ
+    const aSante = r.mesures.length || r.wellnessSem.some(w => w.n) || r.blessures.length;
+    if (aSante) {
+      banner('Corps et santé', 'Composition corporelle, forme au quotidien et blessures.', C.teal);
+      if (r.wellnessSem.some(w => w.n)) {
+        sub('Forme déclarée par le joueur (moyenne par semaine, sur 5)', C.teal);
+        tbl2(['Semaine', 'Énergie', 'Sommeil', 'Humeur', 'Sérénité\n(stress)', 'Absence de\ndouleur', 'Check-ins'], r.wellnessSem.filter(w => w.n).map(w => [rpFr(w.debut).slice(0, 5), w.energie != null ? fr(w.energie) : '', w.sommeil != null ? fr(w.sommeil) : '', w.humeur != null ? fr(w.humeur) : '', w.stress != null ? fr(w.stress) : '', w.douleurs != null ? fr(w.douleurs) : '', w.n]), C.teal,
+          { cell: d => { if (d.section === 'body' && d.column.index >= 1 && d.column.index <= 5) { const v = parseFloat(String(d.cell.raw).replace(',', '.')); if (!isNaN(v)) { const c = v >= 3.8 ? C.green : v >= 3 ? C.amber : C.red; d.cell.styles.fillColor = tint(c, 0.18); d.cell.styles.textColor = c; d.cell.styles.fontStyle = 'bold'; } } } });
+        note('5 = excellent / aucune douleur, 1 = très mauvais. Vert ≥ 3,8 · orange 3 à 3,8 · rouge < 3.');
+      }
+      if (r.mesures.length) {
+        sub('Composition corporelle', C.teal);
+        tbl2(['Date', 'Poids (kg)', 'Masse grasse (%)', 'Masse musc. (kg)', 'T. hanches', 'T. épaule', 'T. cuisse'], r.mesures.map(m => [rpFr(m.date), m.poids != null ? fr(m.poids) : '', m.masseGrasse != null ? fr(m.masseGrasse) : '', m.masseMusc != null ? fr(m.masseMusc) : '', m.hanches != null ? fr(m.hanches) : '', m.epaule != null ? fr(m.epaule) : '', m.cuisse != null ? fr(m.cuisse) : '']), C.teal);
+      }
+      if (r.blessures.length) {
+        sub('Blessures et suivi médical', C.red);
+        tbl2(['Zone', 'Type', 'Début', 'Statut', 'Protocole'], r.blessures.map(b => [b.zone, b.type, rpFr(b.debut), b.statut, b.protocole]), C.red, { columnStyles: { 0: { halign: 'left' }, 1: { halign: 'left' }, 4: { halign: 'left' } } });
+      }
+    }
+
+    // Pieds de page
+    const n = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 155); doc.text(rpP('PerfHand — ' + (pl.name || '') + ' — rapport du ' + rpFr(r.from) + ' au ' + rpFr(r.to)), M, H - 16); doc.text('Page ' + i + '/' + n, W - M, H - 16, { align: 'right' }); }
+    doc.save('rapport_' + String(pl.name || 'joueur').replace(/\s+/g, '_') + '_' + r.generated + '.pdf');
+  } catch (e) {
+    console.error('[PerfHand] Rapport PDF:', e);
+    alert('Erreur lors de la création du PDF : ' + (e && e.message || e));
+  }
+}
+
+// ── EXCEL ──────────────────────────────────────────────────────────────────────────────
+async function exporterRapportJoueurExcel(r) {
+  try {
+    if (typeof ExcelJS === 'undefined') { alert("La librairie d'export Excel n'a pas pu charger. Vérifie ta connexion et réessaie."); return; }
+    const wb = new ExcelJS.Workbook(); wb.creator = 'PerfHand'; wb.created = new Date();
+    const pl = r.player;
+    const style = (ws, hdrColor) => {
+      const hr = ws.getRow(1);
+      hr.eachCell(c => { c.font = { bold: true, color: { argb: 'FF141418' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: hdrColor || 'FFFFA420' } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; });
+      hr.height = 26;
+      ws.views = [{ state: 'frozen', ySplit: 1 }];
+      ws.eachRow((row, i) => { if (i > 1) row.eachCell(c => { c.alignment = { vertical: 'middle', horizontal: typeof c.value === 'number' ? 'center' : 'left', wrapText: true }; }); });
+      ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ws.columnCount } };
+    };
+    const sheet = (name, cols, rows, widths, hdr) => {
+      const ws = wb.addWorksheet(name);
+      ws.addRow(cols); rows.forEach(x => ws.addRow(x));
+      ws.columns.forEach((c, i) => { c.width = (widths && widths[i]) || Math.max(11, String(cols[i]).length + 3); });
+      style(ws, hdr); return ws;
+    };
+    const colorStatut = (ws, idx) => ws.eachRow((row, i) => { if (i > 1) { const c = row.getCell(idx); const v = c.value; c.font = { bold: true, color: { argb: v === 'Faite' ? 'FF2E7D32' : v === 'Non faite' ? 'FFC62828' : 'FF757575' } }; } });
+    const colorDelta = (ws, idx) => ws.eachRow((row, i) => { if (i > 1) { const c = row.getCell(idx); if (typeof c.value === 'number') c.font = { bold: true, color: { argb: c.value > 0 ? 'FF2E7D32' : c.value < 0 ? 'FFC62828' : 'FF757575' } }; } });
+    const n = v => v == null || v === '' ? null : v;
+    const k = r.kpi;
+
+    // Synthèse
+    const ws0 = wb.addWorksheet('Synthèse');
+    ws0.columns = [{ width: 34 }, { width: 22 }, { width: 70 }];
+    const t = ws0.addRow(['RAPPORT D\'ENTRAÎNEMENT — ' + (pl.name || '')]); t.font = { bold: true, size: 16 }; ws0.mergeCells('A1:C1');
+    ws0.addRow(['Période', rpFr(r.from) + ' au ' + rpFr(r.to)]); ws0.addRow(['Généré le', rpFr(r.generated)]);
+    ws0.addRow(['Poste', pl.pos || pl.poste || '']); ws0.addRow(['Âge / taille / poids', [pl.age ? pl.age + ' ans' : '', pl.taille ? pl.taille + ' cm' : '', rpRefAt(pl, 'poids_corps', r.to) ? rpRefAt(pl, 'poids_corps', r.to) + ' kg' : ''].filter(Boolean).join(' / ')]);
+    ws0.addRow([]);
+    const hh = ws0.addRow(['Indicateur', 'Valeur', 'Détail']); hh.eachCell(c => { c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFA420' } }; });
+    [['Séances faites / prévues', (k.muscuFaites + k.enduFaites) + ' / ' + (k.muscuPrevues + k.enduPrevues), k.taux != null ? k.taux + '% d\'assiduité' : ''],
+     ['Musculation faites / prévues', k.muscuFaites + ' / ' + k.muscuPrevues, k.tauxMuscu != null ? k.tauxMuscu + '%' : ''],
+     ['Endurance faites / prévues', k.enduFaites + ' / ' + k.enduPrevues, k.tauxEndu != null ? k.tauxEndu + '%' : ''],
+     ['RPE moyen ressenti', k.rpeMoy, k.rpeCibleMoy != null ? 'RPE cible muscu moyen : ' + k.rpeCibleMoy : ''],
+     ['Charge totale (UA)', k.uaTotal, 'UA = durée × RPE'], ['ACWR (7 j / 28 j)', r.acwr, 'optimal 0,8 à 1,3'],
+     ['Tonnage musculation estimé (kg)', Math.round(k.tonnage), 'séries × reps × charge prescrite'], ['Séries de musculation', k.seriesTot, ''],
+     ['Volume d\'endurance (m)', Math.round(k.volumeEnduM), r.vma ? 'VMA ' + r.vma + ' km/h' : ''],
+     ['Sommeil moyen (/5)', k.sommeilMoy, ''], ['Énergie moyenne (/5)', k.energieMoy, ''], ['Douleurs moyennes (/5, 5 = aucune)', k.douleursMoy, '']].forEach(a => ws0.addRow(a.map(n)));
+    ws0.addRow([]); const lh = ws0.addRow(['Lecture rapide']); lh.font = { bold: true, size: 12 };
+    r.insights.forEach(s => { const row = ws0.addRow([s.slice(4)]); ws0.mergeCells('A' + row.number + ':C' + row.number); row.getCell(1).alignment = { wrapText: true, vertical: 'top' }; row.height = 30; const tag = s.slice(0, 3); row.getCell(1).font = { color: { argb: tag === '[+]' ? 'FF2E7D32' : tag === '[!]' ? 'FFC62828' : 'FF555555' } }; });
+
+    // Semaines
+    const wsS = sheet('Semaines (charge)', ['Début', 'Fin', 'Muscu prévues', 'Muscu faites', 'Endu prévues', 'Endu faites', 'UA muscu', 'UA endurance', 'UA terrain', 'UA total', 'RPE moyen', 'ACWR', 'Tonnage (kg)', 'Volume endurance (m)'],
+      r.semaines.map(s => [rpFr(s.debut), rpFr(s.fin), s.muscuPrevues, s.muscuFaites, s.enduPrevues, s.enduFaites, s.uaMuscu, s.uaEndu, s.uaTerrain, s.ua, n(s.rpe), n(s.acwr), Math.round(s.tonnage), Math.round(s.volumeM)]));
+    wsS.eachRow((row, i) => { if (i > 1) { const c = row.getCell(12); const v = c.value; if (typeof v === 'number') c.font = { bold: true, color: { argb: v > 1.5 ? 'FFC62828' : v > 1.3 ? 'FFE67800' : v < 0.8 ? 'FF757575' : 'FF2E7D32' } }; } });
+
+    // Séances muscu
+    const wsM = sheet('Séances musculation', ['Date prévue', 'Date faite', 'Séance', 'Méthode', 'Contexte', 'Nb exercices', 'Séries', 'Tonnage estimé (kg)', 'RPE cible', 'RPE réel', 'Fatigue /5', 'Énergie /5', 'Sommeil /5', 'Douleurs /5', 'Durée estimée (min)', 'Charge (UA)', 'Statut', 'Commentaire joueur'],
+      r.muscuRows.map(x => [rpFr(x.datePrevu), rpFr(x.dateFaite), x.nom, x.methode, x.contexte, x.nbExos, x.series, x.tonnage, n(x.rpeCible), n(x.rpeReel), n(x.fatigue), n(x.energie), n(x.sommeil), n(x.douleurs), x.duree, n(x.charge), x.statut, x.notesJoueur]),
+      [12, 12, 34, 22, 18, 10, 9, 14, 9, 9, 9, 9, 9, 9, 12, 11, 11, 40]); colorStatut(wsM, 17);
+
+    // Détail exercices (une ligne par exercice et par séance)
+    const rowsEx = [];
+    r.exos.forEach(e => e.lignes.forEach(l => rowsEx.push([e.nom, rpFr(l.date), l.seance, l.series, l.reps, n(l.pct), n(l.kgMax), n(l.kgMoy), l.repsTot || null, Math.round(l.tonnage)])));
+    rowsEx.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    sheet('Détail exercices', ['Exercice', 'Date', 'Séance', 'Séries', 'Reps prescrites', '% 1RM / PC', 'Charge max (kg)', 'Charge moy. (kg)', 'Reps totales', 'Tonnage (kg)'], rowsEx, [34, 11, 32, 9, 14, 11, 14, 14, 11, 12]);
+    const wsP = sheet('Progression exercices', ['Exercice', 'Séances', 'Charge début (kg)', 'Charge fin (kg)', 'Évolution (kg)', 'Évolution (%)', 'Pic (kg)', 'Séries', 'Reps', 'Tonnage (kg)'],
+      r.exos.map(e => [e.nom, e.apparitions, n(e.kgDebut), n(e.kgFin), n(e.deltaKg), n(e.deltaPct), n(e.kgPic), e.seriesTot, e.repsTot, e.tonnage]), [36, 9, 14, 14, 13, 13, 10, 9, 9, 13]); colorDelta(wsP, 5); colorDelta(wsP, 6);
+
+    // 1RM : synthèse + historique
+    const wsR = sheet('1RM', ['Mouvement', '1RM début (kg)', 'Date début', '1RM actuel (kg)', 'Date', 'Évolution (kg)', 'Évolution (%)', '× poids de corps', 'Record (kg)'],
+      r.rm.map(m => [m.label, m.debut, rpFr(m.debutDate), m.fin, rpFr(m.finDate), m.delta, n(m.deltaPct), n(m.ratioPC), m.record]), [26, 14, 12, 14, 12, 13, 13, 14, 12]); colorDelta(wsR, 6);
+    const rowsH = []; r.rm.forEach(m => m.historique.forEach(e => rowsH.push([m.label, rpFr(e.date), e.rm])));
+    sheet('1RM historique', ['Mouvement', 'Date', '1RM (kg)'], rowsH, [26, 12, 12]);
+
+    // Endurance
+    const wsE = sheet('Endurance', ['Date prévue', 'Date faite', 'Séance', 'Type', 'Structure', 'Récupération', 'Intensité', 'Volume estimé (m)', 'Durée (min)', 'RPE cible', 'RPE réel', 'Fatigue /5', 'Charge (UA)', 'Statut'],
+      r.enduRows.map(x => [rpFr(x.datePrevu), rpFr(x.dateFaite), x.nom, x.type, x.structure, x.recup, x.intensite, n(x.volumeM), x.duree, n(x.rpeCible), n(x.rpeReel), n(x.fatigue), n(x.charge), x.statut]), [12, 12, 36, 24, 26, 22, 18, 14, 10, 9, 9, 9, 11, 11], 'FF38BDF8'); colorStatut(wsE, 14);
+    if (r.terrainRows.length) sheet('Terrain-match', ['Date', 'Séance', 'Durée (min)', 'RPE', 'Charge (UA)', 'Fatigue', 'Notes'], r.terrainRows.map(x => [rpFr(x.date), x.type, n(x.duree), n(x.rpe), n(x.charge), n(x.fatigue), x.notes]), [12, 28, 11, 8, 12, 9, 40], 'FF4CAF50');
+
+    // Tests
+    if (r.testsRows.length) {
+      sheet('Tests', ['Date', 'Contexte'].concat(r.testsDefs.map(d => d[1])).concat(['Notes']), r.testsRows.map(x => [rpFr(x.date), x.contexte].concat(r.testsDefs.map(d => n(x[d[0]]))).concat([x.notes])), null, 'FF7C6FFF');
+      sheet('Tests évolution', ['Test', 'Premier', 'Date', 'Dernier', 'Date', 'Évolution', 'Verdict'], r.testsEvol.map(t2 => [t2.label, t2.premier, rpFr(t2.premierDate), t2.dernier, rpFr(t2.dernierDate), t2.delta, t2.n < 2 ? '1 seule mesure' : t2.mieux ? 'Amélioration' : t2.delta === 0 ? 'Stable' : 'Régression']), [30, 10, 12, 10, 12, 11, 16], 'FF7C6FFF');
+    }
+    if (r.mesures.length) sheet('Composition corporelle', ['Date', 'Poids (kg)', 'Masse grasse (%)', 'Masse musculaire (kg)', 'Tour de hanches', 'Tour d\'épaule', 'Tour de cuisse'], r.mesures.map(m => [rpFr(m.date), n(m.poids), n(m.masseGrasse), n(m.masseMusc), n(m.hanches), n(m.epaule), n(m.cuisse)]), [12, 12, 16, 18, 15, 15, 15], 'FFEC4899');
+    if (r.wellness.length) sheet('Bien-être', ['Date', 'Énergie /5', 'Sommeil /5', 'Humeur /5', 'Stress /5 (5 = serein)', 'Douleurs /5 (5 = aucune)'], r.wellness.map(w => [rpFr(w.date), n(w.energie), n(w.sommeil), n(w.humeur), n(w.stress), n(w.douleurs)]), [12, 12, 12, 12, 20, 22], 'FF4CAF50');
+    if (r.blessures.length) sheet('Blessures', ['Zone', 'Type', 'Début', 'Statut', 'Protocole'], r.blessures.map(b => [b.zone, b.type, rpFr(b.debut), b.statut, b.protocole]), [20, 26, 12, 14, 60], 'FFFF4455');
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = 'rapport_' + String(pl.name || 'joueur').replace(/\s+/g, '_') + '_' + r.generated + '.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    console.error('[PerfHand] Rapport Excel:', e);
+    alert('Erreur lors de la création du fichier Excel : ' + (e && e.message || e));
+  }
+}
+
+// ── Export Excel ÉQUIPE : une ligne par joueur + matrice de charge par semaine ───────────────
+async function exporterRapportEquipeExcel(players, from, to, titre) {
+  try {
+    if (typeof ExcelJS === 'undefined') { alert("La librairie d'export Excel n'a pas pu charger. Vérifie ta connexion et réessaie."); return; }
+    const reps = (players || []).filter(p => p && !p.archived).map(p => { try { return buildRapportJoueur(p, from, to); } catch (e) { console.warn(e); return null; } }).filter(Boolean);
+    if (!reps.length) { alert('Aucun joueur à exporter.'); return; }
+    const wb = new ExcelJS.Workbook(); wb.creator = 'PerfHand'; wb.created = new Date();
+    const hdr = ws => { const hr = ws.getRow(1); hr.eachCell(c => { c.font = { bold: true, color: { argb: 'FF141418' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFA420' } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; }); hr.height = 30; ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }]; ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ws.columnCount } }; };
+    const n = v => v == null || v === '' ? null : v;
+    const rmOf = (r, id) => r.rm.find(m => m.id === id);
+    const ws = wb.addWorksheet('Équipe');
+    ws.addRow(['Joueur', 'Poste', 'Muscu faites', 'Muscu prévues', 'Réalisation muscu %', 'Endu faites', 'Endu prévues', 'Réalisation endu %', 'Assiduité %', 'RPE moyen', 'Charge totale (UA)', 'ACWR', 'Tonnage muscu (kg)',
+      'Squat 1RM', 'Squat Δ', 'Bench 1RM', 'Bench Δ', 'RDL 1RM', 'RDL Δ', 'Rowing 1RM', 'Rowing Δ', 'Sommeil /5', 'Énergie /5', 'Douleurs /5', 'Blessure / surveillance']);
+    reps.forEach(r => {
+      const k = r.kpi, sq = rmOf(r, 'squat'), be = rmOf(r, 'bench'), rd = rmOf(r, 'rdl'), ro = rmOf(r, 'rowing');
+      ws.addRow([r.player.name, r.player.pos || r.player.poste || '', k.muscuFaites, k.muscuPrevues, n(k.tauxMuscu), k.enduFaites, k.enduPrevues, n(k.tauxEndu), n(k.taux), n(k.rpeMoy), k.uaTotal, n(r.acwr), Math.round(k.tonnage),
+        sq ? sq.fin : null, sq ? sq.delta : null, be ? be.fin : null, be ? be.delta : null, rd ? rd.fin : null, rd ? rd.delta : null, ro ? ro.fin : null, ro ? ro.delta : null,
+        n(k.sommeilMoy), n(k.energieMoy), n(k.douleursMoy), r.blessures.filter(b => /cours|surveill/i.test(b.statut)).map(b => b.zone).join(', ')]);
+    });
+    ws.columns.forEach((c, i) => { c.width = i === 0 ? 24 : i === 24 ? 28 : 12; });
+    hdr(ws);
+    ws.eachRow((row, i) => { if (i > 1) row.eachCell((c, j) => { c.alignment = { vertical: 'middle', horizontal: j <= 2 || j === 25 ? 'left' : 'center' };
+      if ([15, 17, 19, 21].includes(j) && typeof c.value === 'number') c.font = { bold: true, color: { argb: c.value > 0 ? 'FF2E7D32' : c.value < 0 ? 'FFC62828' : 'FF757575' } };
+      if (j === 12 && typeof c.value === 'number') c.font = { bold: true, color: { argb: c.value > 1.5 ? 'FFC62828' : c.value > 1.3 ? 'FFE67800' : c.value < 0.8 ? 'FF757575' : 'FF2E7D32' } };
+      if (j === 9 && typeof c.value === 'number') c.font = { bold: true, color: { argb: c.value >= 85 ? 'FF2E7D32' : c.value >= 65 ? 'FFE67800' : 'FFC62828' } }; }); });
+    // Matrice charge hebdomadaire (UA)
+    const weeks = reps[0].semaines.map(s => s.debut);
+    const w2 = wb.addWorksheet('Charge par semaine (UA)');
+    w2.addRow(['Joueur'].concat(weeks.map(d => rpFr(d).slice(0, 5))).concat(['Total']));
+    reps.forEach(r => w2.addRow([r.player.name].concat(r.semaines.map(s => s.ua || null)).concat([r.kpi.uaTotal])));
+    w2.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 9; });
+    hdr(w2);
+    // Matrice assiduité hebdo (séances faites / prévues)
+    const w3 = wb.addWorksheet('Assiduité par semaine');
+    w3.addRow(['Joueur'].concat(weeks.map(d => rpFr(d).slice(0, 5))));
+    reps.forEach(r => w3.addRow([r.player.name].concat(r.semaines.map(s => (s.muscuPrevues + s.enduPrevues) ? (s.muscuFaites + s.enduFaites) + '/' + (s.muscuPrevues + s.enduPrevues) : ''))));
+    w3.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 9; });
+    hdr(w3);
+    w3.eachRow((row, i) => { if (i > 1) row.eachCell((c, j) => { if (j > 1) { c.alignment = { horizontal: 'center' }; const m = String(c.value || '').match(/^(\d+)\/(\d+)$/); if (m) c.font = { bold: true, color: { argb: m[1] === m[2] ? 'FF2E7D32' : +m[1] === 0 ? 'FFC62828' : 'FFE67800' } }; } }); });
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = 'synthese_equipe_' + String(titre || 'club').replace(/\s+/g, '_') + '_' + localDateStr() + '.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    console.error('[PerfHand] Export équipe:', e);
+    alert("Erreur lors de l'export Excel équipe : " + (e && e.message || e));
+  }
+}
+
+// ── Fenêtre « Rapport » (choix de la période + PDF / Excel) ──────────────────────────────
+function RapportJoueurModal({ player, onClose }) {
+  const periodes = React.useMemo(() => rpPeriodes(player), [player && player.id]);
+  const [pid, setPid] = React.useState('8s');
+  const [from, setFrom] = React.useState(() => (periodes.find(p => p.id === '8s') || periodes[0]).from);
+  const [to, setTo] = React.useState(() => (periodes.find(p => p.id === '8s') || periodes[0]).to);
+  const [busy, setBusy] = React.useState(false);
+  const rapport = React.useMemo(() => { try { return buildRapportJoueur(player, from, to); } catch (e) { console.error(e); return null; } }, [player, from, to]);
+  const choisir = p => { setPid(p.id); setFrom(p.from); setTo(p.to); };
+  const k = rapport && rapport.kpi;
+  const chip = (txt, val, col) => _h`<div style=${{ flex:'1 1 90px', background:'rgba(255,255,255,.04)', borderRadius:10, padding:'8px 10px' }}>
+    <div style=${{ fontSize:9, color:'rgba(255,255,255,.4)', textTransform:'uppercase', letterSpacing:1 }}>${txt}</div>
+    <div style=${{ fontSize:17, fontWeight:800, color:col || '#fff' }}>${val}</div></div>`;
+  return _h`<div style=${{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,.72)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick=${onClose}>
+    <div style=${{ background:'#14161b', border:'1px solid rgba(255,164,32,.35)', borderRadius:16, width:'100%', maxWidth:560, maxHeight:'92vh', overflowY:'auto', padding:'18px 18px 16px' }} onClick=${e => e.stopPropagation()}>
+      <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+        <div style=${{ fontSize:17, fontWeight:800 }}>📊 Rapport d'entraînement</div>
+        <button class="btn btn-sm" onClick=${onClose}>✕</button>
+      </div>
+      <div style=${{ fontSize:12, color:'rgba(255,255,255,.5)', marginBottom:14 }}>${player.name} — synthèse complète : séances, charge, 1RM, progression par exercice, tests, bien-être.</div>
+      <div class="lbl">Période</div>
+      <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+        ${periodes.map(p => _h`<button key=${p.id} onClick=${() => choisir(p)} style=${{ padding:'6px 12px', borderRadius:20, cursor:'pointer', fontFamily:'Inter,sans-serif', fontSize:11, fontWeight:pid === p.id ? 800 : 500,
+          border:'1px solid ' + (pid === p.id ? '#FFA420' : 'rgba(255,255,255,.12)'), background:pid === p.id ? 'rgba(255,164,32,.15)' : 'rgba(255,255,255,.04)', color:pid === p.id ? '#FFA420' : 'rgba(255,255,255,.6)' }}>${p.label}</button>`)}
+      </div>
+      <div style=${{ display:'flex', gap:8, marginBottom:14 }}>
+        <div style=${{ flex:1 }}><div class="lbl">Du</div><input class="inp" type="date" value=${from} onInput=${e => { setPid('perso'); setFrom(e.target.value); }}/></div>
+        <div style=${{ flex:1 }}><div class="lbl">Au</div><input class="inp" type="date" value=${to} onInput=${e => { setPid('perso'); setTo(e.target.value); }}/></div>
+      </div>
+      ${k ? _h`<div style=${{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+        ${chip('Assiduité', k.taux != null ? k.taux + '%' : '-', k.taux >= 85 ? '#4CAF50' : k.taux >= 65 ? '#FFA420' : '#FF4455')}
+        ${chip('Séances faites', (k.muscuFaites + k.enduFaites) + '/' + (k.muscuPrevues + k.enduPrevues))}
+        ${chip('RPE moyen', k.rpeMoy != null ? k.rpeMoy : '-')}
+        ${chip('Charge', k.uaTotal ? k.uaTotal + ' UA' : '-')}
+      </div>
+      <div style=${{ background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.07)', borderRadius:10, padding:'8px 12px', marginBottom:14 }}>
+        <div style=${{ fontSize:10, fontWeight:800, color:'#FFA420', textTransform:'uppercase', letterSpacing:1, marginBottom:4 }}>Lecture rapide</div>
+        ${rapport.insights.slice(0, 6).map((t, i) => _h`<div key=${i} style=${{ fontSize:11.5, lineHeight:1.5, color:'rgba(255,255,255,.75)', padding:'2px 0' }}>${t.slice(0, 3) === '[+]' ? '🟢' : t.slice(0, 3) === '[!]' ? '🔴' : '⚪'} ${t.slice(4).replace(/(\d)\.(\d)/g, '$1,$2')}</div>`)}
+      </div>` : null}
+      <div style=${{ display:'flex', gap:8 }}>
+        <button class="btn btn-primary" disabled=${busy || !rapport} style=${{ flex:1, padding:'11px 8px', fontWeight:800 }} onClick=${() => { setBusy(true); setTimeout(() => { try { exporterRapportJoueurPDF(buildRapportJoueur(player, from, to)); } finally { setBusy(false); } }, 30); }}>📄 Télécharger le PDF</button>
+        <button class="btn" disabled=${busy || !rapport} style=${{ flex:1, padding:'11px 8px', fontWeight:800, background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50' }} onClick=${async () => { setBusy(true); try { await exporterRapportJoueurExcel(buildRapportJoueur(player, from, to)); } finally { setBusy(false); } }}>📗 Télécharger l'Excel</button>
+      </div>
+      <div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:10, lineHeight:1.5 }}>Le PDF se lit d'un coup d'œil (graphiques + tableaux). L'Excel contient toutes les données brutes en onglets pour tes propres analyses.</div>
+    </div>
+  </div>`;
+}
+
 function PlayerDetail({ p, db, setDb, onBack, staffPermissions }) {
   const [tab, setTab]           = useState('profil');
   const [editProfile, setEditProfile] = useState(false);
+  const [showRapport, setShowRapport] = useState(false);
   const [editBlessure, setEditBlessure] = useState(false);
   const [editProtocol, setEditProtocol] = useState(false);
 
@@ -16694,8 +17908,10 @@ function PlayerDetail({ p, db, setDb, onBack, staffPermissions }) {
             }).catch(e => alert('Erreur : ' + e.message));
           }
         }} style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420' }}>📋 Code accès</button>
+        <button class="btn btn-sm" onClick=${() => setShowRapport(true)} style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700 }}>📊 Rapport PDF / Excel</button>
       </div>
     </div>
+    ${showRapport ? _h`<${RapportJoueurModal} player=${player} onClose=${() => setShowRapport(false)} />` : null}
 
     <!-- Tabs -->
     <div style=${{ display:'flex', gap:4, marginBottom:16, background:'rgba(255,255,255,.03)', borderRadius:11, padding:3, overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
@@ -22592,6 +23808,11 @@ function ChargeDashboard({ players, clubs }) {
         return 'Saison ' + '2026-2027';
       })()}</div>
       <h1 style=${{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:28, fontWeight:800 }}>CHARGE & FATIGUE ÉQUIPE</h1>
+      <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10, alignItems:'center' }}>
+        <span style=${{ fontSize:10, color:'rgba(255,255,255,.4)', textTransform:'uppercase', letterSpacing:1 }}>📗 Export Excel équipe :</span>
+        ${rpPeriodes({}).filter(pp => pp.id !== 'tout').map(pp => _h`<button key=${pp.id} class="btn btn-sm" style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700 }}
+          onClick=${() => exporterRapportEquipeExcel(players, pp.from, pp.to, ((clubs && clubs[0] && clubs[0].name) || 'equipe'))}>${pp.label}</button>`)}
+      </div>
     </div>
 
     <!-- Alertes -->
@@ -27506,7 +28727,7 @@ function StaffView() {
 // Recommandation charges avec incrément 2.5 ou 5kg
 
 const MOUVEMENTS_RM = [
-  { id:'squat',  label:'Squat barre',       emoji:'🏋️', color:'#FF4455',
+  { id:'squat',  label:'Back Squat',       emoji:'🏋️', color:'#FF4455',
     muscles:'Quadriceps, Fessiers, Ischio-jambiers', note:'Hauteur parallèle minimum' },
   { id:'bench',  label:'Bench Press',        emoji:'💪', color:'#FF7A00',
     muscles:'Pectoraux, Triceps, Deltoïdes antérieurs', note:'Barre en contact avec le sternum' },
@@ -28893,7 +30114,25 @@ function PerfHandApp() {
           const localList = merged[clubId] || [];
           const byId = {};
           localList.forEach(m => { if (m && m.id) byId[m.id] = m; });
-          remoteList.forEach(m => { if (m && m.id) byId[m.id] = { ...(byId[m.id]||{}), ...m }; });
+          remoteList.forEach(m => {
+            if (!m || !m.id) return;
+            const loc = byId[m.id] || {};
+            const merged2 = { ...loc, ...m };
+            // CORRECTIF temps de jeu : le match distant remplaçait en bloc `tempsJeu` local. Un
+            // snapshot serveur un peu en retard (clics rapprochés sur plusieurs joueurs) annulait
+            // alors le dernier clic local → « l'autre joueur ne se clique pas / ça enlève le premier ».
+            // On fusionne maintenant joueur par joueur, en gardant le plus récent (champ ts).
+            if (loc.tempsJeu || m.tempsJeu) {
+              const tj = { ...(m.tempsJeu || {}) };
+              Object.entries(loc.tempsJeu || {}).forEach(([pid, lv]) => {
+                const rv = tj[pid];
+                if (!rv || (lv && (lv.ts || 0) > (rv.ts || 0))) tj[pid] = lv;
+              });
+              merged2.tempsJeu = tj;
+              if ((loc.chronoTs || 0) > (m.chronoTs || 0)) { merged2.chronoMatchActif = loc.chronoMatchActif; merged2.chronoTs = loc.chronoTs; }
+            }
+            byId[m.id] = merged2;
+          });
           merged[clubId] = Object.values(byId);
         });
         return { ...d, matchStats: merged };

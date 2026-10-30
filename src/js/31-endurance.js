@@ -801,8 +801,121 @@ function TestsEnduranceView({ player, setDb, isCoach }) {
 
 
 // Calcule les temps cibles d'une séance endurance selon VMA et type
+// ── Séances de piste mixtes (800 / 400 / 200…) : une ligne claire PAR distance, avec allure propre à chaque distance
+const PISTE_PCT = { 200:[95,105], 300:[92,100], 400:[85,95], 600:[80,90], 800:[75,85], 1000:[75,85], 1200:[75,82], 1600:[75,82] };
+const PISTE_RECUP_DEF = { 200:'1 min', 400:'1 min 30', 800:'3 min' };
+function pistePctPour(d) { return PISTE_PCT[d] || (d <= 200 ? [95,105] : d <= 400 ? [85,95] : [75,85]); }
+function parseBlocsPiste(s) {
+  const txt = (s && s.distance) || '';
+  const blocs = []; let m;
+  const re = /(\d+)\s*[x×]\s*(\d{3,4})\s*m?(?:\s*@\s*(\d+)(?:\s*-\s*(\d+))?\s*%)?/gi;
+  while ((m = re.exec(txt))) blocs.push({ reps: +m[1], dist: +m[2], pct: m[3] ? [+m[3], +(m[4] || m[3])] : null });
+  if (blocs.length >= 2) return blocs;
+  const pm = (((s && s.nom) || '') + ' ' + txt).match(/\d{3,4}(?:\s*-\s*\d{3,4}){2,}/);
+  if (pm) return pm[0].split(/\s*-\s*/).map(d => ({ reps: 1, dist: +d, pct: null }));
+  return [];
+}
+function recupPisteDist(s, d) {
+  const r = (s && s.recup) || '';
+  const parts = r.split(/[,;\/]/).map(x => x.trim()).filter(Boolean);
+  const mine = parts.find(x => new RegExp('(^|\\D)' + d + '\\s*m').test(x));
+  if (mine) { const t = mine.match(/\d+(?:[.,]\d+)?\s*(?:min|mn|sec|s)\w*/i); if (t) return t[0]; }
+  if (parts.length && !parts.some(x => /\d{3,4}\s*m/.test(x))) return r;
+  return PISTE_RECUP_DEF[d] || '';
+}
+function fmtTpsPiste(sec) { sec = Math.round(sec); return sec >= 60 ? Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0') : sec + ' s'; }
+function allureBlocPiste(vma, b) {
+  const p = b.pct || pistePctPour(b.dist);
+  const vMin = Math.round(vma * p[0] / 100 * 10) / 10, vMax = Math.round(vma * p[1] / 100 * 10) / 10;
+  const kmPace = v => { const sk = Math.round(3600 / v); return Math.floor(sk/60) + ':' + String(sk%60).padStart(2,'0'); };
+  return { p, vMin, vMax, tFast: fmtTpsPiste(b.dist / vMax * 3.6), tSlow: fmtTpsPiste(b.dist / vMin * 3.6), paceFast: kmPace(vMax), paceSlow: kmPace(vMin) };
+}
+const TYPE_PCT_ENDU = {
+  continu_ext:[70,75], continu_int:[80,85], interval:[95,105], fractionne:[105,115], spl:[75,100], recup_active:[55,65],
+  piste_fond:[75,95], anaerobie_lactique:[95,110], anaerobie_alactique:[105,120], capacite_aerobie:[82,88]
+};
+// Découpe n'importe quelle séance d'endurance en blocs lisibles : {reps, repsMax, dist (m) | sec, pct, recup}
+function blocsEndu(s) {
+  if (!s) return [];
+  const multi = parseBlocsPiste(s);
+  if (multi.length) return multi.map(b => ({ reps: b.reps, repsMax: b.reps, dist: b.dist, pct: b.pct || pistePctPour(b.dist), recup: recupPisteDist(s, b.dist) }));
+  const txt = ((s.distance || '') + ' ' + (s.nom || '')).replace(/,/g, '.');
+  const notes = s.notes || '';
+  let reps = 1, repsMax = 1, dist = null, sec = null;
+  const mx = txt.match(/(\d+)(?:\s*-\s*(\d+))?\s*[x×]\s*(\d+(?:\.\d+)?)\s*(km|min|mn|sec|m|s)\b/i);
+  const mq = (s.distance || '').replace(/,/g, '.').match(/(\d+(?:\.\d+)?)\s*(km|min|mn|sec|m|s)\b/i);
+  const mu = (u, q) => { u = u.toLowerCase(); q = parseFloat(q); if (u === 'km') dist = q * 1000; else if (u === 'm') dist = q; else if (u === 's' || u === 'sec') sec = q; else sec = q * 60; };
+  if (mx) { reps = +mx[1]; repsMax = mx[2] ? +mx[2] : reps; mu(mx[4], mx[3]); const r2 = notes.match(/(\d+)\s*-\s*(\d+)\s*reps?\b/i); if (r2 && +r2[1] === reps) repsMax = +r2[2]; }
+  else if (mq) {
+    mu(mq[2], mq[1]);
+    const rn = notes.match(/(\d+)(?:\s*-\s*(\d+))?\s*reps?\b/i) || (s.nom || '').match(/(\d+)(?:\s*-\s*(\d+))?\s*[x×]/);
+    if (rn) { reps = +rn[1]; repsMax = rn[2] ? +rn[2] : reps; }
+  } else if (s.duree > 0) sec = s.duree * 60;
+  else return [];
+  const src = (s.distance || '') + ' ' + notes;
+  const pm = src.match(/(\d+)\s*-\s*(\d+)\s*%/) || src.match(/(\d+)\s*%\s*(?:de\s*)?VMA/i);
+  let pct = pm ? (pm[2] ? [+pm[1], +pm[2]] : [+pm[1], +pm[1]]) : null;
+  if (!pct) pct = dist && PISTE_PCT[dist] ? PISTE_PCT[dist] : (TYPE_PCT_ENDU[s.type] || [70, 80]);
+  return [{ reps, repsMax, dist, sec, pct, recup: s.recup || '' }];
+}
+function fmtDistEndu(m) { return m >= 1000 ? (Math.round(m / 100) / 10).toString().replace('.', ',') + ' km' : Math.round(m / 10) * 10 + ' m'; }
+function PisteBlocsEl(s, vma, blocs, extra) {
+  const rep = ((s.notes || '').match(/^\s*(\d+(?:-\d+)?)\s*(fois|pyramides?|s[ée]ries?|circuits?|tours?)/i));
+  const multi = blocs.length > 1;
+  const kmPace = v => { const sk = Math.round(3600 / v); return Math.floor(sk/60) + ':' + String(sk%60).padStart(2,'0'); };
+  let totDist = 0, totDistMax = 0, totSec = 0, totSecMax = 0;
+  const rows = blocs.map((b, i) => {
+    const rMax = b.repsMax || b.reps;
+    const repsTxt = rMax !== b.reps ? b.reps + '-' + rMax : String(b.reps);
+    const vMin = vma ? Math.round(vma * b.pct[0] / 100 * 10) / 10 : null;
+    const vMax = vma ? Math.round(vma * b.pct[1] / 100 * 10) / 10 : null;
+    let cible = null, action = null;
+    if (b.dist) {
+      totDist += b.reps * b.dist; totDistMax += rMax * b.dist;
+      if (vma) { cible = fmtTpsPiste(b.dist / vMax * 3.6) + ' – ' + fmtTpsPiste(b.dist / vMin * 3.6); totSec += b.reps * b.dist / vMax * 3.6; totSecMax += rMax * b.dist / vMin * 3.6; }
+    } else if (b.sec) {
+      totSec += b.reps * b.sec; totSecMax += rMax * b.sec;
+      if (vma) { const d1 = vMin * 1000 / 3600 * b.sec, d2 = vMax * 1000 / 3600 * b.sec; cible = fmtDistEndu(d1) + ' – ' + fmtDistEndu(d2); totDist += b.reps * d1; totDistMax += rMax * d2; }
+    }
+    const effort = b.dist ? fmtDistEndu(b.dist) : (b.sec >= 60 ? (b.sec % 60 ? Math.floor(b.sec/60) + ' min ' + (b.sec%60) + ' s' : (b.sec/60) + ' min') : b.sec + ' s');
+    if (vma && cible) {
+      action = 'Cours ' + effort + (b.dist ? ' en ' + cible : ' à ' + vMin + '–' + vMax + ' km/h (≈ ' + cible + ')') + (b.recup ? ', récup ' + b.recup : '') + (rMax > 1 ? ', ×' + repsTxt : '');
+    }
+    return _h`<div key=${i} style=${{ background:'rgba(255,255,255,.04)', borderRadius:8, padding:'9px 11px', marginBottom:6 }}>
+      <div style=${{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap' }}>
+        ${multi ? _h`<span style=${{ fontSize:11, fontWeight:800, color:'rgba(255,255,255,.35)' }}>${i+1}.</span>` : null}
+        ${rMax > 1 || b.reps > 1 ? _h`<span style=${{ fontSize:20, fontWeight:900, color:'#7C6FFF' }}>${repsTxt}×</span>` : null}
+        <span style=${{ fontSize:17, fontWeight:800, color:'#fff' }}>${effort}</span>
+        <span style=${{ fontSize:10, color:'rgba(255,255,255,.45)' }}>${b.pct[0] === b.pct[1] ? b.pct[0] : b.pct[0] + '–' + b.pct[1]}% VMA</span>
+        ${b.recup ? _h`<span style=${{ marginLeft:'auto', fontSize:11, color:'#FFA420', fontWeight:700 }}>⏸ récup ${b.recup}</span>` : null}
+      </div>
+      ${vma && cible ? _h`<div style=${{ marginTop:6, display:'flex', flexDirection:'column', gap:3 }}>
+        <div style=${{ fontSize:15, fontWeight:800, color:'#38BDF8' }}>${b.dist ? '⏱ Temps cible : ' : '📏 Distance cible : '}${cible}${(rMax > 1 || b.reps > 1) ? ' / rép.' : ''}</div>
+        <div style=${{ fontSize:11, color:'rgba(255,255,255,.55)' }}>Vitesse ${vMin}–${vMax} km/h · allure ${kmPace(vMax)}–${kmPace(vMin)} /km</div>
+        <div style=${{ fontSize:11, color:'rgba(255,255,255,.7)', fontWeight:600 }}>👉 ${action}</div>
+      </div>` : null}
+    </div>`;
+  });
+  const hasRange = blocs.some(b => (b.repsMax || b.reps) !== b.reps);
+  const totTxt = totDist > 0 ? (hasRange ? fmtDistEndu(totDist) + ' à ' + fmtDistEndu(totDistMax) : fmtDistEndu(totDist)) : '';
+  const noteTxt = (s.notes || '').replace(/^\s*\d+(?:-\d+)?\s*(fois|pyramides?|s[ée]ries?|circuits?|tours?)\s*(—|-)?\s*/i, '').trim();
+  return _h`<div style=${{ background:'rgba(34,211,238,.05)', border:'1px solid rgba(34,211,238,.22)', borderRadius:10, padding:'10px 12px', marginBottom:8 }}>
+    <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:8 }}>
+      <div style=${{ fontSize:10, fontWeight:800, color:'#22D3EE', letterSpacing:1, textTransform:'uppercase' }}>🏃 Ce que tu dois faire${rep ? ' — ' + rep[1] + ' ' + (/pyramide/i.test(rep[2]) ? (parseInt(rep[1]) > 1 ? 'pyramides' : 'pyramide') : 'fois') : ''}</div>
+      ${extra || null}
+    </div>
+    ${rows}
+    <div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', marginTop:2, display:'flex', gap:10, flexWrap:'wrap' }}>
+      ${totTxt ? _h`<span>📊 Volume ${hasRange ? '' : 'total '}: <b style=${{ color:'#fff' }}>${totTxt}</b></span>` : null}
+      ${vma ? _h`<span style=${{ color:'rgba(255,255,255,.35)' }}>VMA ${vma} km/h</span>` : _h`<span>💡 Fais un test VMA pour voir tes temps cibles</span>`}
+    </div>
+    ${noteTxt ? _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:5, lineHeight:1.4 }}>💡 ${noteTxt}</div>` : null}
+  </div>`;
+}
+
 function calcTempsSeance(seance, vma) {
   if (!vma || !seance.distance) return null;
+  if (blocsEndu(seance).length) return null; // l'affichage calcule les temps en direct : notes intactes
   const pcts = {
     continu_ext:[70,75], continu_int:[80,85], interval:[95,105],
     fractionne:[105,115], spl:[75,100], recup_active:[55,65],
@@ -1116,6 +1229,7 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                   const repsMatch = (s.notes||'').match(/(\d+(?:-\d+)?)\s*reps?\b/i);
                   const repsCount = repsMatch ? repsMatch[1] : null;
                   const isInterval = !!repsCount || (s.distance && /@/.test(s.distance));
+                  const blocsP = blocsEndu(s);
                   return _h`<div key=${s.id} style=${{ background:'rgba(255,255,255,.025)', border:'1px solid '+border, borderRadius:12, padding:'12px 14px', marginBottom:8, marginLeft:8, opacity:isF?.65:1 }}>
                     <!-- Ligne 1 : titre + date, toujours en haut -->
                     <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, marginBottom:8 }}>
@@ -1131,6 +1245,7 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                       </div>
                     </div>
 
+                    ${blocsP.length ? PisteBlocsEl(s, vma, blocsP, s.rpeCible ? _h`<span style=${{ fontSize:11, padding:'2px 9px', borderRadius:20, background:'rgba(255,164,32,.12)', color:'#FFA420', fontWeight:700 }}>RPE ${s.rpeCible}/10</span>` : null) : _h`<div>
                     <!-- Ligne 2 : structure de la séance — l'info essentielle, en gros, tout de suite visible -->
                     <div style=${{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', padding:'8px 10px', background:'rgba(255,255,255,.03)', borderRadius:9, marginBottom: (allures || s.notes) ? 8 : 0 }}>
                       <span style=${{ fontSize:16 }}>${s.modalite==='velo'?'🚴':'🏃'}</span>
@@ -1155,12 +1270,13 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                         <span style=${{ fontSize:12, color:'rgba(255,255,255,.55)', fontWeight:600 }}>${allures.paceMax}–${allures.paceMin} /km</span>
                       </div>
                     </div>` : vma ? null : _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.25)', marginBottom: s.notes?8:0, fontStyle:'italic' }}>💡 Fais un test VMA pour voir tes allures personnalisées</div>`}
+                    </div>`}
 
                     <!-- Ligne 4 : métadonnées secondaires (type de séance) + consigne -->
                     <div style=${{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                       <span style=${{ fontSize:9, color:tc2.color, fontWeight:700 }}>${tc2.icon} ${tc2.label}</span>
                     </div>
-                    ${s.notes ? _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:4, lineHeight:1.4 }}>💡 ${s.notes}</div>` : null}
+                    ${(s.notes && !blocsP.length) ? _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:4, lineHeight:1.4 }}>💡 ${s.notes}</div>` : null}
                   </div>`;
                 };
 
@@ -1258,6 +1374,8 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
               </div>`
             : seancesToday.map(s => {
                 const tc2 = TYPES_CARDIO.find(t=>t.id===s.type)||TYPES_CARDIO[0];
+                const blocsT = blocsEndu(s);
+                const vmaT = getPlayerVMA(livePlayerEndu);
                 return _h`<div key=${s.id} style=${{ background:tc2.color+'08', border:'2px solid '+tc2.color+'50', borderRadius:14, padding:'14px 16px', marginBottom:12 }}>
                   <div style=${{ fontSize:10, fontWeight:800, color:tc2.color, letterSpacing:1.5, textTransform:'uppercase', marginBottom:6 }}>⚡ Séance du jour</div>
                   <div style=${{ fontSize:16, fontWeight:800, marginBottom:6 }}>${s.nom||tc2.label}</div>
@@ -1265,11 +1383,12 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                     <span style=${{ fontSize:11, background:tc2.color+'15', color:tc2.color, padding:'2px 8px', borderRadius:20, fontWeight:700 }}>${tc2.icon} ${tc2.label}</span>
                     <span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>${s.modalite==='velo'?'🚴 Vélo':'🏃 Course'}</span>
                     ${s.duree ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>⏱ ${s.duree} min</span>` : null}
-                    ${s.distance ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>📏 ${s.distance}</span>` : null}
-                    ${s.intensite ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>💓 ${s.intensite}</span>` : null}
-                    ${s.recup ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.4)' }}>⏱ Récup: ${s.recup}</span>` : null}
+                    ${(s.distance && !blocsT.length) ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>📏 ${s.distance}</span>` : null}
+                    ${(s.intensite && !blocsT.length) ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.5)' }}>💓 ${s.intensite}</span>` : null}
+                    ${(s.recup && !blocsT.length) ? _h`<span style=${{ fontSize:11, color:'rgba(255,255,255,.4)' }}>⏱ Récup: ${s.recup}</span>` : null}
                   </div>
-                  ${s.notes ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.6)', background:'rgba(255,255,255,.04)', borderRadius:8, padding:'8px 10px', marginBottom:10 }}>💡 ${s.notes}</div>` : null}
+                  ${blocsT.length ? PisteBlocsEl(s, vmaT, blocsT, null) : null}
+                  ${(s.notes && !blocsT.length) ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.6)', background:'rgba(255,255,255,.04)', borderRadius:8, padding:'8px 10px', marginBottom:10 }}>💡 ${s.notes}</div>` : null}
                   <button class="btn btn-primary" style=${{ width:'100%' }}
                     onClick=${()=>{ setWellnessSeance(s); }}>
                     ✅ Séance terminée
@@ -1277,12 +1396,62 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                 </div>`;
               })}
 
+          ${seancesARattraper.length > 0 ? _h`<div style=${{ marginTop:16 }}>
+            <div style=${{ fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', marginBottom:10, color:'#FF6B35' }}>⚠ À rattraper (${seancesARattraper.length})</div>
+            ${seancesARattraper.map(s => {
+              const tc2 = TYPES_CARDIO.find(t=>t.id===s.type)||TYPES_CARDIO[0];
+              const open = closedEndu !== s.id;
+              const setOpen = (v) => setClosedEndu(open ? s.id : null);
+              const blocsN = blocsEndu(s);
+              const vmaN = getPlayerVMA(livePlayerEndu);
+              return _h`<div key=${s.id} style=${{ background:'rgba(255,255,255,.025)', border:'1px solid rgba(255,107,53,.3)', borderRadius:12, marginBottom:8, overflow:'hidden' }}>
+                <div style=${{ padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }} onClick=${()=>setOpen(o=>!o)}>
+                  <div>
+                    <div style=${{ fontSize:13, fontWeight:700 }}>${s.nom||tc2.label}</div>
+                    <div style=${{ fontSize:11, color:'#FF6B35', marginTop:2 }}>
+                      ${new Date(s.datePrevu+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}
+                    </div>
+                  </div>
+                  <div style=${{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style=${{ fontSize:12, color:tc2.color }}>${tc2.icon} ${s.duree?s.duree+' min':''}</span>
+                    <span style=${{ color:'rgba(255,255,255,.3)', fontSize:11 }}>${open?'▲':'▼'}</span>
+                  </div>
+                </div>
+                ${open ? _h`<div style=${{ padding:'0 14px 12px', borderTop:'1px solid rgba(255,255,255,.06)' }}>
+                  ${(tc2.protocole && tc2.protocole.objectif) ? _h`<div style=${{ fontSize:11, color:'#38BDF8', marginTop:10, fontWeight:600 }}>🎯 Objectif</div><div style=${{ fontSize:12, color:'rgba(255,255,255,.65)', marginTop:3, lineHeight:1.6 }}>${tc2.protocole.objectif}</div>` : null}
+                  ${(tc2.protocole && tc2.protocole.structure && tc2.protocole.structure.length) ? _h`<div style=${{ marginTop:12 }}>
+                    <div style=${{ fontSize:11, color:'#FFA420', fontWeight:700, marginBottom:8, textTransform:'uppercase' }}>📋 Déroulé de la séance</div>
+                    ${tc2.protocole.structure.map((ph, pi) => _h`<div key=${pi} style=${{ background:'rgba(255,255,255,.03)', borderRadius:8, padding:'10px 12px', marginBottom:6, borderLeft:'3px solid #38BDF8' }}>
+                      <div style=${{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                        <span style=${{ fontSize:12, fontWeight:700, color:'#fff' }}>${ph.phase||''}</span>
+                        <span style=${{ fontSize:11, color:'#38BDF8', fontWeight:600 }}>${ph.duree||''}</span>
+                      </div>
+                      <div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', lineHeight:1.5 }}>${ph.detail||''}</div>
+                    </div>`)}
+                  </div>` : null}
+                  ${(tc2.protocole && tc2.protocole.allures) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', marginTop:8, padding:'8px 10px', background:'rgba(56,189,248,.06)', borderRadius:8 }}>⏱️ Allures : ${tc2.protocole.allures}</div>` : null}
+                  ${(tc2.protocole && tc2.protocole.notes) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.45)', marginTop:8, fontStyle:'italic', padding:'8px 10px', background:'rgba(255,255,255,.02)', borderRadius:8 }}>💡 ${tc2.protocole.notes}</div>` : null}
+                  ${blocsN.length ? _h`<div style=${{ marginTop:10 }}>${PisteBlocsEl(s, vmaN, blocsN, null)}</div>` : null}
+                  ${(s.intensite && !blocsN.length) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:8 }}>Intensité : <span style=${{ color:tc2.color, fontWeight:700 }}>${s.intensite}</span></div>` : null}
+                  ${s.description ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:6, lineHeight:1.5 }}>${s.description}</div>` : null}
+                  ${s.rpeCible ? _h`<div style=${{ fontSize:11, color:'#FFA420', marginTop:6 }}>RPE cible : ${s.rpeCible}/10</div>` : null}
+                  ${s.fcCible ? _h`<div style=${{ fontSize:11, color:'#FF4455', marginTop:4 }}>FC cible : ${s.fcCible} bpm</div>` : null}
+                  ${(s.notes && !blocsN.length) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.4)', marginTop:6, fontStyle:'italic' }}>${s.notes}</div>` : null}
+                  <button class="btn btn-primary btn-sm" style=${{ marginTop:10, width:'100%' }}
+                    onClick=${()=>{ setWellnessSeance(s); }}>✅ Faite aujourd'hui</button>
+                </div>` : null}
+              </div>`;
+            })}
+          </div>` : null}
+
           ${seancesNext.length > 0 ? _h`<div style=${{ marginTop:16 }}>
             <div style=${{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,.4)', letterSpacing:1.5, textTransform:'uppercase', marginBottom:10 }}>Prochaines séances</div>
             ${seancesNext.slice(0,5).map(s => {
               const tc2 = TYPES_CARDIO.find(t=>t.id===s.type)||TYPES_CARDIO[0];
               const open = closedEndu !== s.id;
               const setOpen = (v) => setClosedEndu(open ? s.id : null);
+              const blocsN = blocsEndu(s);
+              const vmaN = getPlayerVMA(livePlayerEndu);
               return _h`<div key=${s.id} style=${{ background:'rgba(255,255,255,.025)', border:'1px solid rgba(255,255,255,.07)', borderRadius:12, marginBottom:8, overflow:'hidden' }}>
                 <div style=${{ padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }} onClick=${()=>setOpen(o=>!o)}>
                   <div>
@@ -1310,11 +1479,12 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
                   </div>` : null}
                   ${(tc2.protocole && tc2.protocole.allures) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', marginTop:8, padding:'8px 10px', background:'rgba(56,189,248,.06)', borderRadius:8 }}>⏱️ Allures : ${tc2.protocole.allures}</div>` : null}
                   ${(tc2.protocole && tc2.protocole.notes) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.45)', marginTop:8, fontStyle:'italic', padding:'8px 10px', background:'rgba(255,255,255,.02)', borderRadius:8 }}>💡 ${tc2.protocole.notes}</div>` : null}
-                  ${s.intensite ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:8 }}>Intensité : <span style=${{ color:tc2.color, fontWeight:700 }}>${s.intensite}</span></div>` : null}
+                  ${blocsN.length ? _h`<div style=${{ marginTop:10 }}>${PisteBlocsEl(s, vmaN, blocsN, null)}</div>` : null}
+                  ${(s.intensite && !blocsN.length) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:8 }}>Intensité : <span style=${{ color:tc2.color, fontWeight:700 }}>${s.intensite}</span></div>` : null}
                   ${s.description ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:6, lineHeight:1.5 }}>${s.description}</div>` : null}
                   ${s.rpeCible ? _h`<div style=${{ fontSize:11, color:'#FFA420', marginTop:6 }}>RPE cible : ${s.rpeCible}/10</div>` : null}
                   ${s.fcCible ? _h`<div style=${{ fontSize:11, color:'#FF4455', marginTop:4 }}>FC cible : ${s.fcCible} bpm</div>` : null}
-                  ${s.notes ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.4)', marginTop:6, fontStyle:'italic' }}>${s.notes}</div>` : null}
+                  ${(s.notes && !blocsN.length) ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.4)', marginTop:6, fontStyle:'italic' }}>${s.notes}</div>` : null}
                   <button class="btn btn-primary btn-sm" style=${{ marginTop:10, width:'100%' }}
                     onClick=${()=>{ setWellnessSeance(s); }}>✅ Faite aujourd'hui</button>
                 </div>` : null}

@@ -606,7 +606,7 @@ function StaffView() {
 // Recommandation charges avec incrément 2.5 ou 5kg
 
 const MOUVEMENTS_RM = [
-  { id:'squat',  label:'Squat barre',       emoji:'🏋️', color:'#FF4455',
+  { id:'squat',  label:'Back Squat',       emoji:'🏋️', color:'#FF4455',
     muscles:'Quadriceps, Fessiers, Ischio-jambiers', note:'Hauteur parallèle minimum' },
   { id:'bench',  label:'Bench Press',        emoji:'💪', color:'#FF7A00',
     muscles:'Pectoraux, Triceps, Deltoïdes antérieurs', note:'Barre en contact avec le sternum' },

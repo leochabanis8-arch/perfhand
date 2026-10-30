@@ -64,6 +64,38 @@ function StatsLiveDefense({ club, matchs, saveMatchsDirect, players, initialMatc
   const [showRelanceList, setShowRelanceList] = React.useState(false);
   const [activeRelanceGardien, setActiveRelanceGardien] = React.useState(() => (gardiens[0] && gardiens[0].id) || null);
   const [tjTick, setTjTick] = React.useState(0);
+  // Côté de jeu (gauche/droite) de chaque joueur sur le terrain — partagé via Firebase + copie locale
+  const [cotes, setCotes] = React.useState(() => { try { return JSON.parse(localStorage.getItem('perfhand_cotes_jeu') || '{}'); } catch (e) { return {}; } });
+  React.useEffect(() => {
+    if (!window.__perfhand_db) return;
+    const ref = window.__perfhand_db.ref('perfhand/coteJeu');
+    const cb = ref.on('value', sn => { const v = sn.val(); if (v && typeof v === 'object') { setCotes(c => ({ ...c, ...v })); try { localStorage.setItem('perfhand_cotes_jeu', JSON.stringify({ ...v })); } catch (e) {} } });
+    return () => { try { ref.off('value', cb); } catch (e) {} };
+  }, []);
+  // Positions libres des « stickers » joueurs sur le terrain (en % du terrain) — partagées via Firebase
+  const [posJ, setPosJ] = React.useState(() => { try { return JSON.parse(localStorage.getItem('perfhand_pos_terrain') || '{}'); } catch (e) { return {}; } });
+  const courtRef = React.useRef(null);
+  const dragRef = React.useRef(null);
+  const justDragged = React.useRef(false);
+  React.useEffect(() => {
+    if (!window.__perfhand_db) return;
+    const ref = window.__perfhand_db.ref('perfhand/terrainPos');
+    const cb = ref.on('value', sn => { const v = sn.val(); if (v && typeof v === 'object') { setPosJ(c => { const n = { ...c, ...v }; try { localStorage.setItem('perfhand_pos_terrain', JSON.stringify(n)); } catch (e) {} return n; }); } });
+    return () => { try { ref.off('value', cb); } catch (e) {} };
+  }, []);
+  function sauverPos(playerId, pos) {
+    setPosJ(c => { const n = { ...c, [playerId]: pos }; try { localStorage.setItem('perfhand_pos_terrain', JSON.stringify(n)); } catch (e) {} return n; });
+    try { if (window.__perfhand_db) window.__perfhand_db.ref('perfhand/terrainPos/' + playerId).set(pos); } catch (e) {}
+  }
+  function resetPositions() {
+    if (!confirm('Remettre tous les joueurs à leur place par défaut ?')) return;
+    setPosJ({}); try { localStorage.removeItem('perfhand_pos_terrain'); } catch (e) {}
+    try { if (window.__perfhand_db) window.__perfhand_db.ref('perfhand/terrainPos').remove(); } catch (e) {}
+  }
+  function changerCote(playerId, cote) {
+    setCotes(c => { const n = { ...c, [playerId]: cote }; try { localStorage.setItem('perfhand_cotes_jeu', JSON.stringify(n)); } catch (e) {} return n; });
+    try { if (window.__perfhand_db) window.__perfhand_db.ref('perfhand/coteJeu/' + playerId).set(cote); } catch (e) {}
+  }
 
   const match = matchs.find(m => m.id === selMatchId);
   const events = (match && match.liveDefense) || [];
@@ -72,8 +104,70 @@ function StatsLiveDefense({ club, matchs, saveMatchsDirect, players, initialMatc
   const contres = (match && match.contres) || [];
   const neutralisations = (match && match.neutralisations) || [];
   const relancesGardien = (match && match.relancesGardien) || [];
-  const tempsJeu = (match && match.tempsJeu) || {};
-  const chronoMatchEnCours = !match || match.chronoMatchActif !== false; // par défaut, en cours
+  // ── TEMPS DE JEU : magasin « live » dédié, écrit joueur par joueur (aucune transaction sur la liste
+  // de matchs) → réactif au 1er clic et sans conflit entre clics rapprochés / appareils. Chaque
+  // entrée porte un horodatage `ts` : à données concurrentes, la plus récente gagne toujours.
+  const liveKey = selMatchId ? String(selMatchId).replace(/[.#$\[\]\/]/g, '_') : null;
+  const livePath = liveKey && club ? 'perfhand/tempsJeuLive/' + club.id + '/' + liveKey : null;
+  const liveLocalKey = 'perfhand_tjlive_' + (club ? club.id : '') + '_' + liveKey;
+  const lireLocal = () => { try { return JSON.parse(localStorage.getItem(liveLocalKey) || '{}') || {}; } catch (e) { return {}; } };
+  const [tjLive, setTjLive] = React.useState(lireLocal);
+  const tjLiveRef = React.useRef(tjLive);
+  const matchRef = React.useRef(null);
+  function appliquerLive(fn) {
+    const next = fn(tjLiveRef.current || {});
+    tjLiveRef.current = next;
+    setTjLive(next);
+    try { localStorage.setItem(liveLocalKey, JSON.stringify(next)); } catch (e) {}
+    return next;
+  }
+  // Données effectives = entrée la plus récente entre l'ancien stockage (match.tempsJeu) et le magasin live
+  function calcEff(m, live) {
+    const legacy = (m && m.tempsJeu) || {};
+    const lp = (live && live.players) || {};
+    const players2 = {};
+    new Set([...Object.keys(legacy), ...Object.keys(lp)]).forEach(pid => {
+      const a = legacy[pid], b = lp[pid];
+      players2[pid] = (!b || (a && (a.ts || 0) > (b.ts || 0))) ? a : b;
+    });
+    const ch = live && live.chrono;
+    const running = (ch && (ch.ts || 0) >= ((m && m.chronoTs) || 0)) ? ch.actif !== false : (!m || m.chronoMatchActif !== false);
+    return { players: players2, running };
+  }
+  matchRef.current = match;
+  React.useEffect(() => {
+    tjLiveRef.current = lireLocal(); setTjLive(tjLiveRef.current);
+    if (!livePath || !window.__perfhand_db) return;
+    const ref = window.__perfhand_db.ref(livePath);
+    const cb = ref.on('value', sn => {
+      const v = sn.val(); if (!v) return;
+      appliquerLive(l => {
+        const players2 = { ...(l.players || {}) };
+        Object.entries(v.players || {}).forEach(([pid, rv]) => { const lv = players2[pid]; if (!lv || (rv && (rv.ts || 0) >= (lv.ts || 0))) players2[pid] = rv; });
+        const chrono = (v.chrono && (!l.chrono || (v.chrono.ts || 0) >= (l.chrono.ts || 0))) ? v.chrono : l.chrono;
+        return { ...l, players: players2, ...(chrono ? { chrono } : {}) };
+      });
+    });
+    return () => { try { ref.off('value', cb); } catch (e) {} };
+  }, [livePath]);
+  const effRender = calcEff(match, tjLive);
+  const tempsJeu = effRender.players;
+  const chronoMatchEnCours = !match || effRender.running; // par défaut, en cours
+  // Recopie (différée) dans la fiche du match pour les stats / PDF — hors chemin critique du clic
+  const syncMatchRef = React.useRef(null);
+  syncMatchRef.current = () => {
+    if (!selMatchId) return;
+    const e = calcEff(matchRef.current, tjLiveRef.current);
+    if (!Object.keys(e.players).length) return;
+    const chTs = (tjLiveRef.current && tjLiveRef.current.chrono && tjLiveRef.current.chrono.ts) || Date.now();
+    saveMatchsDirect(prev => prev.map(m => m.id === selMatchId ? { ...m, tempsJeu: e.players, chronoMatchActif: e.running, chronoTs: chTs } : m));
+  };
+  React.useEffect(() => {
+    if (!tjLive || !tjLive.players) return;
+    const t = setTimeout(() => { try { syncMatchRef.current(); } catch (er) {} }, 3000);
+    return () => clearTimeout(t);
+  }, [tjLive]);
+  React.useEffect(() => () => { try { syncMatchRef.current(); } catch (er) {} }, []);
 
   // Temps de jeu : chaque joueur a une liste de segments {in, out} (out === null tant que le
   // segment est en cours) + un flag persistant "onField" (est-il sur le terrain, indépendamment
@@ -127,56 +221,51 @@ function StatsLiveDefense({ club, matchs, saveMatchsDirect, players, initialMatc
   // qu'il venait pourtant d'être sorti.
   function toggleTerrain(playerId) {
     if (!selMatchId) return;
-    saveMatchsDirect(prevMatchs => prevMatchs.map(m => {
-      if (m.id !== selMatchId) return m;
-      const tj = m.tempsJeu || {};
-      const data = tj[playerId] || { segments: [], onField: false };
-      const wasOnField = estOnField(data);
-      const running = m.chronoMatchActif !== false;
-      const now = Date.now();
-      // On ferme SYSTÉMATIQUEMENT tout segment encore ouvert à CHAQUE clic, quel que soit le sens
-      // du basculement — jamais conditionné à ce que dit le flag onField. C'est ce qui garantit
-      // qu'un segment orphelin (peu importe son origine) ne survit jamais à un clic sur ce joueur.
-      let newSegs = fermerSegmentsOuverts(data.segments, now);
-      if (!wasOnField && running) {
-        // il entre sur le terrain et le chrono du match tourne : on ouvre un nouveau segment
-        newSegs = newSegs.concat([{ in: now, out: null }]);
-      }
-      return { ...m, tempsJeu: { ...tj, [playerId]: { segments: newSegs, onField: !wasOnField } } };
-    }));
+    const eff = calcEff(matchRef.current, tjLiveRef.current);
+    const data = eff.players[playerId] || { segments: [], onField: false };
+    const wasOnField = estOnField(data);
+    const now = Date.now();
+    // On ferme SYSTÉMATIQUEMENT tout segment encore ouvert, quel que soit le sens du basculement
+    let newSegs = fermerSegmentsOuverts(data.segments, now);
+    if (!wasOnField && eff.running) newSegs = newSegs.concat([{ in: now, out: null }]); // entre + chrono en marche
+    const entry = { segments: newSegs, onField: !wasOnField, ts: now };
+    appliquerLive(l => ({ ...l, players: { ...(l.players || {}), [playerId]: entry } }));
+    try { if (window.__perfhand_db && livePath) window.__perfhand_db.ref(livePath + '/players/' + playerId).set(entry); } catch (e) {}
   }
   function resetTempsJoueur(playerId) {
     if (!selMatchId) return;
     if (!confirm('Réinitialiser le temps de jeu de ce joueur pour ce match ?')) return;
-    saveMatchsDirect(prevMatchs => prevMatchs.map(m => m.id === selMatchId
-      ? { ...m, tempsJeu: { ...(m.tempsJeu||{}), [playerId]: { segments: [], onField: false } } }
-      : m));
+    const entry = { segments: [], onField: false, ts: Date.now() };
+    appliquerLive(l => ({ ...l, players: { ...(l.players || {}), [playerId]: entry } }));
+    try { if (window.__perfhand_db && livePath) window.__perfhand_db.ref(livePath + '/players/' + playerId).set(entry); } catch (e) {}
   }
   function toggleChronoMatch() {
     if (!selMatchId) return;
-    saveMatchsDirect(prevMatchs => prevMatchs.map(m => {
-      if (m.id !== selMatchId) return m;
-      const now = Date.now();
-      const running = m.chronoMatchActif !== false;
-      const nowRunning = !running; // on passe à l'état inverse
-      const newTempsJeu = { ...(m.tempsJeu||{}) };
-      (players||[]).forEach(p => {
-        const data = newTempsJeu[p.id];
-        if (!estOnField(data)) return;
-        const segs = (data && data.segments) || [];
-        if (!nowRunning) {
-          // on arrête le chrono du match : on ferme tous les segments ouverts (répare aussi les
-          // segments orphelins)
-          newTempsJeu[p.id] = { ...data, segments: fermerSegmentsOuverts(segs, now), onField: true };
-        } else {
-          const last = segs[segs.length - 1];
-          if (!last || last.out != null) {
-            newTempsJeu[p.id] = { ...data, segments: segs.concat([{ in: now, out: null }]), onField: true };
-          }
-        }
-      });
-      return { ...m, chronoMatchActif: nowRunning, tempsJeu: newTempsJeu };
-    }));
+    const eff = calcEff(matchRef.current, tjLiveRef.current);
+    const now = Date.now();
+    const nowRunning = !eff.running; // on passe à l'état inverse
+    const maj = {};
+    (players||[]).forEach(p => {
+      const data = eff.players[p.id];
+      if (!estOnField(data)) return;
+      const segs = (data && data.segments) || [];
+      if (!nowRunning) {
+        // arrêt du chrono : on ferme tous les segments ouverts (répare aussi les orphelins)
+        maj[p.id] = { ...data, segments: fermerSegmentsOuverts(segs, now), onField: true, ts: now };
+      } else {
+        const last = segs[segs.length - 1];
+        if (!last || last.out != null) maj[p.id] = { ...data, segments: segs.concat([{ in: now, out: null }]), onField: true, ts: now };
+      }
+    });
+    const chrono = { actif: nowRunning, ts: now };
+    appliquerLive(l => ({ ...l, players: { ...(l.players || {}), ...maj }, chrono }));
+    try {
+      if (window.__perfhand_db && livePath) {
+        const upd = { chrono };
+        Object.entries(maj).forEach(([pid, e]) => { upd['players/' + pid] = e; });
+        window.__perfhand_db.ref(livePath).update(upd);
+      }
+    } catch (e) {}
   }
   function fmtChrono(ms) {
     const totalSec = Math.floor(ms / 1000);
@@ -369,27 +458,91 @@ function StatsLiveDefense({ club, matchs, saveMatchsDirect, players, initialMatc
           </button>
         </div>
         <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:10 }}>Touche un joueur pour le faire entrer/sortir · le chrono du match arrête le temps de tout le monde</div>
-        <div style=${{ display:'flex', flexDirection:'column', gap:5, maxHeight:280, overflowY:'auto' }}>
-          ${(players||[]).slice().sort((a,b) => a.name.localeCompare(b.name)).map(p => {
+        ${(() => {
+          // Terrain de handball : stickers joueurs déplaçables (glisser) — toucher = entrer / sortir
+          const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+          const tous = (players||[]).slice().sort((a,b) => (a.num||99) - (b.num||99) || a.name.localeCompare(b.name));
+          const poste = (p) => { const x = norm(p.pos); if (x.includes('gardien')) return 'G'; if (x.includes('pivot')) return 'P'; if (x.includes('ailier')) return 'A'; if (x.includes('demi') || x.includes('centr')) return 'DC'; if (x.includes('arriere')) return 'AR'; return 'AUTRE'; };
+          const par = { G:[], P:[], A:[], DC:[], AR:[], AUTRE:[] };
+          tous.forEach(p => par[poste(p)].push(p));
+          const DEFAUT_COTE = { 'gabin lambert': 'G', 'sulyvan joseph': 'D' };
+          const moitie = (arr) => {
+            const g = [], d = [], sans = [];
+            arr.forEach(p => { const c = cotes[p.id] || DEFAUT_COTE[norm(p.name).trim()] || null; if (c === 'G') g.push(p); else if (c === 'D') d.push(p); else sans.push(p); });
+            sans.forEach(p => { if (g.length <= d.length) g.push(p); else d.push(p); });
+            return [g, d];
+          };
+          // Positions par défaut (en %, origine en haut à gauche ; la cage est en bas)
+          const defaut = {};
+          const etaler = (arr, a, b, y, zigzag) => arr.forEach((p, i) => { const x = arr.length === 1 ? (a + b) / 2 : a + i * (b - a) / (arr.length - 1); defaut[p.id] = { x, y: y + (zigzag && i % 2 ? zigzag : 0) }; });
+          const coin = (arr, x, y0) => arr.forEach((p, i) => { defaut[p.id] = { x, y: y0 - i * 13 }; });
+          const [ailG, ailD] = moitie(par.A);
+          const [arG, arD] = moitie(par.AR);
+          coin(ailG, 7, 80); coin(ailD, 93, 80);                 // ailiers : coins bas du terrain
+          etaler(par.G, 38, 62, 92);                               // gardiens : sur la ligne de cage
+          etaler(par.P, 36, 64, 66, 0);                            // pivots : devant le 6 m
+          etaler(arG, 8, 40, 42, 11);                              // arrières gauche
+          etaler(arD, 60, 92, 42, 11);                             // arrières droite
+          etaler(par.DC, 40, 60, 34, 0);                           // demi-centres
+          etaler(par.AUTRE, 12, 88, 8, 0);                         // sans poste : en haut
+          const nbSur = tous.filter(p => isSurLeTerrain(p.id)).length;
+          const posDe = (p) => posJ[p.id] || defaut[p.id] || { x: 50, y: 50 };
+          const onDown = (e, p) => {
+            if (e.target && e.target.closest && e.target.closest('[data-nodrag]')) return;
+            const rect = courtRef.current && courtRef.current.getBoundingClientRect();
+            if (!rect) return;
+            try { e.currentTarget.setPointerCapture(e.pointerId); } catch (er) {}
+            dragRef.current = { id: p.id, sx: e.clientX, sy: e.clientY, moved: false, rect, last: posDe(p) };
+          };
+          const onMove = (e, p) => {
+            const d = dragRef.current; if (!d || d.id !== p.id) return;
+            if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) return;
+            d.moved = true;
+            const x = Math.min(96, Math.max(4, (e.clientX - d.rect.left) / d.rect.width * 100));
+            const y = Math.min(96, Math.max(4, (e.clientY - d.rect.top) / d.rect.height * 100));
+            d.last = { x, y };
+            setPosJ(c => ({ ...c, [p.id]: { x, y } }));
+          };
+          const onUp = (e, p) => {
+            const d = dragRef.current; dragRef.current = null;
+            if (!d || d.id !== p.id) return;
+            if (d.moved) { justDragged.current = true; sauverPos(p.id, d.last); setTimeout(() => { justDragged.current = false; }, 350); }
+          };
+          // Le toucher (entrer/sortir) passe par onClick, fiable sur mobile ; ignoré juste après un glissement
+          const onTap = (p) => { if (justDragged.current) return; toggleTerrain(p.id); };
+          const chip = (p) => {
             const on = isSurLeTerrain(p.id);
             const accumule = on && chronoMatchEnCours;
             const ms = tempsJoueurMs(p.id);
             const col = accumule ? '#4CAF50' : on ? '#FFA420' : 'rgba(255,255,255,.5)';
-            return _h`<div key=${p.id} style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', borderRadius:9,
-              background: on ? col+'1A' : 'rgba(255,255,255,.02)', border: on ? '1px solid '+col+'59' : '1px solid rgba(255,255,255,.05)' }}>
-              <button onClick=${() => toggleTerrain(p.id)}
-                style=${{ display:'flex', alignItems:'center', gap:8, background:'none', border:'none', cursor:'pointer', flex:1, textAlign:'left', padding:0 }}>
-                <span style=${{ fontSize:13 }}>${accumule ? '🟢' : on ? '⏸️' : '⚪'}</span>
-                <span style=${{ fontSize:12, fontWeight:700, color: on ? col : 'rgba(255,255,255,.7)' }}>${p.name}</span>
-              </button>
-              <span style=${{ display:'flex', alignItems:'center', gap:6 }}>
-                <span style=${{ fontSize:13, fontWeight:800, color: on ? col : 'rgba(255,255,255,.5)', fontFamily:"'Barlow Condensed',sans-serif" }}>${fmtChrono(ms)}</span>
-                ${ms > 0 ? _h`<button onClick=${() => resetTempsJoueur(p.id)} title="Réinitialiser"
-                  style=${{ background:'none', border:'none', color:'rgba(255,255,255,.25)', fontSize:12, cursor:'pointer' }}>↺</button>` : null}
-              </span>
+            const ps = posDe(p);
+            return _h`<div key=${p.id}
+              onClick=${() => onTap(p)} onPointerDown=${(e) => onDown(e, p)} onPointerMove=${(e) => onMove(e, p)} onPointerUp=${(e) => onUp(e, p)} onPointerCancel=${() => { dragRef.current = null; }}
+              style=${{ position:'absolute', left:ps.x+'%', top:ps.y+'%', transform:'translate(-50%,-50%)', width:92, touchAction:'none', cursor:'grab', userSelect:'none', WebkitUserSelect:'none',
+                zIndex: dragRef.current && dragRef.current.id === p.id ? 20 : 2,
+                display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'6px 5px', borderRadius:12,
+                background: on ? 'rgba(20,24,20,.92)' : 'rgba(0,0,0,.72)', border: on ? '2px solid '+col : '1px solid rgba(255,255,255,.2)', boxShadow:'0 2px 8px rgba(0,0,0,.5)', color:'#fff' }}>
+              <span style=${{ fontSize:11, fontWeight:800, color: on ? col : 'rgba(255,255,255,.8)', lineHeight:1.15, textAlign:'center', wordBreak:'break-word' }}>${p.num ? '#'+p.num+' ' : ''}${p.name}</span>
+              <span style=${{ fontSize:14, fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif", color: on ? col : 'rgba(255,255,255,.5)' }}>${accumule ? '🟢 ' : on ? '⏸️ ' : ''}${fmtChrono(ms)}</span>
+              ${ms > 0 ? _h`<button data-nodrag="1" onPointerDown=${(e) => e.stopPropagation()} onClick=${(e) => { e.stopPropagation(); resetTempsJoueur(p.id); }} title="Réinitialiser le temps"
+                style=${{ position:'absolute', top:-7, right:-7, width:20, height:20, borderRadius:'50%', background:'#1b1d22', border:'1px solid rgba(255,255,255,.25)', color:'rgba(255,255,255,.6)', fontSize:11, cursor:'pointer', padding:0, lineHeight:1 }}>↺</button>` : null}
             </div>`;
-          })}
-        </div>
+          };
+          return _h`<div>
+            <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style=${{ fontSize:10, color:'rgba(255,255,255,.4)' }}>${nbSur} joueur${nbSur>1?'s':''} sur le terrain · touche = entrer/sortir · glisse pour déplacer</div>
+              <button onClick=${resetPositions} style=${{ fontSize:10, padding:'3px 8px', borderRadius:8, border:'1px solid rgba(255,255,255,.15)', background:'none', color:'rgba(255,255,255,.45)', cursor:'pointer' }}>↺ Positions</button>
+            </div>
+            <div ref=${courtRef} style=${{ position:'relative', width:'100%', height:'min(78vh, 640px)', minHeight:520, borderRadius:14, background:'linear-gradient(180deg, rgba(34,139,34,.10), rgba(34,139,34,.22))', border:'2px solid rgba(255,255,255,.2)', overflow:'hidden' }}>
+              <!-- Lignes du terrain : zone de 6 m (pleine), 9 m (pointillés), cage en bas -->
+              <div style=${{ position:'absolute', left:'18%', right:'18%', bottom:-40, height:'62%', borderRadius:'50% 50% 0 0 / 100% 100% 0 0', border:'2px solid rgba(255,255,255,.28)', background:'rgba(255,255,255,.04)', pointerEvents:'none' }}></div>
+              <div style=${{ position:'absolute', left:'6%', right:'6%', bottom:-40, height:'84%', borderRadius:'50% 50% 0 0 / 100% 100% 0 0', border:'2px dashed rgba(255,255,255,.18)', pointerEvents:'none' }}></div>
+              <div style=${{ position:'absolute', left:'38%', right:'38%', bottom:0, height:14, border:'2px solid rgba(255,255,255,.4)', borderBottom:'none', pointerEvents:'none' }}></div>
+              <div style=${{ position:'absolute', top:8, left:0, right:0, textAlign:'center', fontSize:9, letterSpacing:2, color:'rgba(255,255,255,.25)', fontWeight:800, pointerEvents:'none' }}>MILIEU DE TERRAIN</div>
+              ${tous.map(chip)}
+            </div>
+          </div>`;
+        })()}
       </div>
 
       <!-- Sélecteur de critère (actif = ce qui sera posé au prochain tap) -->

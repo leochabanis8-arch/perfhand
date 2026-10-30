@@ -401,25 +401,10 @@ function findBiblioMatch(nomExercice) {
   if (match) return match;
   match = validMvts.find(m => norm(m.nom) === nom);
   if (match) return appliquerOverride(match);
-  // 2. Correspondance prudente : TOUS les mots significatifs de l'un des deux noms doivent se
-  // retrouver dans l'autre. « Développé écarté aux haltères » ne tombe donc plus sur « Rowing
-  // haltère unilatéral » juste parce qu'ils partagent « haltère » : pas de fiche vaut mieux
-  // qu'une fiche qui n'a rien à voir.
-  function score(m) {
-    const tm = toks(m.nom);
-    if (!tm.size || !tNom.size) return 0;
-    const small = tm.size <= tNom.size ? tm : tNom, big = tm.size <= tNom.size ? tNom : tm;
-    for (const w of small) if (!big.has(w)) return 0;
-    // un nom d'un seul mot générique ne suffit pas à lui seul quand l'autre est long : on préfère les plus proches
-    return small.size * 10 - Math.abs(tm.size - tNom.size);
-  }
-  let best = null, bestScore = 0;
-  customMvts.forEach(m => { const sc = score(m); if (sc > bestScore) { best = m; bestScore = sc; } });
-  let bestBase = null, bestBaseScore = 0;
-  validMvts.forEach(m => { const sc = score(m); if (sc > bestBaseScore) { bestBase = m; bestBaseScore = sc; } });
-  if (best && bestScore >= bestBaseScore) return best;
-  if (bestBase) return appliquerOverride(bestBase);
-  return best || null;
+  // Correspondance STRICTE : uniquement le même nom (casse, accents, ponctuation et pluriel ignorés).
+  // « Curl avant-bras à la barre » ne tombe donc plus sur « Curl barre » : pas de fiche vaut mieux
+  // qu'une fiche d'un autre exercice. Les liens voulus (ex. bilans) passent par le champ `biblio`.
+  return null;
 }
 
 function BiblioLinkButton({ nomExercice }) {
@@ -575,7 +560,7 @@ function BibliothequeView({ db, setDb, readOnly }) {
     tousJoueurs.forEach(p => {
       (p.muscuSeances||[]).forEach(s => {
         (s.exercices||[]).forEach(ex => {
-          if (!ex.imageUrl || !ex.nom) return;
+          if (!ex.imageUrl || !ex.nom || ex.imageAuto) return;
           const key = ex.nom.trim().toLowerCase();
           if (!key) return;
           if (vus.has(key)) { vus.get(key).nbUtilisations++; return; }

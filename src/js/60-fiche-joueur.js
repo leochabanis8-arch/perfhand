@@ -2,6 +2,7 @@
 function PlayerDetail({ p, db, setDb, onBack, staffPermissions }) {
   const [tab, setTab]           = useState('profil');
   const [editProfile, setEditProfile] = useState(false);
+  const [showRapport, setShowRapport] = useState(false);
   const [editBlessure, setEditBlessure] = useState(false);
   const [editProtocol, setEditProtocol] = useState(false);
 
@@ -112,8 +113,10 @@ function PlayerDetail({ p, db, setDb, onBack, staffPermissions }) {
             }).catch(e => alert('Erreur : ' + e.message));
           }
         }} style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420' }}>📋 Code accès</button>
+        <button class="btn btn-sm" onClick=${() => setShowRapport(true)} style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700 }}>📊 Rapport PDF / Excel</button>
       </div>
     </div>
+    ${showRapport ? _h`<${RapportJoueurModal} player=${player} onClose=${() => setShowRapport(false)} />` : null}
 
     <!-- Tabs -->
     <div style=${{ display:'flex', gap:4, marginBottom:16, background:'rgba(255,255,255,.03)', borderRadius:11, padding:3, overflowX:'auto', WebkitOverflowScrolling:'touch' }}>

@@ -373,7 +373,25 @@ function PerfHandApp() {
           const localList = merged[clubId] || [];
           const byId = {};
           localList.forEach(m => { if (m && m.id) byId[m.id] = m; });
-          remoteList.forEach(m => { if (m && m.id) byId[m.id] = { ...(byId[m.id]||{}), ...m }; });
+          remoteList.forEach(m => {
+            if (!m || !m.id) return;
+            const loc = byId[m.id] || {};
+            const merged2 = { ...loc, ...m };
+            // CORRECTIF temps de jeu : le match distant remplaçait en bloc `tempsJeu` local. Un
+            // snapshot serveur un peu en retard (clics rapprochés sur plusieurs joueurs) annulait
+            // alors le dernier clic local → « l'autre joueur ne se clique pas / ça enlève le premier ».
+            // On fusionne maintenant joueur par joueur, en gardant le plus récent (champ ts).
+            if (loc.tempsJeu || m.tempsJeu) {
+              const tj = { ...(m.tempsJeu || {}) };
+              Object.entries(loc.tempsJeu || {}).forEach(([pid, lv]) => {
+                const rv = tj[pid];
+                if (!rv || (lv && (lv.ts || 0) > (rv.ts || 0))) tj[pid] = lv;
+              });
+              merged2.tempsJeu = tj;
+              if ((loc.chronoTs || 0) > (m.chronoTs || 0)) { merged2.chronoMatchActif = loc.chronoMatchActif; merged2.chronoTs = loc.chronoTs; }
+            }
+            byId[m.id] = merged2;
+          });
           merged[clubId] = Object.values(byId);
         });
         return { ...d, matchStats: merged };

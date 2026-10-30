@@ -66,7 +66,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
 
   // Map exercise name → rmHistory key
   const RM_MAP = {
-    'Squat barre': 'squat', 'Squat': 'squat', 'Squat sauté (barre légère)': 'squat',
+    'Squat barre': 'squat', 'Back Squat': 'squat', 'Back squat': 'squat', 'Squat': 'squat', 'Squat sauté (barre légère)': 'squat',
     'Squat Jump chargé': 'squat', 'Squat jump 30% 1RM': 'squat',
     'Développé couché': 'bench', 'Developpe couche': 'bench', 'Bench Press': 'bench',
     'Développé couché explosif': 'bench', 'Développé militaire': null,
@@ -117,7 +117,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
         // Exercices de la bibliothèque (bilans de départ) : lien + image/vidéo repris automatiquement
         ...(ex.biblio ? (() => {
           const b = findBiblioMatch(ex.biblio);
-          return { biblio: ex.biblio, ...(b && b.imageUrl ? { imageUrl: b.imageUrl } : {}) };
+          return { biblio: ex.biblio, biblioExplicit: true, ...(b && b.imageUrl ? { imageUrl: b.imageUrl } : {}) };
         })() : {}),
         // CORRECTIF EMOM : cette liste blanche de champs ne reprenait pas emom/emomDuree — un
         // exercice EMOM sauvegardé dans une méthode personnalisée perdait donc son chrono EMOM
@@ -577,11 +577,30 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
           const isFaite = !!s.dateFaite;
           const cardBorder = isFaite ? 'rgba(76,175,80,.25)' : isToday ? 'rgba(255,164,32,.4)' : isPast ? 'rgba(255,68,85,.2)' : 'rgba(255,255,255,.07)';
           const cardBg = isFaite ? 'rgba(76,175,80,.03)' : isToday ? 'rgba(255,164,32,.04)' : 'rgba(255,255,255,.02)';
+          // Bandeau « JOUR » : lisible au premier coup d'œil (jour de la semaine + date + statut)
+          const jourBandeau = (() => {
+            if (!s.datePrevu) return _h`<div style=${{ margin:'-14px -16px 12px', padding:'8px 16px', background:'rgba(255,68,85,.1)', borderBottom:'1px solid rgba(255,68,85,.25)', borderRadius:'14px 14px 0 0', fontSize:12, fontWeight:800, color:'#FF6B6B', letterSpacing:1 }}>📅 SANS DATE — à planifier</div>`;
+            const d = new Date(s.datePrevu + 'T12:00:00');
+            const jour = d.toLocaleDateString('fr-FR', { weekday:'long' }).toUpperCase();
+            const dateTxt = d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' }).toUpperCase().replace('.', '');
+            const diff = Math.round((d - new Date(today + 'T12:00:00')) / 86400000);
+            const rel = isFaite ? '✓ FAITE' : isToday ? "⚡ AUJOURD'HUI" : diff === 1 ? 'DEMAIN' : diff > 1 ? 'DANS ' + diff + ' J' : diff === -1 ? '⚠ HIER — NON FAITE' : '⚠ NON FAITE (il y a ' + (-diff) + ' j)';
+            const col = isFaite ? '#4CAF50' : isToday ? '#FFA420' : isPast ? '#FF6B6B' : '#38BDF8';
+            const bg = isFaite ? 'rgba(76,175,80,.12)' : isToday ? 'rgba(255,164,32,.16)' : isPast ? 'rgba(255,68,85,.12)' : 'rgba(56,189,248,.10)';
+            return _h`<div style=${{ margin:'-14px -16px 12px', padding:'9px 16px', background:bg, borderBottom:'2px solid '+col, borderRadius:'14px 14px 0 0', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+              <div style=${{ display:'flex', alignItems:'baseline', gap:8 }}>
+                <span style=${{ fontSize:18, fontWeight:900, color:col, letterSpacing:1.5 }}>${jour}</span>
+                <span style=${{ fontSize:14, fontWeight:800, color:'#fff' }}>${dateTxt}</span>
+              </div>
+              <span style=${{ fontSize:11, fontWeight:800, color:col, letterSpacing:.8 }}>${rel}</span>
+            </div>`;
+          })();
           return _h`<div key=${s.id} style=${{
             background:cardBg, border:'1px solid '+cardBorder,
             borderRadius:14, padding:'14px 16px', marginBottom:10,
-            opacity: isFaite ? 0.6 : 1
+            opacity: isFaite ? 0.6 : 1, overflow:'hidden'
           }}>
+            ${jourBandeau}
             <!-- Header séance -->
             <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
               <div>
@@ -592,11 +611,6 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
                 <div style=${{ display:'flex', gap:6, marginTop:4, flexWrap:'wrap' }}>
                   ${s.methode ? _h`<span style=${{ fontSize:10, padding:'2px 8px', borderRadius:20, background:'rgba(255,164,32,.15)', color:'#FFA420', fontWeight:700 }}>${s.methode}</span>` : null}
                   ${s.contexte ? _h`<span style=${{ fontSize:10, padding:'2px 8px', borderRadius:20, background:'rgba(255,255,255,.08)', color:'rgba(255,255,255,.5)' }}>${s.contexte}</span>` : null}
-                  ${s.datePrevu ? _h`<span style=${{ fontSize:10, padding:'2px 9px', borderRadius:20, fontWeight:700,
-                    background: isFaite ? 'rgba(76,175,80,.12)' : isToday ? 'rgba(255,164,32,.15)' : isPast ? 'rgba(255,68,85,.1)' : 'rgba(56,189,248,.1)',
-                    color: isFaite ? '#4CAF50' : isToday ? '#FFA420' : isPast ? '#FF6B6B' : '#38BDF8' }}>
-                    ${isFaite ? '✓ Faite' : isToday ? '⚡ Auj.' : isPast ? '⚠ Passée' : '📅'} ${s.datePrevu}
-                  </span>` : _h`<span style=${{ fontSize:10, color:'rgba(255,68,85,.5)', padding:'2px 8px', borderRadius:20, background:'rgba(255,68,85,.08)' }}>Sans date</span>`}
                 </div>
               </div>
               <div style=${{ display:'flex', gap:6 }}>
@@ -659,9 +673,26 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
             ${s.exercices && s.exercices.length > 0 && _h`<div style=${{ borderTop:'1px solid rgba(255,255,255,.05)', paddingTop:10 }}>
               ${isCoach
                 ? _h`<div>
+                  ${(() => {
+                    let nbS = 0, ton = 0;
+                    s.exercices.forEach(e => { try { const r0 = rpExoSets(e, player, rpD(s.datePrevu) || localDateStr()); nbS += r0.sets.length; ton += r0.sets.reduce((a, x) => (x.kg != null && x.reps != null) ? a + x.kg * x.reps : a, 0); } catch (er) {} });
+                    const nbBlocs = s.exercices.filter(e => e.blocNom != null).length;
+                    const chip2 = (t) => _h`<span style=${{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:20, background:'rgba(255,255,255,.07)', color:'rgba(255,255,255,.85)' }}>${t}</span>`;
+                    return _h`<div style=${{ background:'rgba(56,189,248,.06)', border:'1px solid rgba(56,189,248,.2)', borderRadius:10, padding:'9px 12px', marginBottom:6 }}>
+                      <div style=${{ fontSize:10, fontWeight:800, color:'#38BDF8', textTransform:'uppercase', letterSpacing:1, marginBottom:6 }}>📋 En un coup d'œil</div>
+                      <div style=${{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        ${chip2(s.exercices.length + ' exercice' + (s.exercices.length > 1 ? 's' : ''))}
+                        ${nbBlocs ? chip2(nbBlocs + ' bloc' + (nbBlocs > 1 ? 's' : '')) : null}
+                        ${chip2(nbS + ' séries au total')}
+                        ${ton > 0 ? chip2('≈ ' + Math.round(ton).toLocaleString('fr-FR') + ' kg soulevés') : null}
+                        ${s.rpeCible ? chip2('effort visé : ' + s.rpeCible + '/10') : null}
+                      </div>
+                      <div style=${{ fontSize:10.5, color:'rgba(255,255,255,.4)', marginTop:6, lineHeight:1.45 }}>Les kg sont calculés automatiquement : % × 1RM actuel du joueur (1RM = charge maximale qu'il peut soulever 1 fois). Chaque exercice détaille ci-dessous le poids de chaque série.</div>
+                    </div>`;
+                  })()}
                   ${s.exercices.map((ex0, i) => { const ex = liveCharge(ex0); const chargeHint = chargeHintRM(ex0, player); return [blocHeaderEl(s.exercices, i, 'bh'+i), _h`<div key=${i} style=${{ padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,.05)' }}>
                     <div style=${{ display:'flex', gap:10, alignItems:'center' }}>
-                      ${ex.imageUrl ? _h`<${ZoomableImage} src=${ex.imageUrl} alt=${ex.nom}
+                      ${imageExoPour(ex) ? _h`<${ZoomableImage} src=${imageExoPour(ex)} alt=${ex.nom}
                         style=${{ width:44, height:44, objectFit:'cover', borderRadius:7,
                           border:'1px solid rgba(255,255,255,.1)', flexShrink:0 }}
                         onError=${e => e.target.style.display='none'} />` : null}
@@ -670,12 +701,26 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
                           <div style=${{ fontSize:13, fontWeight:700 }}>${ex.nom}</div>
                           <span style=${{ fontSize:20, lineHeight:1.1, color:'#FFA420', fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif", flexShrink:0, whiteSpace:'nowrap', background:'rgba(255,164,32,.12)', border:'1px solid rgba(255,164,32,.3)', borderRadius:8, padding:'3px 10px', letterSpacing:.3 }}>${seriesRepsLabel(ex).main}</span>
                         </div>
-                        <div style=${{ display:'flex', gap:10, marginTop:3, flexWrap:'wrap', alignItems:'baseline' }}>
-                          <span style=${{ fontSize:14, color:'#38BDF8', fontWeight:700 }}>${chargeHint && chargeHint.ok ? chargeHint.kg + ' kg' : ex.charge}</span>
-                          ${chargeHint && chargeHint.ok ? _h`<span style=${{ fontSize:10, color:'rgba(255,255,255,.3)' }}>(${chargeHint.pct}% de ${chargeHint.mvtLabel})</span>` : null}
-                          ${seriesRepsLabel(ex).sub ? _h`<span style=${{ fontSize:12, color:'rgba(255,255,255,.6)' }}>${seriesRepsLabel(ex).sub}</span>` : null}
-                          <span style=${{ fontSize:13, color:'rgba(255,255,255,.5)' }}>⏱ ${ex.repos}</span>
-                        </div>
+                        ${(() => {
+                          const rows = detailSeriesCoach(ex, player);
+                          const uniforme = rows.length > 0 && rows.every(r => r.charge === rows[0].charge && r.reps === rows[0].reps && !r.amrap);
+                          return _h`<div>
+                            <div style=${{ fontSize:12.5, color:'#fff', fontWeight:600, marginTop:4, lineHeight:1.4 }}>${enClairExo(ex, rows)}</div>
+                            ${chargeHint && chargeHint.ok ? _h`<div style=${{ fontSize:10.5, color:'rgba(255,255,255,.4)', marginTop:1 }}>${chargeHint.pct} % de son 1RM ${chargeHint.mvtLabel} (${String(getPlayerRMValue(detectMouvementRM(ex.nom, player) || (parsePctPC(ex.charge) != null ? 'poids_corps' : null), player) || '').replace('.', ',')} kg)</div>` : null}
+                            ${rows.length > 0 && rows.some(r => r.charge) ? _h`<div style=${{ marginTop:6, borderRadius:8, overflow:'hidden', border:'1px solid rgba(56,189,248,.18)' }}>
+                              <div style=${{ display:'grid', gridTemplateColumns:'42px 1fr 1.3fr 58px', gap:6, padding:'4px 8px', background:'rgba(56,189,248,.10)', fontSize:9, fontWeight:800, letterSpacing:.8, color:'rgba(255,255,255,.5)', textTransform:'uppercase' }}>
+                                <span>Série</span><span>Reps</span><span>Poids</span><span style=${{ textAlign:'right' }}>% 1RM</span>
+                              </div>
+                              ${rows.map((r, ri) => _h`<div key=${ri} style=${{ display:'grid', gridTemplateColumns:'42px 1fr 1.3fr 58px', gap:6, padding:'5px 8px', alignItems:'baseline', borderTop:'1px solid rgba(255,255,255,.05)', background: r.amrap ? 'rgba(255,164,32,.08)' : (ri % 2 ? 'rgba(255,255,255,.02)' : 'transparent') }}>
+                                <span style=${{ fontSize:11, fontWeight:800, color:'rgba(255,255,255,.55)' }}>S${r.n}</span>
+                                <span style=${{ fontSize:14, fontWeight:800 }}>${r.reps}${r.amrap ? ' 🔥' : ''}</span>
+                                <span style=${{ fontSize:15, fontWeight:800, color:'#38BDF8' }}>${r.charge || '—'}</span>
+                                <span style=${{ fontSize:11, color:'rgba(255,255,255,.4)', textAlign:'right' }}>${r.pct ? r.pct + ' %' : ''}</span>
+                                ${r.note ? _h`<span style=${{ gridColumn:'1 / -1', fontSize:10.5, color:'rgba(255,255,255,.45)', fontStyle:'italic' }}>${r.amrap ? 'AMRAP = autant de répétitions que possible. ' : ''}${r.note}</span>` : (r.amrap ? _h`<span style=${{ gridColumn:'1 / -1', fontSize:10.5, color:'rgba(255,164,32,.8)', fontStyle:'italic' }}>AMRAP = autant de répétitions propres que possible</span>` : null)}
+                              </div>`)}
+                            </div>` : null}
+                          </div>`;
+                        })()}
                         ${ex.notes ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.7)', marginTop:5, lineHeight:1.5, background:'rgba(255,164,32,.06)', borderLeft:'3px solid rgba(255,164,32,.5)', borderRadius:6, padding:'5px 9px', whiteSpace:'pre-wrap' }}>💡 ${ex.notes}</div>` : null}
                       </div>
                     </div>

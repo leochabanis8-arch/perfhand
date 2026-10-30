@@ -114,6 +114,11 @@ function ChargeDashboard({ players, clubs }) {
         return 'Saison ' + '2026-2027';
       })()}</div>
       <h1 style=${{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:28, fontWeight:800 }}>CHARGE & FATIGUE ÉQUIPE</h1>
+      <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10, alignItems:'center' }}>
+        <span style=${{ fontSize:10, color:'rgba(255,255,255,.4)', textTransform:'uppercase', letterSpacing:1 }}>📗 Export Excel équipe :</span>
+        ${rpPeriodes({}).filter(pp => pp.id !== 'tout').map(pp => _h`<button key=${pp.id} class="btn btn-sm" style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700 }}
+          onClick=${() => exporterRapportEquipeExcel(players, pp.from, pp.to, ((clubs && clubs[0] && clubs[0].name) || 'equipe'))}>${pp.label}</button>`)}
+      </div>
     </div>
 
     <!-- Alertes -->

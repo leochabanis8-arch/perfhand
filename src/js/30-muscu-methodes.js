@@ -40,7 +40,7 @@ const METHODES_MUSCU = [
         note: "Recuperation SNC obligatoire. Ne pas chercher a progresser. Travail technique uniquement.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre", "Developpe militaire", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre", "Developpe militaire", "Rowing barre"],
     assistance: "Apres series principales : 50-100 reps assistance (Pulling, Core, Single-leg). Option BBB : 5x10 @ 50-60% TM sur le mouvement principal.",
   },
   {
@@ -78,7 +78,7 @@ const METHODES_MUSCU = [
         note: "Ne pas tenter le 1RM si fatigue. Reporter si besoin.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre", "Rowing barre"],
     assistance: "2-3 exercices accessoires en 3x8-12 apres les series principales.",
   },
   {
@@ -140,7 +140,7 @@ const METHODES_MUSCU = [
         note: "Fin de cycle : reevaluer le 1RM avant de relancer un nouveau bloc de 6 semaines a charges actualisees.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre", "Rowing barre"],
     assistance: "1-2 exercices accessoires en 3x10-12 apres les series principales. Rester simple, l'accent est sur les mouvements principaux.",
   },
   {
@@ -168,7 +168,7 @@ const METHODES_MUSCU = [
         note: "6 series de 3 reps a 60% du 1RM, chaque repetition executee a vitesse maximale. Repos court 45-60s. L'objectif n'est pas la charge mais l'explosivite.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre", "Rowing barre"],
     assistance: "Jour Max Effort : 2-3 accessoires en 3x8. Jour Effort Dynamique : travail de core et gainage explosif.",
   },
   {
@@ -196,7 +196,7 @@ const METHODES_MUSCU = [
         note: "+5% seulement quand les 10 series de 10 sont toutes completees a la seance precedente. Bloc court : 2-3 semaines maximum, methode tres fatigante.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Rowing barre"],
     assistance: "Aucun accessoire lourd le meme jour - le mouvement principal en 10x10 suffit largement en volume. Core leger uniquement.",
   },
   {
@@ -214,7 +214,7 @@ const METHODES_MUSCU = [
         note: "Repos 2-3 min sur les 2 premieres series, 90s ensuite. La charge lourde en premier permet une meilleure qualite technique qu'en fin de seance.",
       },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Souleve de terre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Souleve de terre"],
     assistance: "1-2 exercices accessoires en 3x10-12 apres la pyramide.",
   },
   {
@@ -355,7 +355,7 @@ const METHODES_MUSCU = [
       { sem: "J2", label: "RDL + Rowing",     series: 3, reps: "5-3-1", pct: [70, 85, 100] },
       { sem: "J3", label: "Re-test + ajust.", series: 2, reps: "3",     pct: [90, 100]      },
     ],
-    exercices_type: ["Squat barre", "Developpe couche", "Romanian Deadlift", "Rowing barre"],
+    exercices_type: ["Back Squat", "Developpe couche", "Romanian Deadlift", "Rowing barre"],
     isTesting: true,
     niveaux: {
       squat:  { debutant:1.0, intermediaire:1.3, avance:1.6, elite:1.8 },
@@ -721,7 +721,7 @@ const METHODES_MUSCU = [
           {
             sem: "S13-S14", titre: "Retour jeu - validation",
             exercices: [
-              { nom: "Squat barre", series: 4, reps: "8", charge: "60-70% 1RM", repos: "2 min", notes: "Retour au squat barre si hop tests > 90%. Meme charge que cote sain." },
+              { nom: "Back Squat", series: 4, reps: "8", charge: "60-70% 1RM", repos: "2 min", notes: "Retour au back squat si hop tests > 90%. Meme charge que cote sain." },
               { nom: "Sprint progressif 50-70-90-100%", series: 4, reps: "20m", charge: "Corps", repos: "120s", notes: "S13 max 90%. S14 autoriser 100% si no pain. Critere retour jeu." },
               { nom: "Nordic Hamstring Curl maintenance", series: 3, reps: "6", charge: "Corps", repos: "120s", notes: "Maintenir toute la saison en prevention. Ne jamais supprimer." },
               { nom: "Hop test unilateral", series: 1, reps: "3 essais/jambe", charge: "Corps", repos: "-", notes: "Critere retour : > 90% de la jambe saine. Mesurer et noter." },
@@ -1425,7 +1425,7 @@ function TestingCalculator({ player, methode, onCreateSeance, onClose }) {
   };
 
   const MOUVEMENTS = [
-    { key:'squat',  nom:'Squat barre',       emoji:'🏋️', color:'#FF4455', group:'lower',
+    { key:'squat',  nom:'Back Squat',       emoji:'🏋️', color:'#FF4455', group:'lower',
       info:'Force fondamentale. Standard elite N1: 1.8× PC' },
     { key:'rdl',    nom:'Romanian Deadlift',  emoji:'🔥', color:'#FFA420', group:'lower',
       info:'Ischio-jambiers & fessiers. Clé prévention & explosivité.' },

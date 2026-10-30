@@ -135,20 +135,36 @@ function ProgrammeJour({ player }) {
 // ── Lien automatique exercice ↔ bibliothèque (éditeur de séance coach) ─────────────────────────
 // Reconnaît le nom saisi dans la bibliothèque : renseigne `biblio` (nom de la fiche) et reprend
 // l'image de la fiche si l'exercice n'en a pas déjà une saisie à la main.
+// Nom à utiliser pour retrouver la fiche d'un exercice de séance : le lien explicite (bilans…)
+// sinon uniquement le nom lui-même — jamais un ancien lien automatique devenu faux.
+function biblioNomPour(ex) {
+  if (!ex) return '';
+  return (ex.biblio && (ex.biblioExplicit || !ex.biblioFor)) ? ex.biblio : (ex.nom || '');
+}
+function imageExoPour(ex) {
+  if (!ex) return '';
+  try {
+    if (ex.imageUrl && !ex.imageAuto) return ex.imageUrl;
+    const m = findBiblioMatch(biblioNomPour(ex));
+    return (m && m.imageUrl) || '';
+  } catch (e) { return ex.imageAuto ? '' : (ex.imageUrl || ''); }
+}
+
 function applyBiblioLink(ex) {
   if (!ex) return ex;
   const nom = (ex.nom || '').trim();
   const m = nom ? findBiblioMatch(nom) : null;
   const r = { ...ex };
   if (m) {
-    r.biblio = m.nom; r.biblioFor = ex.nom;
+    r.biblio = m.nom; r.biblioFor = ex.nom; delete r.biblioExplicit;
     if (m.imageUrl && (!ex.imageUrl || ex.imageAuto)) { r.imageUrl = m.imageUrl; r.imageAuto = true; }
     else if (!m.imageUrl && ex.imageAuto) { r.imageUrl = ''; delete r.imageAuto; }
     return r;
   }
   // Pas de correspondance : on garde un lien explicite posé à la création (ex. bilans de départ)
   // tant que le nom n'a pas été modifié depuis.
-  if (ex.biblio && (!ex.biblioFor || ex.biblioFor === ex.nom)) { r.biblioFor = ex.nom; return r; }
+  // (lien explicite = posé par une méthode/bilan : pas de biblioFor, ou drapeau biblioExplicit)
+  if (ex.biblio && (ex.biblioExplicit || !ex.biblioFor)) { r.biblioFor = ex.nom; r.biblioExplicit = true; return r; }
   delete r.biblio; delete r.biblioFor;
   if (r.imageAuto) { r.imageUrl = ''; delete r.imageAuto; }
   return r;
@@ -268,11 +284,11 @@ function MuscuSeanceEditor({ seance, onSave, onClose, player }) {
       const pw = poidsCorpsJoueur(player);
       if (!pw) return { ok:false, text: `Poids du corps non renseigné pour ${player ? player.name : 'ce joueur'} (onglet Poids / Composition)` };
       const kgPc = Math.round((pw * pct / 100) / 2.5) * 2.5;
-      return { ok:true, text: `≈ +${kgPc} kg de lest  (${pct}% de ${pw} kg — poids du corps)` };
+      return { ok:true, text: `≈ ${kgPc} kg  (${pct}% de ${pw} kg — poids de corps)` };
     }
     // Rappel pratique : mouvement au poids du corps sans charge saisie
     if (detectMouvement(ex.nom) === 'poids_corps' && !(ex.charge||'').toString().trim()) {
-      return { ok:false, text: `Mouvement au poids du corps : écris par ex. « 20% PC » pour un lest en % du poids du corps${poidsCorpsJoueur(player) ? ' (' + poidsCorpsJoueur(player) + ' kg)' : ''}` };
+      return { ok:false, text: `Mouvement au poids du corps : écris par ex. « 20% PC » pour une intensité en % du poids de corps${poidsCorpsJoueur(player) ? ' (' + poidsCorpsJoueur(player) + ' kg)' : ''}` };
     }
     const mvtId = detectMouvement(ex.nom);
     const pct = parsePct(ex.charge);
@@ -945,7 +961,7 @@ function chargeHintRM(ex, player) {
   if (mvtId === 'poids_corps') {
     if (!rm) return { ok:false, text: `Poids du corps non renseigné pour ${player ? player.name : 'ce joueur'} (onglet Poids / Composition)` };
     const kgPc = Math.round((rm * pct / 100) / 2.5) * 2.5;
-    return { ok:true, text: `≈ +${kgPc} kg de lest  (${pct}% de ${rm} kg — poids du corps)`, kg: '+' + kgPc, pct, mvtLabel: 'poids du corps' };
+    return { ok:true, text: `≈ ${kgPc} kg  (${pct}% de ${rm} kg — poids de corps)`, kg: String(kgPc), pct, mvtLabel: 'poids du corps' };
   }
   const mvtLabel = (MOUVEMENTS_RM.find(m => m.id === mvtId) || (player && player.customRM || []).find(m => m.id === mvtId) || {}).label;
   if (!rm) {
@@ -985,11 +1001,12 @@ function blocInfo(exercices, i) {
 function blocHeaderEl(exercices, i, key) {
   const b = blocInfo(exercices, i);
   if (!b) return null;
-  return _h`<div key=${key} style=${{ display:'flex', alignItems:'center', gap:10, margin:'16px 0 8px', padding:'10px 14px', borderRadius:12,
+  return _h`<div key=${key} style=${{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:'4px 10px', margin:'16px 0 8px', padding:'10px 14px', borderRadius:12,
     background:b.col+'1A', border:'1px solid '+b.col+'55', borderLeft:'5px solid '+b.col }}>
     <span style=${{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:22, fontWeight:800, color:b.col, letterSpacing:1 }}>BLOC ${b.n}</span>
     ${b.nom ? _h`<span style=${{ fontSize:15, fontWeight:800, textTransform:'uppercase', letterSpacing:.5 }}>${b.nom}</span>` : null}
     <span style=${{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.45)' }}>${b.nb} exercice${b.nb>1?'s':''}</span>
+    ${blocDescription(b.nom) ? _h`<div style=${{ flexBasis:'100%', fontSize:11.5, color:'rgba(255,255,255,.6)', lineHeight:1.45, marginTop:-2 }}>${blocDescription(b.nom)}</div>` : null}
   </div>`;
 }
 
@@ -1057,6 +1074,51 @@ function GroupedExercicesRenderer({ exercices, seanceId, player }) {
   return _h`<div>${blocks}</div>`;
 }
 
+// ── Vue coach : détail série par série + phrase « en clair » (pour que tout le staff comprenne la séance) ──
+function detailSeriesCoach(ex, player) {
+  const hint = chargeHintRM(ex, player);
+  const det = ex.chargeDetails || [];
+  const rows = [];
+  if (det.length) {
+    det.forEach((d, i) => rows.push({ n: d.serie || i + 1, reps: String(d.reps == null ? '' : d.reps), amrap: !!d.amrap, pct: d.pct || null, charge: liveChargeDetailText(ex, d, player), note: d.note || '' }));
+  } else {
+    const nb = Math.max(1, parseInt(ex.series) || 1);
+    const rp = String(ex.reps == null ? '' : ex.reps).split(/\s*[\/;,]\s*/).filter(Boolean);
+    const perSerie = rp.length === nb && nb > 1;
+    for (let i = 0; i < nb; i++) rows.push({ n: i + 1, reps: perSerie ? rp[i] : (rp.length === 1 ? rp[0] : String(ex.reps || '')), amrap: false, pct: hint && hint.ok ? hint.pct : null, charge: hint && hint.ok ? String(hint.kg).replace('.', ',') + ' kg' : (ex.charge || ''), note: '' });
+  }
+  return rows.map(r => ({ ...r, charge: String(r.charge || '').replace(/(\d)\.(\d)/g, '$1,$2') }));
+}
+function enClairExo(ex, rows) {
+  const nb = rows.length;
+  const reps = Array.from(new Set(rows.map(r => r.reps).filter(Boolean)));
+  const kgs = Array.from(new Set(rows.map(r => r.charge).filter(Boolean)));
+  const unit = r => /^\d+(\s*-\s*\d+)?$/.test(String(r).trim()) ? r + ' répétition' + (/^1$/.test(String(r).trim()) ? '' : 's') : r;
+  let t = nb + ' série' + (nb > 1 ? 's' : '');
+  if (reps.length === 1) t += ' de ' + unit(reps[0]);
+  else if (reps.length > 1) t += ' (répétitions : ' + reps.join(' / ') + ')';
+  if (kgs.length === 1) t += ' à ' + kgs[0];
+  else if (kgs.length > 1) t += ' — charge qui évolue : ' + kgs.join(' → ');
+  if (ex.repos) t += ' · repos ' + ex.repos;
+  return t;
+}
+// Rôle de chaque type de bloc, en une phrase (pour les stagiaires / le staff)
+function blocDescription(nom) {
+  const n = String(nom || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const D = [
+    [/force/, 'Développer la force maximale : charges lourdes, peu de répétitions, repos longs.'],
+    [/hypertroph|volume|muscle/, 'Faire grossir / renforcer le muscle : charges modérées, plus de répétitions.'],
+    [/prevention|rehab|epaule|coude|stabil/, 'Protéger les articulations (épaules, coudes, dos) pour éviter les blessures — charges légères, exécution propre.'],
+    [/vitesse|plyo|explos|puissance|saut|detente/, 'Devenir plus explosif : mouvements rapides et sauts. La qualité d\'exécution prime sur la fatigue.'],
+    [/renfo|core|gain|abdo|tronc/, 'Renforcer le tronc et les muscles stabilisateurs, base de tous les gestes du handball.'],
+    [/mobil|souplesse|etir/, 'Gagner en amplitude de mouvement et préparer le corps.'],
+    [/echauff|activation/, 'Préparer le corps à l\'effort : monter progressivement en intensité.'],
+    [/cardio|conditionnement|metabol|finisher/, 'Travail de condition physique : résister à la fatigue sur la durée.'],
+  ];
+  const f = D.find(x => x[0].test(n));
+  return f ? f[1] : '';
+}
+
 // Libellé clair séries × reps : si les reps varient d'une série à l'autre (« 3 / 3 / 2-3 »),
 // « 3 × 3 / 3 / 2-3 » est ambigu → on affiche « 3 séries » et, s'il n'y a pas de détail par
 // série, les reps en petit dessous. Avec un détail par série (S1, S2…), il suffit de « N séries ».
@@ -1076,7 +1138,7 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
   // par minute (60s fixes, par définition), pas une série qu'on valide manuellement comme en muscu.
   const totalSeries = ex.emom ? (parseInt(ex.emomDuree) || 10) : (parseInt(ex.series) || 3);
   const chargeCalc = React.useMemo(() => chargeHintRM(ex, player), [ex.nom, ex.charge, player && player.rmHistory, player && player.customRM]);
-  const imgSrc = ex.imageUrl || (function(){ try { const m = findBiblioMatch(ex.biblio || ex.nom); return (m && m.imageUrl) || ''; } catch(e){ return ''; } })();
+  const imgSrc = imageExoPour(ex);
 
   function parseRepos(str) {
     if (!str) return 60;
@@ -1227,7 +1289,7 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
             display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
             ${ex.nom}
             ${ex.emom ? _h`<span style=${{ fontSize:9, padding:'2px 7px', borderRadius:20, fontWeight:800, background:'rgba(56,189,248,.15)', color:'#38BDF8' }}>⏱ EMOM</span>` : null}
-            ${React.createElement(BiblioLinkButton, { nomExercice: ex.biblio || ex.nom })}
+            ${React.createElement(BiblioLinkButton, { nomExercice: biblioNomPour(ex) })}
           </div>
           <div style=${{ display:"flex", gap:10, marginTop:3, flexWrap:"wrap" }}>
             ${ex.emom

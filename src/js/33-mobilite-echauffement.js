@@ -853,7 +853,7 @@ const ECHAUFF_MUSCU = [
         id: "b4", titre: "Bloc 4 — Montee en charge specifique", duree: "4-5 min", couleur: "#FF4455",
         description: "Serie d'echauffement sur le mouvement principal. Montee progressive obligatoire avant toute charge lourde.",
         exercices: [
-          { exercice: "Gobelet squat x15 (16-20kg)", duree: "1 serie", detail: "Squat gobelet profond avec kettlebell ou haltere. Profondeur maximale. Activer la chaine posterieure. Verifier la position.", note: "Meme si la seance est squat barre — commence toujours par gobelet" },
+          { exercice: "Gobelet squat x15 (16-20kg)", duree: "1 serie", detail: "Squat gobelet profond avec kettlebell ou haltere. Profondeur maximale. Activer la chaine posterieure. Verifier la position.", note: "Meme si la seance est back squat — commence toujours par gobelet" },
           { exercice: "50% charge de travail x8 (mouvement principal)", duree: "1 serie", detail: "Ex : seance squat a 100kg → 50kg x8. Sentir le mouvement. Ajuster la stance. 2 min repos.", note: "" },
           { exercice: "70% charge de travail x5", duree: "1 serie", detail: "Ex : 70kg x5. Proche de la charge de travail. Technique parfaite. 2-3 min repos avant les vraies series.", note: "Apres cette serie : go pour les series de travail" },
         ]
