@@ -922,7 +922,7 @@ async function exporterRapportJoueurExcel(r) {
 }
 
 // ── Export Excel ÉQUIPE : une ligne par joueur + matrice de charge par semaine ───────────────
-async function exporterRapportEquipeExcel(players, from, to, titre) {
+async function exporterRapportEquipeExcel(players, from, to, titre, clubs) {
   try {
     if (typeof ExcelJS === 'undefined') { alert("La librairie d'export Excel n'a pas pu charger. Vérifie ta connexion et réessaie."); return; }
     const reps = (players || []).filter(p => p && !p.archived).map(p => { try { return buildRapportJoueur(p, from, to); } catch (e) { console.warn(e); return null; } }).filter(Boolean);
@@ -931,7 +931,20 @@ async function exporterRapportEquipeExcel(players, from, to, titre) {
     const hdr = ws => { const hr = ws.getRow(1); hr.eachCell(c => { c.font = { bold: true, color: { argb: 'FF141418' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFA420' } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; }); hr.height = 30; ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }]; ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ws.columnCount } }; };
     const n = v => v == null || v === '' ? null : v;
     const rmOf = (r, id) => r.rm.find(m => m.id === id);
-    const ws = wb.addWorksheet('Équipe');
+    // Une série de 3 feuilles PAR ÉQUIPE (club / groupe), pour ne pas mélanger N1, Prénationale, U18…
+    const groupes = [];
+    reps.forEach(r => { const cid = r.player.clubId || '_autres'; let g = groupes.find(x => x.cid === cid);
+      if (!g) { const c = (clubs || []).find(c => c.id === cid); g = { cid, label: c ? c.name : (cid === '_autres' ? 'Profils individuels' : String(cid)), reps: [] }; groupes.push(g); }
+      g.reps.push(r); });
+    groupes.sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+    const nomsPris = new Set();
+    groupes.forEach((g, gi) => {
+    const reps = g.reps.slice().sort((a, b) => String(a.player.name || '').localeCompare(String(b.player.name || ''), 'fr'));
+    let court = g.label.replace(/Union Sud Mayenne/gi, 'USM').replace(/[\\\/*?:\[\]()]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || ('Equipe ' + (gi + 1));
+    while (nomsPris.has(court.toLowerCase())) court += gi;
+    nomsPris.add(court.toLowerCase());
+    const nomFeuille = suf => groupes.length > 1 ? court + ' · ' + suf : suf;
+    const ws = wb.addWorksheet(nomFeuille('Synthèse'));
     ws.addRow(['Joueur', 'Poste', 'Muscu faites', 'Muscu prévues', 'Réalisation muscu %', 'Endu faites', 'Endu prévues', 'Réalisation endu %', 'Assiduité %', 'RPE moyen', 'Charge totale (UA)', 'ACWR', 'Tonnage muscu (kg)',
       'Squat 1RM', 'Squat Δ', 'Bench 1RM', 'Bench Δ', 'RDL 1RM', 'RDL Δ', 'Rowing 1RM', 'Rowing Δ', 'Sommeil /5', 'Énergie /5', 'Douleurs /5', 'Blessure / surveillance']);
     reps.forEach(r => {
@@ -948,18 +961,19 @@ async function exporterRapportEquipeExcel(players, from, to, titre) {
       if (j === 9 && typeof c.value === 'number') c.font = { bold: true, color: { argb: c.value >= 85 ? 'FF2E7D32' : c.value >= 65 ? 'FFE67800' : 'FFC62828' } }; }); });
     // Matrice charge hebdomadaire (UA)
     const weeks = reps[0].semaines.map(s => s.debut);
-    const w2 = wb.addWorksheet('Charge par semaine (UA)');
+    const w2 = wb.addWorksheet(nomFeuille('Charge UA'));
     w2.addRow(['Joueur'].concat(weeks.map(d => rpFr(d).slice(0, 5))).concat(['Total']));
     reps.forEach(r => w2.addRow([r.player.name].concat(r.semaines.map(s => s.ua || null)).concat([r.kpi.uaTotal])));
     w2.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 9; });
     hdr(w2);
     // Matrice assiduité hebdo (séances faites / prévues)
-    const w3 = wb.addWorksheet('Assiduité par semaine');
+    const w3 = wb.addWorksheet(nomFeuille('Assiduité'));
     w3.addRow(['Joueur'].concat(weeks.map(d => rpFr(d).slice(0, 5))));
     reps.forEach(r => w3.addRow([r.player.name].concat(r.semaines.map(s => (s.muscuPrevues + s.enduPrevues) ? (s.muscuFaites + s.enduFaites) + '/' + (s.muscuPrevues + s.enduPrevues) : ''))));
     w3.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 9; });
     hdr(w3);
     w3.eachRow((row, i) => { if (i > 1) row.eachCell((c, j) => { if (j > 1) { c.alignment = { horizontal: 'center' }; const m = String(c.value || '').match(/^(\d+)\/(\d+)$/); if (m) c.font = { bold: true, color: { argb: m[1] === m[2] ? 'FF2E7D32' : +m[1] === 0 ? 'FFC62828' : 'FFE67800' } }; } }); });
+    });
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob); const a = document.createElement('a');

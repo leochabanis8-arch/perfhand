@@ -2,6 +2,7 @@
 function ChargeDashboard({ players, clubs }) {
   if (!players || !players.length) return _h`<div style=${{ padding:40, textAlign:"center", color:"rgba(255,255,255,.3)" }}>Aucun joueur à afficher.</div>`;
   const [selP, setSelP] = useState(null);
+  const [rapportP, setRapportP] = useState(null);
   const [wellnessHistExp, setWellnessHistExp] = useState(null);
 
   // Fusionne les bilans terrain manuels avec les séances muscu/endurance déjà
@@ -117,7 +118,7 @@ function ChargeDashboard({ players, clubs }) {
       <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10, alignItems:'center' }}>
         <span style=${{ fontSize:10, color:'rgba(255,255,255,.4)', textTransform:'uppercase', letterSpacing:1 }}>📗 Export Excel équipe :</span>
         ${rpPeriodes({}).filter(pp => pp.id !== 'tout').map(pp => _h`<button key=${pp.id} class="btn btn-sm" style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700 }}
-          onClick=${() => exporterRapportEquipeExcel(players, pp.from, pp.to, ((clubs && clubs[0] && clubs[0].name) || 'equipe'))}>${pp.label}</button>`)}
+          onClick=${() => exporterRapportEquipeExcel(players, pp.from, pp.to, ((clubs && clubs[0] && clubs[0].name) || 'equipe'), clubs)}>${pp.label}</button>`)}
       </div>
     </div>
 
@@ -132,7 +133,7 @@ function ChargeDashboard({ players, clubs }) {
     <!-- Tableau(x) équipe — groupé par club si plusieurs clubs sont représentés -->
     ${(() => {
       const tableHead = _h`<thead><tr>
-        ${['Joueur','Charge 7j','Charge 21j','Tendance','ACWR','RPE moy.','Fatigue moy.','Dernière séance'].map(h =>
+        ${['Joueur','Charge 7j','Charge 21j','Tendance','ACWR','RPE moy.','Fatigue moy.','Dernière séance','Rapport'].map(h =>
           _h`<th key=${h} style=${{ padding:'8px 10px', textAlign:'left', fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:1.5, textTransform:'uppercase', borderBottom:'1px solid rgba(255,255,255,.06)', fontWeight:500 }}>${h}</th>`
         )}
       </tr></thead>`;
@@ -185,6 +186,10 @@ function ChargeDashboard({ players, clubs }) {
             <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:11, color:'rgba(255,255,255,.4)' }}>
               ${lastB ? lastB.type + ' · RPE ' + lastB.rpe : '—'}
             </td>
+            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+              <button class="btn btn-sm" title="Rapport PDF / Excel de ${p.name}" onClick=${e => { e.stopPropagation(); setRapportP(p); }}
+                style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700, whiteSpace:'nowrap', padding:'4px 9px', fontSize:11 }}>📄 PDF / Excel</button>
+            </td>
           </tr>`;
         });
       }
@@ -192,7 +197,7 @@ function ChargeDashboard({ players, clubs }) {
       function renderTable(list) {
         return _h`<div class="card" style=${{ marginBottom:16 }}>
           <div style=${{ overflowX:'auto' }}>
-            <table style=${{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
+            <table style=${{ width:'100%', borderCollapse:'collapse', minWidth:680 }}>
               ${tableHead}
               <tbody>${renderRows(list)}</tbody>
             </table>
@@ -206,7 +211,15 @@ function ChargeDashboard({ players, clubs }) {
       if (clubList.length < 2) {
         return renderTable(players);
       }
-      return clubList.map(c => {
+      const sansClub = players.filter(p => !clubList.some(c => playerInClub(p, c.id)));
+      const blocIndiv = sansClub.length ? _h`<div key="_indiv">
+          <div style=${{ display:'flex', alignItems:'center', gap:8, marginBottom:8, marginTop:6 }}>
+            <div style=${{ fontSize:14, fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif" }}>Profils individuels</div>
+            <div style=${{ fontSize:11, color:'rgba(255,255,255,.35)' }}>${sansClub.length} joueur${sansClub.length>1?'s':''}</div>
+          </div>
+          ${renderTable(sansClub)}
+        </div>` : null;
+      return [...clubList.map(c => {
         const clubPlayers = players.filter(p => playerInClub(p, c.id));
         if (!clubPlayers.length) return null;
         return _h`<div key=${c.id}>
@@ -216,8 +229,9 @@ function ChargeDashboard({ players, clubs }) {
           </div>
           ${renderTable(clubPlayers)}
         </div>`;
-      });
+      }), blocIndiv];
     })()}
+    ${rapportP ? _h`<${RapportJoueurModal} player=${rapportP} onClose=${() => setRapportP(null)} />` : null}
 
     <!-- ── WELLNESS DU MATIN — AUJOURD'HUI ─────────────────────────────── -->
     ${(() => {

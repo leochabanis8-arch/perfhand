@@ -483,11 +483,11 @@
 <script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.js"></script>
 
 <script>
-// PerfHand v1789789000
-console.log("PerfHand v1789789000 - chargement...");
+// PerfHand v1789803000
+console.log("PerfHand v1789803000 - chargement...");
 // Force cache bust: si version en cache différente, reload
 (function() {
-  var VER = "1789789000";
+  var VER = "1789803000";
   var stored = sessionStorage.getItem("perfhand_ver");
   if (stored && stored !== VER) { sessionStorage.setItem("perfhand_ver", VER); window.location.reload(true); }
   else { sessionStorage.setItem("perfhand_ver", VER); }
@@ -1828,21 +1828,59 @@ function SharedChat({ role, playerName, playerPos, playerAge, playerStatus, play
 }
 
 // ── IMAGE ZOOMABLE (clic pour agrandir en plein écran) ──────────────────────
+// Reconnaît le type de média d'un lien saisi par le coach : image/GIF, vidéo YouTube / Vimeo /
+// Instagram / Drive, fichier vidéo direct (mp4…), ou lien inconnu (ouvert dans un nouvel onglet).
+function mediaInfo(url) {
+  const u = String(url || '').trim();
+  let m = u.match(/(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  if (m) return { kind: 'iframe', embed: 'https://www.youtube.com/embed/' + m[1] + '?rel=0&modestbranding=1', thumb: 'https://img.youtube.com/vi/' + m[1] + '/hqdefault.jpg' };
+  m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (m) return { kind: 'iframe', embed: 'https://player.vimeo.com/video/' + m[1] };
+  m = u.match(/instagram\.com\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/);
+  if (m) return { kind: 'iframe', embed: 'https://www.instagram.com/' + (m[1] === 'reels' ? 'reel' : m[1]) + '/' + m[2] + '/embed', tall: true };
+  m = u.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/);
+  if (m) return { kind: 'iframe', embed: 'https://drive.google.com/file/d/' + m[1] + '/preview' };
+  if (/\.(mp4|webm|mov|m4v|ogg|ogv)(\?|#|$)/i.test(u)) return { kind: 'video' };
+  if (/(tiktok\.com|facebook\.com|fb\.watch|x\.com|twitter\.com|dropbox\.com|wetransfer|icloud\.com)/i.test(u)) return { kind: 'link' };
+  return { kind: 'image' };
+}
+
 function ZoomableImage({ src, alt, style, onError }) {
   const [zoom, setZoom] = useState(false);
+  const [failed, setFailed] = useState(false);
   if (!src) return null;
+  const mi = mediaInfo(src);
+  const kind = failed ? 'link' : mi.kind;
+  const ouvrir = e => { e.stopPropagation(); if (kind === 'link') { try { window.open(src, '_blank', 'noopener'); } catch (err) {} } else setZoom(true); };
+  const tileStyle = { ...style, position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center', overflow:'hidden',
+    background:'rgba(255,255,255,.06)', cursor:'pointer', boxSizing:'border-box' };
+  const badge = (ico) => _h`<span style=${{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, color:'#fff', textShadow:'0 1px 6px rgba(0,0,0,.8)', background:'rgba(0,0,0,.25)' }}>${ico}</span>`;
+  let thumb;
+  if (kind === 'image') {
+    thumb = _h`<img src=${src} alt=${alt || ''} onError=${() => setFailed(true)} onClick=${ouvrir}
+      style=${{ ...style, cursor:'zoom-in' }} />`;
+  } else if (kind === 'video') {
+    thumb = _h`<span onClick=${ouvrir} style=${tileStyle}>
+      <video src=${src + (src.indexOf('#') < 0 ? '#t=0.5' : '')} muted playsInline preload="metadata" style=${{ width:'100%', height:'100%', objectFit:'cover', pointerEvents:'none' }} onError=${() => setFailed(true)}></video>${badge('▶')}</span>`;
+  } else if (kind === 'iframe') {
+    thumb = _h`<span onClick=${ouvrir} style=${{ ...tileStyle, ...(mi.thumb ? { backgroundImage:'url(' + mi.thumb + ')', backgroundSize:'cover', backgroundPosition:'center' } : {}) }}>${badge('▶')}</span>`;
+  } else {
+    thumb = _h`<span onClick=${ouvrir} title="Ouvrir le lien" style=${tileStyle}>${badge('🔗')}</span>`;
+  }
   return _h`<span style=${{ display:'contents' }}>
-    <img src=${src} alt=${alt || ''} onError=${onError}
-      onClick=${e => { e.stopPropagation(); setZoom(true); }}
-      style=${{ ...style, cursor:'zoom-in' }} />
+    ${thumb}
     ${zoom && _h`<div style=${{ position:'fixed', inset:0, background:'rgba(0,0,0,.92)', zIndex:99999,
         display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
       onClick=${() => setZoom(false)}>
-      <img src=${src} alt=${alt || ''}
-        style=${{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:12 }} />
+      ${kind === 'image' ? _h`<img src=${src} alt=${alt || ''} style=${{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:12 }} />`
+        : kind === 'video' ? _h`<video src=${src} controls autoPlay playsInline onClick=${e => e.stopPropagation()} style=${{ maxWidth:'100%', maxHeight:'100%', borderRadius:12, background:'#000' }}></video>`
+        : _h`<div onClick=${e => e.stopPropagation()} style=${mi.tall ? { width:'min(420px,100%)', height:'min(720px,90vh)' } : { width:'min(900px,100%)', aspectRatio:'16/9' }}>
+            <iframe src=${mi.embed} style=${{ width:'100%', height:'100%', border:'none', borderRadius:12, background:'#000' }} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+          </div>`}
       <button onClick=${() => setZoom(false)}
         style=${{ position:'fixed', top:16, right:16, background:'rgba(255,255,255,.12)', border:'none',
           color:'#fff', borderRadius:20, width:38, height:38, fontSize:20, cursor:'pointer' }}>×</button>
+      <a href=${src} target="_blank" rel="noopener" onClick=${e => e.stopPropagation()} style=${{ position:'fixed', bottom:16, left:'50%', transform:'translateX(-50%)', fontSize:12, color:'rgba(255,255,255,.7)', background:'rgba(255,255,255,.1)', padding:'6px 14px', borderRadius:20, textDecoration:'none' }}>Ouvrir le lien ↗</a>
     </div>`}
   </span>`;
 }
@@ -3876,9 +3914,2534 @@ function NutritionView({ player, db, setDb, isCoach }) {
 
 
 // ── METHODES MUSCULATION DATA ─────────────────────────────────────────────────────
+// ── TEMPLATES HANDBALL : puissance, vitesse, plyo (séances types réutilisables pour chaque joueur) ──
+const METHODES_HB_TEMPLATES = [
+  {
+    "id": "hb_plyo_bas",
+    "nom": "HB Plyo — Bas du corps (réactivité)",
+    "categorie": "Handball — Plyo",
+    "couleur": "#38BDF8",
+    "equipement": "poids_corps",
+    "description": "Pliométrie pour appuis, impulsions et sauts de match. Qualité avant quantité : toujours frais, réceptions amorties.",
+    "protocole": "Durée ~40 min. À faire frais (pas après une séance lourde de jambes). Arrêter une série dès que la hauteur ou la réception se dégrade. 1 à 2 fois par semaine, jamais la veille d'un match.",
+    "isTemplate": true,
+    "rpeCible": 6,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Corde à sauter",
+        "series": 3,
+        "reps": "30 s",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Rebonds courts sur l'avant-pied. Échauffement des chevilles et des tendons.",
+        "biblio": "Jump Rope",
+        "blocNom": "Activation chevilles"
+      },
+      {
+        "nom": "Box Jump",
+        "series": 4,
+        "reps": "4",
+        "charge": "Caisse 40-60 cm",
+        "repos": "90s",
+        "notes": "Saut max, réception souple sur la caisse (genoux alignés), descente en marchant.",
+        "biblio": "Box Jump",
+        "blocNom": "Plyo vertical"
+      },
+      {
+        "nom": "Depth Jump",
+        "series": 3,
+        "reps": "4",
+        "charge": "Chute de 30 cm",
+        "repos": "2'",
+        "notes": "Chute de la caisse puis rebond immédiat, contact au sol le plus court possible. Réservé aux joueurs qui maîtrisent le Box Jump.",
+        "biblio": "Depth Jump"
+      },
+      {
+        "nom": "Broad Jump",
+        "series": 3,
+        "reps": "3",
+        "charge": "Poids de corps",
+        "repos": "90s",
+        "notes": "Saut en longueur départ arrêté, réception tenue 2 s. Mesurer le meilleur essai.",
+        "biblio": "Broad Jump",
+        "blocNom": "Plyo horizontal / latéral"
+      },
+      {
+        "nom": "Lateral Bound",
+        "series": 3,
+        "reps": "5 / côté",
+        "charge": "Poids de corps",
+        "repos": "75s",
+        "notes": "Bond latéral d'une jambe sur l'autre, réception tenue 1 s, genou dans l'axe. Transfert vers les appuis défensifs.",
+        "biblio": "Lateral Bound"
+      },
+      {
+        "nom": "Pogo jumps (rebonds chevilles)",
+        "series": 3,
+        "reps": "10 contacts",
+        "charge": "Poids de corps",
+        "repos": "60s",
+        "notes": "Rebonds très courts, jambes quasi tendues. Réactivité du tendon d'Achille."
+      }
+    ]
+  },
+  {
+    "id": "hb_plyo_unilat",
+    "nom": "HB Plyo — Unilatéral & réception",
+    "categorie": "Handball — Plyo",
+    "couleur": "#38BDF8",
+    "equipement": "poids_corps",
+    "description": "Pliométrie sur une jambe : tir en suspension et appuis de handball se font surtout en unipodal.",
+    "protocole": "Durée ~35 min. Faire d'abord le côté faible. Réception tenue 2 s obligatoire.",
+    "isTemplate": true,
+    "rpeCible": 6,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Corde à sauter",
+        "series": 2,
+        "reps": "20 s / jambe",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Rebonds sur une jambe, gainage actif.",
+        "biblio": "Jump Rope",
+        "blocNom": "Activation"
+      },
+      {
+        "nom": "Saut réception unilatérale",
+        "series": 4,
+        "reps": "4 / jambe",
+        "charge": "Poids de corps",
+        "repos": "75s",
+        "notes": "Saut sur place sur une jambe, réception tenue 2 s sans valgus.",
+        "blocNom": "Plyo unilatéral"
+      },
+      {
+        "nom": "Lateral Bound",
+        "series": 4,
+        "reps": "5 / côté",
+        "charge": "Poids de corps",
+        "repos": "75s",
+        "notes": "Bonds latéraux amples, réception tenue.",
+        "biblio": "Lateral Bound"
+      },
+      {
+        "nom": "Step-up",
+        "series": 3,
+        "reps": "5 / jambe",
+        "charge": "Caisse 40-50 cm, saut en haut",
+        "repos": "75s",
+        "notes": "Montée explosive, saut à la fin du mouvement, réception en douceur.",
+        "biblio": "Step-up"
+      },
+      {
+        "nom": "Squat bulgare",
+        "series": 3,
+        "reps": "6 / jambe",
+        "charge": "Haltères modérés (RPE 7)",
+        "repos": "90s",
+        "notes": "Descente contrôlée, poussée rapide à la montée.",
+        "biblio": "Squat bulgare",
+        "blocNom": "Force unilatérale"
+      }
+    ]
+  },
+  {
+    "id": "hb_puiss_bas",
+    "nom": "HB Puissance — Bas du corps (force-vitesse)",
+    "categorie": "Handball — Puissance",
+    "couleur": "#FFA420",
+    "equipement": "salle",
+    "description": "Puissance des jambes pour l'impulsion, les relances et les duels. Explosif d'abord (frais), force lourde ensuite.",
+    "protocole": "Durée ~60 min. Sur les mouvements explosifs, l'objectif est la VITESSE de la barre (intention max), pas la fatigue. 1 fois par semaine, 48 h avant un match minimum.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Power Clean",
+        "series": 4,
+        "reps": "3",
+        "charge": "40-60 % 1RM, vitesse max",
+        "repos": "2'",
+        "notes": "Tirage explosif, réception rapide. Arrêter si la technique se dégrade.",
+        "biblio": "Power Clean",
+        "blocNom": "Puissance (frais)"
+      },
+      {
+        "nom": "Jump Squat",
+        "series": 4,
+        "reps": "4",
+        "charge": "Barre légère (20-30 % 1RM) ou poids de corps",
+        "repos": "2'",
+        "notes": "Impulsion maximale, réception amortie.",
+        "biblio": "Jump Squat"
+      },
+      {
+        "nom": "Kettlebell Swing",
+        "series": 3,
+        "reps": "8",
+        "charge": "Kettlebell lourd",
+        "repos": "90s",
+        "notes": "Extension de hanche explosive, bras relâchés.",
+        "biblio": "Kettlebell Swing"
+      },
+      {
+        "nom": "Back Squat",
+        "series": 4,
+        "reps": "3",
+        "charge": "85 % 1RM (RPE 8)",
+        "repos": "3'",
+        "notes": "Force lourde en peu de répétitions : descente contrôlée, remontée explosive. 2 reps en réserve.",
+        "biblio": "Back Squat",
+        "blocNom": "Force"
+      },
+      {
+        "nom": "Hip Thrust unilatéral",
+        "series": 3,
+        "reps": "6 / jambe",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "90s",
+        "notes": "Poussée explosive, tenir 1 s en haut. Comparer G/D.",
+        "biblio": "Hip Thrust unilatéral"
+      },
+      {
+        "nom": "Nordic Curl",
+        "series": 3,
+        "reps": "4",
+        "charge": "Poids de corps (assisté si besoin)",
+        "repos": "90s",
+        "notes": "Prévention ischios : descente la plus lente possible.",
+        "biblio": "Nordic Curl",
+        "blocNom": "Prévention"
+      }
+    ]
+  },
+  {
+    "id": "hb_contraste_bas",
+    "nom": "HB Puissance — Contraste lourd/léger (jambes)",
+    "categorie": "Handball — Puissance",
+    "couleur": "#FFA420",
+    "equipement": "salle",
+    "description": "Méthode du contraste : une série lourde suivie d'un saut explosif. Efficace et rapide pour un joueur déjà initié à la force.",
+    "protocole": "Durée ~50 min. Binôme = série lourde puis saut après 30 à 60 s, puis récupération longue (3'). Réservé aux joueurs avec une base de force solide. 1 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 8,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Back Squat",
+        "series": 4,
+        "reps": "3",
+        "charge": "85-90 % 1RM (RPE 8)",
+        "repos": "30-60 s puis saut",
+        "notes": "Série lourde : 3 reps, 1-2 en réserve. Enchaîner avec le Box Jump.",
+        "biblio": "Back Squat",
+        "blocNom": "Binôme 1 — jambes"
+      },
+      {
+        "nom": "Box Jump",
+        "series": 4,
+        "reps": "3",
+        "charge": "Caisse 50 cm",
+        "repos": "3'",
+        "notes": "Saut explosif juste après le Back Squat. Repos long après le binôme.",
+        "biblio": "Box Jump"
+      },
+      {
+        "nom": "Hip Thrust unilatéral",
+        "series": 3,
+        "reps": "5 / jambe",
+        "charge": "Lourd (RPE 8)",
+        "repos": "30-60 s puis saut",
+        "notes": "Série lourde unilatérale. Enchaîner avec les Lateral Bound.",
+        "biblio": "Hip Thrust unilatéral",
+        "blocNom": "Binôme 2 — fessiers"
+      },
+      {
+        "nom": "Lateral Bound",
+        "series": 3,
+        "reps": "4 / côté",
+        "charge": "Poids de corps",
+        "repos": "2'30",
+        "notes": "Bonds explosifs après le Hip Thrust.",
+        "biblio": "Lateral Bound"
+      },
+      {
+        "nom": "Pallof Press",
+        "series": 3,
+        "reps": "8 / côté",
+        "charge": "Élastique moyen",
+        "repos": "45s",
+        "notes": "Gainage anti-rotation, transfert jambes → tronc.",
+        "biblio": "Pallof Press",
+        "blocNom": "Gainage"
+      }
+    ]
+  },
+  {
+    "id": "hb_puiss_haut",
+    "nom": "HB Puissance — Haut du corps & tir",
+    "categorie": "Handball — Puissance",
+    "couleur": "#FF6B9D",
+    "equipement": "mixte",
+    "description": "Puissance de tir et de passe : transfert hanche → tronc → épaule, avec prévention de l'épaule de lancer.",
+    "protocole": "Durée ~45 min. Lancers à intention maximale, repos complets. Prévention épaule en fin de séance. 1 à 2 fois par semaine, à distance des gros volumes de tirs.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Rotation externe (bande)",
+        "series": 2,
+        "reps": "15",
+        "charge": "Bande légère",
+        "repos": "30s",
+        "notes": "Activation de la coiffe en premier, épaule pas fatiguée.",
+        "biblio": "Rotation externe (bande)",
+        "blocNom": "Activation épaule"
+      },
+      {
+        "nom": "Med Ball Throw",
+        "series": 4,
+        "reps": "5 / côté",
+        "charge": "Médecine-ball 3 kg",
+        "repos": "90s",
+        "notes": "Lancer rotationnel contre un mur : puissance qui part des hanches, comme le geste de tir.",
+        "biblio": "Med Ball Throw",
+        "blocNom": "Puissance"
+      },
+      {
+        "nom": "Medicine Ball Slam",
+        "series": 3,
+        "reps": "6",
+        "charge": "Médecine-ball 4-6 kg",
+        "repos": "90s",
+        "notes": "Lancer au sol à intention maximale.",
+        "biblio": "Medicine Ball Slam"
+      },
+      {
+        "nom": "Plyometric Push-up",
+        "series": 3,
+        "reps": "5",
+        "charge": "Poids de corps",
+        "repos": "90s",
+        "notes": "Pompe claquée explosive, réception souple des coudes.",
+        "biblio": "Plyometric Push-up"
+      },
+      {
+        "nom": "Développé couché",
+        "series": 4,
+        "reps": "3",
+        "charge": "50-60 % 1RM, vitesse max",
+        "repos": "2'",
+        "notes": "Poussée explosive : intention de vitesse maximale.",
+        "biblio": "Développé couché",
+        "blocNom": "Force-vitesse"
+      },
+      {
+        "nom": "Pull-up / Traction",
+        "series": 3,
+        "reps": "5",
+        "charge": "Poids de corps ou lest léger",
+        "repos": "2'",
+        "notes": "Équilibre poussée/tirage, santé de l'épaule.",
+        "biblio": "Pull-up / Traction"
+      },
+      {
+        "nom": "Face Pull",
+        "series": 3,
+        "reps": "15",
+        "charge": "Poulie, charge légère",
+        "repos": "45s",
+        "notes": "Coiffe postérieure : prévention à haut volume de tirs.",
+        "biblio": "Face Pull",
+        "blocNom": "Prévention"
+      }
+    ]
+  },
+  {
+    "id": "hb_vitesse_ligne",
+    "nom": "HB Vitesse — Accélération & vitesse max",
+    "categorie": "Handball — Vitesse",
+    "couleur": "#00D2D3",
+    "equipement": "poids_corps",
+    "description": "Sprints en ligne droite : départs arrêtés (relances, contre-attaques) puis vitesse lancée. Récupération COMPLÈTE entre sprints.",
+    "protocole": "Durée ~45 min. Toujours frais, après un bon échauffement. Intention max à chaque sprint : si la vitesse chute, on arrête. 1 à 2 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 8,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Corde à sauter",
+        "series": 2,
+        "reps": "30 s",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Activation des chevilles avant les sprints.",
+        "biblio": "Jump Rope",
+        "blocNom": "Préparation"
+      },
+      {
+        "nom": "Éducatifs de course",
+        "series": 3,
+        "reps": "20 m",
+        "charge": "Poids de corps",
+        "repos": "45s",
+        "notes": "Montées de genoux, talons-fesses, foulées bondissantes."
+      },
+      {
+        "nom": "Sprint départ arrêté 10 m",
+        "series": 6,
+        "reps": "1 × 10 m",
+        "charge": "Maximum",
+        "repos": "1'30",
+        "notes": "Départ debout ou en fente, 3-4 premiers appuis puissants. Chronométrer si possible.",
+        "blocNom": "Accélération"
+      },
+      {
+        "nom": "Sprint départ arrêté 20 m",
+        "series": 4,
+        "reps": "1 × 20 m",
+        "charge": "Maximum",
+        "repos": "2'",
+        "notes": "Buste incliné sur les 10 premiers mètres."
+      },
+      {
+        "nom": "Sprint lancé 30 m (20 m d'élan)",
+        "series": 3,
+        "reps": "1 × 30 m",
+        "charge": "Maximum",
+        "repos": "3'",
+        "notes": "Montée progressive sur 20 m puis vitesse max sur 30 m. Épaules relâchées.",
+        "blocNom": "Vitesse max"
+      },
+      {
+        "nom": "Gainage planche entre sprints",
+        "series": 3,
+        "reps": "30 s",
+        "charge": "Poids de corps",
+        "repos": "60s",
+        "notes": "Garder la ceinture abdominale active.",
+        "biblio": "Planche frontale"
+      }
+    ]
+  },
+  {
+    "id": "hb_vitesse_appuis",
+    "nom": "HB Vitesse — Appuis & changements de direction",
+    "categorie": "Handball — Vitesse",
+    "couleur": "#00D2D3",
+    "equipement": "poids_corps",
+    "description": "Agilité spécifique handball : défense, replis, démarquages. Départs réactifs, freinages et relances sur courtes distances.",
+    "protocole": "Durée ~40 min. Courtes distances, repos complets. Terminer par un travail de réaction (signal visuel ou sonore).",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Corde à sauter",
+        "series": 2,
+        "reps": "30 s",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Rebonds rapides.",
+        "biblio": "Jump Rope",
+        "blocNom": "Préparation"
+      },
+      {
+        "nom": "Lateral Bound",
+        "series": 3,
+        "reps": "4 / côté",
+        "charge": "Poids de corps",
+        "repos": "60s",
+        "notes": "Appuis latéraux explosifs, réception tenue.",
+        "biblio": "Lateral Bound"
+      },
+      {
+        "nom": "Pas chassés vitesse max 5 m",
+        "series": 4,
+        "reps": "4 allers-retours",
+        "charge": "Maximum",
+        "repos": "1'30",
+        "notes": "Déplacements défensifs : appuis bas, sans croiser les jambes.",
+        "blocNom": "Appuis"
+      },
+      {
+        "nom": "Test 5-10-5 (pro agility)",
+        "series": 5,
+        "reps": "1",
+        "charge": "Maximum",
+        "repos": "2'",
+        "notes": "Départ au centre, toucher les lignes à 5 m de chaque côté. Chronométrer et comparer."
+      },
+      {
+        "nom": "Course-freinage-relance",
+        "series": 4,
+        "reps": "2 × 10 m",
+        "charge": "Maximum",
+        "repos": "1'30",
+        "notes": "Sprint 10 m, freinage en 3 appuis, relance immédiate dans l'autre sens."
+      },
+      {
+        "nom": "Départs sur signal",
+        "series": 6,
+        "reps": "1 × 10 m",
+        "charge": "Maximum",
+        "repos": "1'30",
+        "notes": "Signal du coach (voix, main, ballon) puis sprint dans la direction indiquée.",
+        "blocNom": "Réaction"
+      }
+    ]
+  },
+  {
+    "id": "hb_mix_vitesse_force",
+    "nom": "HB Mixte — Vitesse + Plyo + Force (séance complète)",
+    "categorie": "Handball — Puissance",
+    "couleur": "#FF7A00",
+    "equipement": "salle",
+    "description": "Enchaîne les trois qualités : vitesse (frais), plyo, puis force. Idéale quand le planning ne permet qu'une séance par semaine.",
+    "protocole": "Durée ~75 min. Le plus rapide d'abord, le plus lourd ensuite. Si match < 48 h : retirer le bloc Force.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Sprint départ arrêté 10 m",
+        "series": 5,
+        "reps": "1 × 10 m",
+        "charge": "Maximum",
+        "repos": "1'30",
+        "notes": "Intention maximale, frais.",
+        "blocNom": "Vitesse (frais)"
+      },
+      {
+        "nom": "Box Jump",
+        "series": 4,
+        "reps": "4",
+        "charge": "Caisse 40-60 cm",
+        "repos": "90s",
+        "notes": "Saut explosif, réception souple.",
+        "biblio": "Box Jump",
+        "blocNom": "Plyo"
+      },
+      {
+        "nom": "Med Ball Throw",
+        "series": 3,
+        "reps": "5 / côté",
+        "charge": "Médecine-ball 3 kg",
+        "repos": "90s",
+        "notes": "Lancer rotationnel à intention maximale.",
+        "biblio": "Med Ball Throw"
+      },
+      {
+        "nom": "Back Squat",
+        "series": 4,
+        "reps": "3",
+        "charge": "85 % 1RM (RPE 8)",
+        "repos": "3'",
+        "notes": "Force lourde, 2 reps en réserve.",
+        "biblio": "Back Squat",
+        "blocNom": "Force"
+      },
+      {
+        "nom": "Développé couché",
+        "series": 3,
+        "reps": "4",
+        "charge": "80 % 1RM (RPE 8)",
+        "repos": "2'30",
+        "notes": "Force haut du corps, 2 reps en réserve.",
+        "biblio": "Développé couché"
+      },
+      {
+        "nom": "Pull-up / Traction",
+        "series": 3,
+        "reps": "5",
+        "charge": "Poids de corps ou lest",
+        "repos": "2'",
+        "notes": "Tirage vertical.",
+        "biblio": "Pull-up / Traction"
+      },
+      {
+        "nom": "Pallof Press",
+        "series": 3,
+        "reps": "8 / côté",
+        "charge": "Élastique moyen",
+        "repos": "45s",
+        "notes": "Gainage anti-rotation en fin de séance.",
+        "biblio": "Pallof Press",
+        "blocNom": "Gainage"
+      }
+    ]
+  },
+  {
+    "id": "hb_match_court",
+    "nom": "HB Entretien — Semaine de match (30 min)",
+    "categorie": "Handball — Puissance",
+    "couleur": "#4CAF50",
+    "equipement": "mixte",
+    "description": "Séance courte de maintien de la vitesse et de la puissance en période de compétition : peu de volume, zéro fatigue résiduelle.",
+    "protocole": "Durée ~30 min. À placer à J-2 ou J-3 du match. Volume volontairement bas (RPE 5).",
+    "isTemplate": true,
+    "rpeCible": 5,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Corde à sauter",
+        "series": 2,
+        "reps": "30 s",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Activation légère.",
+        "biblio": "Jump Rope",
+        "blocNom": "Activation"
+      },
+      {
+        "nom": "Sprint départ arrêté 10 m",
+        "series": 3,
+        "reps": "1 × 10 m",
+        "charge": "85-90 % de la vitesse max",
+        "repos": "1'30",
+        "notes": "Accélération fluide, sans forcer.",
+        "blocNom": "Vitesse"
+      },
+      {
+        "nom": "Jump Squat",
+        "series": 3,
+        "reps": "3",
+        "charge": "Poids de corps",
+        "repos": "90s",
+        "notes": "Sauts verticaux explosifs, réception amortie.",
+        "biblio": "Jump Squat",
+        "blocNom": "Puissance"
+      },
+      {
+        "nom": "Med Ball Throw",
+        "series": 3,
+        "reps": "4 / côté",
+        "charge": "Médecine-ball 2-3 kg",
+        "repos": "75s",
+        "notes": "Lancers rapides, geste fluide.",
+        "biblio": "Med Ball Throw"
+      },
+      {
+        "nom": "Nordic Curl",
+        "series": 2,
+        "reps": "4",
+        "charge": "Poids de corps",
+        "repos": "90s",
+        "notes": "Entretien ischios.",
+        "biblio": "Nordic Curl",
+        "blocNom": "Prévention"
+      }
+    ]
+  },
+  {
+    "id": "hb_reprise_maladie",
+    "nom": "Reprise après maladie — Hybride corps entier",
+    "categorie": "Reprise / Santé",
+    "couleur": "#4CAF50",
+    "equipement": "salle",
+    "description": "Séance de reprise douce après une maladie ou une baisse de forme (système immunitaire fragile) : sollicite tout le corps en circuit léger, sans aller chercher la fatigue. Plus complète qu'un simple footing.",
+    "protocole": "Durée ~40 min. À démarrer seulement après 24-48 h sans fièvre ni symptômes généraux, et avec l'accord du médecin si la maladie était sérieuse (fièvre, symptômes respiratoires ou cardiaques : avis médical avant toute reprise). Intensité volontairement basse : RPE 4 maximum, on doit pouvoir parler tout du long. Si fatigue anormale, palpitations, essoufflement ou symptômes qui reviennent : on arrête et on lève le pied. 2e tour du circuit uniquement si la forme est bonne. Reprendre ensuite sur 1 à 2 semaines : 1) cette séance, 2) même séance en 3 tours, 3) retour à la séance normale à 70 % du volume.",
+    "isTemplate": true,
+    "rpeCible": 4,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Rameur ou vélo facile",
+        "series": 1,
+        "reps": "8 min",
+        "charge": "Allure facile (RPE 3)",
+        "repos": "—",
+        "notes": "Montée en température progressive, respiration nasale possible. On doit pouvoir parler.",
+        "blocNom": "Échauffement doux"
+      },
+      {
+        "nom": "Wall Angel",
+        "series": 2,
+        "reps": "8",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Mobilité des épaules et du haut du dos, mouvement lent.",
+        "biblio": "Wall Angel"
+      },
+      {
+        "nom": "Goblet Squat",
+        "series": 2,
+        "reps": "10",
+        "charge": "Léger (RPE 4, 5-8 kg)",
+        "repos": "45s",
+        "notes": "Descente contrôlée, remontée tranquille. Charge très légère.",
+        "biblio": "Goblet Squat",
+        "blocNom": "Circuit corps entier (2 tours)"
+      },
+      {
+        "nom": "Pompes",
+        "series": 2,
+        "reps": "8",
+        "charge": "Poids de corps (sur les genoux ou mains surélevées si besoin)",
+        "repos": "45s",
+        "notes": "Amplitude complète, rythme calme. Arrêter à 3 reps en réserve.",
+        "biblio": "Pompes"
+      },
+      {
+        "nom": "Rowing haltère unilatéral",
+        "series": 2,
+        "reps": "10 / côté",
+        "charge": "Léger (RPE 4)",
+        "repos": "45s",
+        "notes": "Tirage fluide, dos plat, pas de recherche de charge.",
+        "biblio": "Rowing haltère unilatéral"
+      },
+      {
+        "nom": "Romanian Deadlift (RDL)",
+        "series": 2,
+        "reps": "10",
+        "charge": "Léger (RPE 4)",
+        "repos": "45s",
+        "notes": "Charnière de hanche, dos neutre. Chaîne postérieure en douceur.",
+        "biblio": "Romanian Deadlift (RDL)"
+      },
+      {
+        "nom": "Fente arrière",
+        "series": 2,
+        "reps": "8 / jambe",
+        "charge": "Poids de corps",
+        "repos": "45s",
+        "notes": "Pas contrôlé, équilibre stable.",
+        "biblio": "Fente arrière"
+      },
+      {
+        "nom": "Dead Bug",
+        "series": 2,
+        "reps": "8 / côté",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Gainage en douceur, respiration continue.",
+        "biblio": "Dead Bug"
+      },
+      {
+        "nom": "Farmer's Walk",
+        "series": 2,
+        "reps": "30 m",
+        "charge": "Léger (RPE 4)",
+        "repos": "45s",
+        "notes": "Marche tranquille avec haltères, épaules basses. Reprise de la tonicité globale.",
+        "biblio": "Farmer's Walk"
+      },
+      {
+        "nom": "Rameur ou vélo très facile + respiration",
+        "series": 1,
+        "reps": "5 min",
+        "charge": "Très facile (RPE 2)",
+        "repos": "—",
+        "notes": "Retour au calme : fréquence cardiaque qui redescend, 5 respirations lentes pour finir.",
+        "blocNom": "Retour au calme"
+      }
+    ]
+  },
+  {
+    "id": "hb_epaule_stabilite",
+    "nom": "HB Épaule — Stabilité & contrôle scapulaire",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Stabilité de l'épaule de lancer : coiffe des rotateurs, serratus et contrôle de l'omoplate. À faire régulièrement pour tenir la saison de tirs.",
+    "protocole": "Durée ~35 min. Charges légères, qualité du geste avant tout : on s'arrête avant que l'épaule compense. 2 à 3 fois par semaine, idéalement après la séance principale ou un jour sans tirs intensifs.",
+    "isTemplate": true,
+    "rpeCible": 5,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Wall Angel",
+        "series": 2,
+        "reps": "8",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Dos, bassin et poignets au mur, glisser les bras lentement. Mobilité thoracique et épaules.",
+        "biblio": "Wall Angel",
+        "blocNom": "Activation"
+      },
+      {
+        "nom": "Rotation externe (bande)",
+        "series": 3,
+        "reps": "12 / côté",
+        "charge": "Bande légère, coude collé",
+        "repos": "30s",
+        "notes": "Rotation lente, 2 s au retour. Coiffe postérieure (infra-épineux).",
+        "biblio": "Rotation externe (bande)",
+        "blocNom": "Coiffe des rotateurs"
+      },
+      {
+        "nom": "Cuban Press",
+        "series": 3,
+        "reps": "8",
+        "charge": "Haltères très légers (1-3 kg)",
+        "repos": "45s",
+        "notes": "Tirage coudes hauts, rotation externe, puis poussée au-dessus de la tête. Contrôle total.",
+        "biblio": "Cuban Press"
+      },
+      {
+        "nom": "Planche + touche d'épaule",
+        "series": 3,
+        "reps": "10 / côté",
+        "charge": "Poids de corps",
+        "repos": "45s",
+        "notes": "Bassin immobile pendant la touche d'épaule. Stabilité scapulaire en appui.",
+        "biblio": "Planche + touche d'épaule",
+        "blocNom": "Stabilité scapulaire"
+      },
+      {
+        "nom": "Face Pull",
+        "series": 3,
+        "reps": "15",
+        "charge": "Poulie, charge légère",
+        "repos": "45s",
+        "notes": "Tirage vers le visage, coudes hauts, rotation externe en fin de mouvement.",
+        "biblio": "Face Pull"
+      },
+      {
+        "nom": "Oiseau (Rear Delt Fly)",
+        "series": 3,
+        "reps": "12",
+        "charge": "Haltères légers",
+        "repos": "45s",
+        "notes": "Buste penché, serrer les omoplates sans hausser les épaules.",
+        "biblio": "Oiseau (Rear Delt Fly)"
+      }
+    ]
+  },
+  {
+    "id": "hb_epaule_isometrie",
+    "nom": "HB Épaule — Isométrie bras armé (angles de tir)",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "mixte",
+    "description": "Isométries debout, bras loin du corps, dans les angles réellement utilisés au tir : bras armé (abduction + rotation externe), flexion / extension d'épaule et sonnette latérale de la scapula. Crée de la force là où le joueur en a besoin.",
+    "protocole": "Durée ~30 min. Tout se fait DEBOUT avec bande élastique ou poulie, bras loin du corps. Montée de tension progressive sur 2 s, maintien sans compenser (épaule basse, cage thoracique stable, pas de cambrure), puis relâchement lent. Intensité 6-7/10, jamais maximale. Travailler les 2 bras. Si douleur vive dans l'épaule, arrêter l'exercice. Idéal en semaine de match et en retour de gêne légère (avec l'accord du kiné).",
+    "isTemplate": true,
+    "rpeCible": 5,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Isométrie rotation externe bras armé (90/90)",
+        "series": 3,
+        "reps": "20-30 s / bras",
+        "charge": "Bande ancrée à hauteur d'épaule",
+        "repos": "45s",
+        "notes": "Debout, bras en abduction 90° et coude à 90° (position armée). Tenir l'avant-bras vertical contre la traction de la bande, sans laisser le coude descendre.",
+        "blocNom": "Bras armé"
+      },
+      {
+        "nom": "Isométrie rotation interne bras armé (90/90)",
+        "series": 3,
+        "reps": "20-30 s / bras",
+        "charge": "Bande ancrée à hauteur d'épaule",
+        "repos": "45s",
+        "notes": "Même position armée, face à l'ancrage inversé : pousser contre la bande comme dans l'accélération du tir. Coude haut, tronc immobile."
+      },
+      {
+        "nom": "Isométrie bras armé en 3 angles (rotation externe)",
+        "series": 2,
+        "reps": "3 × 10 s / bras",
+        "charge": "Bande ancrée, angles 60° / 90° / 120° d'abduction",
+        "repos": "45s",
+        "notes": "Même exercice en changeant l'élévation du coude (bas, épaule, haut) : tenir 10 s à chaque angle. Renforce toute la plage utilisée au tir."
+      },
+      {
+        "nom": "Isométrie flexion d'épaule bras tendu (bande / poulie)",
+        "series": 3,
+        "reps": "20 s / bras",
+        "charge": "Poulie basse ou bande ancrée derrière",
+        "repos": "45s",
+        "notes": "Debout, bras tendu devant à 90° (puis 120° à la 3e série) : résister à la traction qui ramène le bras vers l'arrière. Épaule basse, gainage actif.",
+        "blocNom": "Flexion / extension"
+      },
+      {
+        "nom": "Isométrie extension d'épaule bras tendu (bande / poulie)",
+        "series": 3,
+        "reps": "20 s / bras",
+        "charge": "Poulie haute ou bande ancrée devant",
+        "repos": "45s",
+        "notes": "Bras tendu à 90° ou plus haut, tirer contre la résistance comme pour ramener le bras en arrière. Dos plat, omoplate basse."
+      },
+      {
+        "nom": "Sonnette latérale de scapula debout (bande)",
+        "series": 3,
+        "reps": "15 s tenu + 6 reps lentes / bras",
+        "charge": "Bande légère sous le pied ou ancrée bas",
+        "repos": "45s",
+        "notes": "Bras en élévation latérale dans le plan de l'omoplate (~120-150°) : monter lentement, tenir en haut 15 s en gardant l'omoplate qui tourne vers le haut sans hausser l'épaule.",
+        "blocNom": "Scapula"
+      },
+      {
+        "nom": "Maintien ballon au mur bras armé (stabilité dynamique)",
+        "series": 3,
+        "reps": "20 s / bras",
+        "charge": "Médecine-ball léger (1-2 kg) ou ballon de handball",
+        "repos": "45s",
+        "notes": "Debout face au mur, bras en position armée, ballon plaqué au mur à hauteur d'épaule : maintenir la pression et faire de petits cercles lents. Stabilité de l'épaule loin du corps."
+      }
+    ]
+  },
+  {
+    "id": "hb_rhomboides_trapezes",
+    "nom": "HB Haut du dos — Rhomboïdes & trapèzes",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Renforce tout l'arrière de l'épaule : rhomboïdes, trapèzes moyen et inférieur, deltoïde postérieur. Équilibre le travail de poussée et de tir.",
+    "protocole": "Durée ~40 min. Marquer une pause de 1 s en serrant les omoplates sur chaque rep. Ne pas hausser les épaules (sauf sur les Shrugs). 2 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 6,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Face Pull trapèze",
+        "series": 4,
+        "reps": "12",
+        "charge": "Poulie, charge modérée",
+        "repos": "60s",
+        "notes": "Tirage haut vers le visage, serrer les omoplates 1 s.",
+        "biblio": "Face Pull trapèze",
+        "blocNom": "Trapèzes & deltoïde postérieur"
+      },
+      {
+        "nom": "Rowing câble assis",
+        "series": 4,
+        "reps": "10",
+        "charge": "Charge modérée (RPE 6-7)",
+        "repos": "75s",
+        "notes": "Pause 1 s coudes en arrière, omoplates serrées. Buste fixe.",
+        "biblio": "Rowing câble assis",
+        "blocNom": "Rhomboïdes"
+      },
+      {
+        "nom": "Rowing inversé (traction australienne)",
+        "series": 3,
+        "reps": "8",
+        "charge": "Poids de corps",
+        "repos": "75s",
+        "notes": "Corps gainé, poitrine vers la barre, omoplates qui se rapprochent.",
+        "biblio": "Rowing inversé (traction australienne)"
+      },
+      {
+        "nom": "Oiseau (Rear Delt Fly)",
+        "series": 3,
+        "reps": "12",
+        "charge": "Haltères légers",
+        "repos": "45s",
+        "notes": "Mouvement lent, ne pas balancer le buste.",
+        "biblio": "Oiseau (Rear Delt Fly)"
+      },
+      {
+        "nom": "Shrugs",
+        "series": 3,
+        "reps": "10",
+        "charge": "Haltères ou barre, charge modérée",
+        "repos": "60s",
+        "notes": "Hausser sans rotation, tenir 2 s en haut. Trapèze supérieur.",
+        "biblio": "Shrugs"
+      },
+      {
+        "nom": "Y-T-W allongé (haltères très légers)",
+        "series": 2,
+        "reps": "8 par lettre",
+        "charge": "1-2 kg ou poids de corps",
+        "repos": "30s",
+        "notes": "Allongé sur le ventre : Y (trapèze inférieur), T (rhomboïdes), W (coiffe).",
+        "blocNom": "Trapèzes inférieurs"
+      }
+    ]
+  },
+  {
+    "id": "hb_epaule_activation",
+    "nom": "HB Épaule — Activation avant séance ou match (15 min)",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "mixte",
+    "description": "Routine courte pour réveiller l'épaule avant l'échauffement ballon ou une séance de haut du corps. Gain de temps pour tout le groupe.",
+    "protocole": "Durée ~15 min. À faire avant l'échauffement avec ballon. 1 tour, mouvements fluides, jamais jusqu'à la fatigue.",
+    "isTemplate": true,
+    "rpeCible": 3,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Wall Angel",
+        "series": 1,
+        "reps": "8",
+        "charge": "Poids de corps",
+        "repos": "—",
+        "notes": "Réveil de la mobilité thoracique et des épaules.",
+        "biblio": "Wall Angel",
+        "blocNom": "Activation"
+      },
+      {
+        "nom": "Rotation externe (bande)",
+        "series": 2,
+        "reps": "12 / côté",
+        "charge": "Bande légère",
+        "repos": "20s",
+        "notes": "Réveil de la coiffe, coude collé.",
+        "biblio": "Rotation externe (bande)"
+      },
+      {
+        "nom": "Cuban Press",
+        "series": 2,
+        "reps": "6",
+        "charge": "Haltères très légers (1-2 kg)",
+        "repos": "20s",
+        "notes": "Mouvement lent et contrôlé.",
+        "biblio": "Cuban Press"
+      },
+      {
+        "nom": "Planche + touche d'épaule",
+        "series": 1,
+        "reps": "8 / côté",
+        "charge": "Poids de corps",
+        "repos": "—",
+        "notes": "Stabilité scapulaire en appui.",
+        "biblio": "Planche + touche d'épaule"
+      },
+      {
+        "nom": "Face Pull",
+        "series": 2,
+        "reps": "12",
+        "charge": "Bande ou poulie légère",
+        "repos": "20s",
+        "notes": "Serrer les omoplates en fin de mouvement.",
+        "biblio": "Face Pull"
+      }
+    ]
+  },
+  {
+    "id": "hb_haut_force",
+    "nom": "HB Haut du corps — Force (poussée + tirage)",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Force maximale du haut du corps en peu de répétitions : poussée, tirage vertical et horizontal. La base pour les duels, les tirs et la protection de l'épaule.",
+    "protocole": "Durée ~60 min. Charges lourdes, repos longs (2'30 à 3'). Toujours autant de tirage que de poussée. À placer à 48 h au moins d'un match. 1 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 8,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Développé couché",
+        "series": 5,
+        "reps": "3",
+        "charge": "85 % 1RM (RPE 8)",
+        "repos": "3'",
+        "notes": "Pieds ancrés, omoplates serrées, descente contrôlée. 2 reps en réserve.",
+        "biblio": "Développé couché",
+        "blocNom": "Poussée lourde"
+      },
+      {
+        "nom": "Pull-up / Traction",
+        "series": 5,
+        "reps": "3",
+        "charge": "Lesté si possible (RPE 8)",
+        "repos": "3'",
+        "notes": "Menton au-dessus de la barre, omoplates basses. Même volume que la poussée.",
+        "biblio": "Pull-up / Traction",
+        "blocNom": "Tirage lourd"
+      },
+      {
+        "nom": "Développé militaire",
+        "series": 4,
+        "reps": "4",
+        "charge": "80 % 1RM (RPE 8)",
+        "repos": "2'30",
+        "notes": "Gainage serré, barre dans l'axe.",
+        "biblio": "Développé militaire"
+      },
+      {
+        "nom": "Rowing barre",
+        "series": 4,
+        "reps": "5",
+        "charge": "Lourd (RPE 8)",
+        "repos": "2'30",
+        "notes": "Buste à 45°, tirage vers le bas du sternum.",
+        "biblio": "Rowing barre"
+      },
+      {
+        "nom": "Face Pull",
+        "series": 3,
+        "reps": "15",
+        "charge": "Poulie légère",
+        "repos": "45s",
+        "notes": "Prévention : coiffe postérieure en fin de séance.",
+        "biblio": "Face Pull",
+        "blocNom": "Prévention"
+      },
+      {
+        "nom": "Rotation externe (bande)",
+        "series": 3,
+        "reps": "12 / côté",
+        "charge": "Bande légère",
+        "repos": "30s",
+        "notes": "Santé de l'épaule de lancer.",
+        "biblio": "Rotation externe (bande)"
+      }
+    ]
+  },
+  {
+    "id": "hb_tirage_force_dos",
+    "nom": "HB Tirage lourd — Dos & traction",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Séance centrée sur le tirage : dos, traction et prise de force, pour protéger l'épaule et équilibrer les nombreuses poussées et tirs du handball.",
+    "protocole": "Durée ~50 min. Priorité au tirage lourd en peu de reps, repos complets. 1 fois par semaine, en complément d'une séance de poussée.",
+    "isTemplate": true,
+    "rpeCible": 8,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Pull-up / Traction",
+        "series": 5,
+        "reps": "3",
+        "charge": "Lesté (RPE 8)",
+        "repos": "3'",
+        "notes": "Traction stricte, amplitude complète.",
+        "biblio": "Pull-up / Traction",
+        "blocNom": "Tirage vertical"
+      },
+      {
+        "nom": "Rowing barre",
+        "series": 5,
+        "reps": "4",
+        "charge": "Lourd (RPE 8)",
+        "repos": "2'30",
+        "notes": "Buste fixe, tirer vers le bas du sternum.",
+        "biblio": "Rowing barre",
+        "blocNom": "Tirage horizontal"
+      },
+      {
+        "nom": "Chin-up (supination)",
+        "series": 3,
+        "reps": "5",
+        "charge": "Poids de corps ou lest",
+        "repos": "2'",
+        "notes": "Prise supination, biceps et dos sollicités.",
+        "biblio": "Chin-up (supination)"
+      },
+      {
+        "nom": "Rowing haltère unilatéral",
+        "series": 3,
+        "reps": "6 / côté",
+        "charge": "Lourd (RPE 8)",
+        "repos": "90s",
+        "notes": "Dos plat, pas de rotation du buste.",
+        "biblio": "Rowing haltère unilatéral"
+      },
+      {
+        "nom": "Farmer's Walk",
+        "series": 3,
+        "reps": "30 m",
+        "charge": "Très lourd",
+        "repos": "90s",
+        "notes": "Marche lourde : prise, trapèzes, gainage global.",
+        "biblio": "Farmer's Walk",
+        "blocNom": "Prise & stabilité"
+      },
+      {
+        "nom": "Face Pull trapèze",
+        "series": 3,
+        "reps": "15",
+        "charge": "Poulie légère",
+        "repos": "45s",
+        "notes": "Prévention : trapèzes et deltoïde postérieur.",
+        "biblio": "Face Pull trapèze",
+        "blocNom": "Prévention"
+      }
+    ]
+  },
+  {
+    "id": "hb_haut_volume",
+    "nom": "HB Haut du corps — Volume & tonus musculaire",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Travail en séries moyennes (8-12 reps) pour construire de la masse musculaire utile (épaules, pectoraux, dos, bras) hors période de forte charge.",
+    "protocole": "Durée ~55 min. Contrôle du mouvement, 1-2 reps en réserve. Idéal en début de saison ou en période d'accumulation. 1 à 2 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Développé incliné",
+        "series": 4,
+        "reps": "8",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "90s",
+        "notes": "Contrôle de la descente, poussée régulière.",
+        "biblio": "Développé incliné",
+        "blocNom": "Poussée"
+      },
+      {
+        "nom": "Lat Pulldown",
+        "series": 4,
+        "reps": "10",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "75s",
+        "notes": "Tirage vertical, poitrine vers la barre.",
+        "biblio": "Lat Pulldown",
+        "blocNom": "Tirage"
+      },
+      {
+        "nom": "Arnold Press",
+        "series": 3,
+        "reps": "10",
+        "charge": "Haltères modérés",
+        "repos": "75s",
+        "notes": "Rotation fluide, épaules basses au départ.",
+        "biblio": "Arnold Press"
+      },
+      {
+        "nom": "Rowing câble assis",
+        "series": 3,
+        "reps": "12",
+        "charge": "Charge modérée",
+        "repos": "60s",
+        "notes": "Serrer les omoplates, ne pas se balancer.",
+        "biblio": "Rowing câble assis"
+      },
+      {
+        "nom": "Élévations latérales",
+        "series": 3,
+        "reps": "15",
+        "charge": "Haltères légers",
+        "repos": "45s",
+        "notes": "Coudes légèrement fléchis, pas de balancement.",
+        "biblio": "Élévations latérales"
+      },
+      {
+        "nom": "Curl haltères",
+        "series": 2,
+        "reps": "12",
+        "charge": "Modéré",
+        "repos": "45s",
+        "notes": "Biceps, montée contrôlée.",
+        "biblio": "Curl haltères",
+        "blocNom": "Bras"
+      },
+      {
+        "nom": "Triceps poulie haute",
+        "series": 2,
+        "reps": "12",
+        "charge": "Modéré",
+        "repos": "45s",
+        "notes": "Triceps, extension complète.",
+        "biblio": "Triceps poulie haute"
+      }
+    ]
+  },
+  {
+    "id": "hb_push_puissance",
+    "nom": "HB Poussée — Puissance (développé explosif + triceps)",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Puissance de poussée pour les duels, les tirs en appui et la finition : mouvements explosifs d'abord (frais), triceps ensuite.",
+    "protocole": "Durée ~50 min. Sur les mouvements explosifs, l'intention est la VITESSE de la barre, pas la fatigue : on arrête la série dès que la vitesse chute. Repos complets. 1 fois par semaine, 48 h avant un match minimum.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Développé couché",
+        "series": 5,
+        "reps": "3",
+        "charge": "50-60 % 1RM, vitesse max",
+        "repos": "2'",
+        "notes": "Descente contrôlée, poussée la plus rapide possible, barre qui ne ralentit pas.",
+        "biblio": "Développé couché",
+        "blocNom": "Puissance (frais)"
+      },
+      {
+        "nom": "Plyometric Push-up",
+        "series": 4,
+        "reps": "5",
+        "charge": "Poids de corps",
+        "repos": "90s",
+        "notes": "Pompe claquée explosive, réception souple des coudes. Mains qui décollent du sol.",
+        "biblio": "Plyometric Push-up"
+      },
+      {
+        "nom": "Med Ball Throw",
+        "series": 4,
+        "reps": "5",
+        "charge": "Médecine-ball 3-4 kg, passe poitrine contre un mur",
+        "repos": "90s",
+        "notes": "Lancer de la poitrine avec extension complète des bras, rattraper et relancer.",
+        "biblio": "Med Ball Throw"
+      },
+      {
+        "nom": "Développé militaire",
+        "series": 4,
+        "reps": "3",
+        "charge": "60 % 1RM, explosif",
+        "repos": "2'",
+        "notes": "Poussée rapide au-dessus de la tête, gainage serré, verrouillage complet des bras.",
+        "biblio": "Développé militaire",
+        "blocNom": "Épaules"
+      },
+      {
+        "nom": "Dips triceps",
+        "series": 3,
+        "reps": "8",
+        "charge": "Poids de corps ou lest léger",
+        "repos": "90s",
+        "notes": "Descente contrôlée, poussée rapide, coudes proches du corps.",
+        "biblio": "Dips triceps",
+        "blocNom": "Triceps"
+      },
+      {
+        "nom": "Triceps poulie haute",
+        "series": 3,
+        "reps": "10",
+        "charge": "Charge modérée, extension rapide",
+        "repos": "60s",
+        "notes": "Extension explosive, retour lent sur 2 s.",
+        "biblio": "Triceps poulie haute"
+      }
+    ]
+  },
+  {
+    "id": "hb_push_plyo",
+    "nom": "HB Poussée — Plyométrie haut du corps",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Pliométrie du haut du corps : réactivité des bras, des épaules et des triceps pour les tirs, passes rapides et duels.",
+    "protocole": "Durée ~35 min. Toujours frais, réceptions amorties, qualité avant quantité. Arrêter si les coudes ou les poignets se dégradent. 1 à 2 fois par semaine, jamais après un gros volume de tirs.",
+    "isTemplate": true,
+    "rpeCible": 6,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Plyometric Push-up",
+        "series": 4,
+        "reps": "5",
+        "charge": "Poids de corps",
+        "repos": "90s",
+        "notes": "Pompe claquée, réception souple, coudes sous contrôle.",
+        "biblio": "Plyometric Push-up",
+        "blocNom": "Plyo pompes"
+      },
+      {
+        "nom": "Pompes explosives mains décalées",
+        "series": 3,
+        "reps": "4 / côté",
+        "charge": "Poids de corps, une main sur une balle ou une plateforme",
+        "repos": "90s",
+        "notes": "Pompe explosive en changeant de côté : réactivité et stabilité d'épaule."
+      },
+      {
+        "nom": "Medicine Ball Slam",
+        "series": 4,
+        "reps": "6",
+        "charge": "Médecine-ball 4-6 kg",
+        "repos": "75s",
+        "notes": "Lancer au sol à intention maximale, extension complète des bras.",
+        "biblio": "Medicine Ball Slam",
+        "blocNom": "Lancers"
+      },
+      {
+        "nom": "Med Ball Throw",
+        "series": 4,
+        "reps": "5",
+        "charge": "Médecine-ball 2-3 kg, passe poitrine contre un mur",
+        "repos": "75s",
+        "notes": "Rattraper et relancer immédiatement : réactivité des bras.",
+        "biblio": "Med Ball Throw"
+      },
+      {
+        "nom": "Lancer-rattrapé alterné",
+        "series": 3,
+        "reps": "8 / bras",
+        "charge": "Balle ou médecine-ball léger",
+        "repos": "60s",
+        "notes": "Lancer vertical et rattrapé rapide, épaule stable, contrôle du bras.",
+        "biblio": "Lancer-rattrapé alterné"
+      },
+      {
+        "nom": "Pompes diamant explosives",
+        "series": 3,
+        "reps": "6",
+        "charge": "Poids de corps",
+        "repos": "75s",
+        "notes": "Mains rapprochées, poussée explosive. Triceps.",
+        "blocNom": "Triceps"
+      }
+    ]
+  },
+  {
+    "id": "hb_push_vitesse",
+    "nom": "HB Poussée — Vitesse du bras (tir & lancer)",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Vitesse d'exécution du haut du corps : lancers, poussées rapides et triceps explosifs, pour accélérer le bras de tir.",
+    "protocole": "Durée ~40 min. Charges légères, intention de vitesse maximale, repos complets. Idéal en phase de compétition pour garder de la vitesse sans fatigue. 1 à 2 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Lancers de balle au mur, bras armé",
+        "series": 4,
+        "reps": "6 / bras",
+        "charge": "Balle de handball ou balle lestée 300-500 g",
+        "repos": "75s",
+        "notes": "Geste de tir complet contre un mur, bras armé, vitesse maximale. Récupérer entre les séries.",
+        "blocNom": "Vitesse du bras"
+      },
+      {
+        "nom": "Med Ball Throw",
+        "series": 4,
+        "reps": "5 / côté",
+        "charge": "Médecine-ball 2-3 kg",
+        "repos": "75s",
+        "notes": "Lancer rotationnel rapide contre un mur, puissance de hanche vers le bras.",
+        "biblio": "Med Ball Throw"
+      },
+      {
+        "nom": "Développé couché",
+        "series": 8,
+        "reps": "2",
+        "charge": "30-40 % 1RM, vitesse max",
+        "repos": "60s",
+        "notes": "Séries courtes à vitesse maximale. Si la vitesse baisse, on arrête.",
+        "biblio": "Développé couché",
+        "blocNom": "Poussée rapide"
+      },
+      {
+        "nom": "Pompes rapides sur 10 s",
+        "series": 4,
+        "reps": "10 s max",
+        "charge": "Poids de corps",
+        "repos": "90s",
+        "notes": "Un maximum de pompes propres en 10 s. Compter les reps et chercher à battre le score."
+      },
+      {
+        "nom": "Triceps poulie haute explosif",
+        "series": 3,
+        "reps": "8",
+        "charge": "Charge légère-modérée",
+        "repos": "60s",
+        "notes": "Extension la plus rapide possible, retour contrôlé.",
+        "biblio": "Triceps poulie haute",
+        "blocNom": "Triceps"
+      },
+      {
+        "nom": "Élévations latérales rapides",
+        "series": 3,
+        "reps": "12",
+        "charge": "Haltères légers",
+        "repos": "45s",
+        "notes": "Montée vive, descente contrôlée. Deltoïde moyen.",
+        "biblio": "Élévations latérales"
+      }
+    ]
+  },
+  {
+    "id": "hb_push_contraste",
+    "nom": "HB Poussée — Contraste lourd/léger (haut du corps)",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Méthode du contraste appliquée au haut du corps : une série lourde suivie d'un mouvement explosif léger, pour gagner en puissance de poussée.",
+    "protocole": "Durée ~50 min. Binôme = série lourde, 30 à 60 s de repos, mouvement explosif, puis récupération longue (3'). Pour les joueurs ayant une bonne base de force. 1 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 8,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Développé couché",
+        "series": 4,
+        "reps": "3",
+        "charge": "85 % 1RM (RPE 8)",
+        "repos": "30-60 s puis pompes claquées",
+        "notes": "Série lourde, 1-2 reps en réserve. Enchaîner avec la pompe claquée.",
+        "biblio": "Développé couché",
+        "blocNom": "Binôme 1 — poussée"
+      },
+      {
+        "nom": "Plyometric Push-up",
+        "series": 4,
+        "reps": "4",
+        "charge": "Poids de corps",
+        "repos": "3'",
+        "notes": "Pompe claquée explosive juste après le développé.",
+        "biblio": "Plyometric Push-up"
+      },
+      {
+        "nom": "Développé militaire",
+        "series": 3,
+        "reps": "3",
+        "charge": "85 % 1RM (RPE 8)",
+        "repos": "30-60 s puis lancer",
+        "notes": "Série lourde au-dessus de la tête. Enchaîner avec le lancer.",
+        "biblio": "Développé militaire",
+        "blocNom": "Binôme 2 — épaules"
+      },
+      {
+        "nom": "Medicine Ball Slam",
+        "series": 3,
+        "reps": "5",
+        "charge": "Médecine-ball 4-6 kg",
+        "repos": "3'",
+        "notes": "Lancer explosif juste après le développé militaire.",
+        "biblio": "Medicine Ball Slam"
+      },
+      {
+        "nom": "Dips triceps",
+        "series": 3,
+        "reps": "6",
+        "charge": "Lesté (RPE 8)",
+        "repos": "2'",
+        "notes": "Triceps lourd, descente contrôlée.",
+        "biblio": "Dips triceps",
+        "blocNom": "Triceps"
+      }
+    ]
+  },
+  {
+    "id": "hb_triceps_epaules_force",
+    "nom": "HB Triceps & épaules — Force (poussée lourde)",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Force maximale de poussée en peu de répétitions : épaules et triceps, pour les tirs en appui, les duels et la protection de l'articulation.",
+    "protocole": "Durée ~55 min. Charges lourdes, repos longs (2'30 à 3'), jamais jusqu'à l'échec. Associer à une séance de tirage dans la semaine. 1 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 8,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Développé militaire",
+        "series": 5,
+        "reps": "3",
+        "charge": "85 % 1RM (RPE 8)",
+        "repos": "3'",
+        "notes": "Gainage serré, barre dans l'axe, verrouillage complet.",
+        "biblio": "Développé militaire",
+        "blocNom": "Poussée lourde"
+      },
+      {
+        "nom": "Dips",
+        "series": 4,
+        "reps": "5",
+        "charge": "Lesté (RPE 8)",
+        "repos": "2'30",
+        "notes": "Descente contrôlée, poussée puissante. Épaules et triceps.",
+        "biblio": "Dips"
+      },
+      {
+        "nom": "Développé couché prise serrée",
+        "series": 4,
+        "reps": "4",
+        "charge": "80 % 1RM (RPE 8)",
+        "repos": "2'30",
+        "notes": "Mains à largeur d'épaules, coudes proches du corps. Triceps."
+      },
+      {
+        "nom": "Skull Crusher",
+        "series": 3,
+        "reps": "6",
+        "charge": "Charge lourde (RPE 8)",
+        "repos": "2'",
+        "notes": "Descente lente et contrôlée vers le front, coudes fixes.",
+        "biblio": "Skull Crusher",
+        "blocNom": "Triceps"
+      },
+      {
+        "nom": "Triceps overhead",
+        "series": 3,
+        "reps": "8",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "90s",
+        "notes": "Étirement complet du triceps à la descente.",
+        "biblio": "Triceps overhead"
+      },
+      {
+        "nom": "Élévations latérales",
+        "series": 3,
+        "reps": "12",
+        "charge": "Haltères légers",
+        "repos": "45s",
+        "notes": "Contrôle, pas de balancement. Deltoïde moyen.",
+        "biblio": "Élévations latérales",
+        "blocNom": "Épaules"
+      }
+    ]
+  },
+  {
+    "id": "hb_triceps_epaules_volume",
+    "nom": "HB Triceps & épaules — Volume & tonus",
+    "categorie": "Handball — Haut du corps",
+    "couleur": "#FF6B9D",
+    "equipement": "salle",
+    "description": "Travail en séries moyennes pour construire de la masse utile dans les épaules et les triceps, hors période de forte charge de tirs.",
+    "protocole": "Durée ~45 min. Contrôle du mouvement, 1-2 reps en réserve. 1 à 2 fois par semaine en période d'accumulation.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Arnold Press",
+        "series": 4,
+        "reps": "10",
+        "charge": "Haltères modérés",
+        "repos": "75s",
+        "notes": "Rotation fluide, épaules basses au départ.",
+        "biblio": "Arnold Press",
+        "blocNom": "Épaules"
+      },
+      {
+        "nom": "Dips triceps",
+        "series": 3,
+        "reps": "10",
+        "charge": "Poids de corps ou lest léger",
+        "repos": "75s",
+        "notes": "Coudes proches du corps, amplitude complète.",
+        "biblio": "Dips triceps",
+        "blocNom": "Triceps"
+      },
+      {
+        "nom": "Skull Crusher",
+        "series": 3,
+        "reps": "10",
+        "charge": "Charge modérée",
+        "repos": "60s",
+        "notes": "Descente lente, coudes fixes.",
+        "biblio": "Skull Crusher"
+      },
+      {
+        "nom": "Triceps overhead",
+        "series": 3,
+        "reps": "12",
+        "charge": "Charge modérée",
+        "repos": "60s",
+        "notes": "Étirement complet à la descente.",
+        "biblio": "Triceps overhead"
+      },
+      {
+        "nom": "Triceps poulie haute",
+        "series": 3,
+        "reps": "12",
+        "charge": "Charge modérée",
+        "repos": "45s",
+        "notes": "Extension complète, retour contrôlé.",
+        "biblio": "Triceps poulie haute"
+      },
+      {
+        "nom": "Élévations latérales",
+        "series": 3,
+        "reps": "15",
+        "charge": "Haltères légers",
+        "repos": "45s",
+        "notes": "Coudes légèrement fléchis, montée contrôlée.",
+        "biblio": "Élévations latérales"
+      },
+      {
+        "nom": "Pompes",
+        "series": 2,
+        "reps": "max - 2",
+        "charge": "Poids de corps",
+        "repos": "60s",
+        "notes": "Finisseur, 2 reps en réserve.",
+        "biblio": "Pompes"
+      }
+    ]
+  },
+  {
+    "id": "hb_hanche_extension_force",
+    "nom": "HB Hanche — Extension & fessiers (force)",
+    "categorie": "Handball — Hanche",
+    "couleur": "#E5484D",
+    "equipement": "salle",
+    "description": "Extension de hanche lourde : fessiers et ischios en peu de répétitions. La base des sauts, des appuis, des démarrages et de la protection du dos et des genoux.",
+    "protocole": "Durée ~55 min. Charges lourdes, repos longs (2'30 à 3'), pause 1 s en contraction en haut sur chaque rep de Hip Thrust. Bassin neutre, pas de cambrure lombaire. 1 à 2 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 8,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Hip Thrust",
+        "series": 5,
+        "reps": "5",
+        "charge": "85 % de ton max (RPE 8)",
+        "repos": "3'",
+        "notes": "Menton rentré, extension complète en haut avec pause 1 s, fessiers serrés. Pas de cambrure lombaire.",
+        "biblio": "Hip Thrust",
+        "blocNom": "Extension de hanche lourde"
+      },
+      {
+        "nom": "Romanian Deadlift (RDL)",
+        "series": 4,
+        "reps": "5",
+        "charge": "Lourd (RPE 8)",
+        "repos": "2'30",
+        "notes": "Charnière de hanche, dos neutre, barre proche des jambes. Étirement des ischios, remontée par les fessiers.",
+        "biblio": "Romanian Deadlift (RDL)"
+      },
+      {
+        "nom": "Hip Thrust unilatéral",
+        "series": 3,
+        "reps": "6 / jambe",
+        "charge": "Charge modérée-lourde (RPE 8)",
+        "repos": "90s",
+        "notes": "Bassin horizontal, pas de rotation. Corriger l'écart G/D.",
+        "biblio": "Hip Thrust unilatéral",
+        "blocNom": "Unilatéral"
+      },
+      {
+        "nom": "Hyperextension / Back Extension",
+        "series": 3,
+        "reps": "8",
+        "charge": "Lesté (RPE 7), fessiers dominants",
+        "repos": "90s",
+        "notes": "Pivoter autour des hanches, pas des lombaires. Fessiers serrés en haut.",
+        "biblio": "Hyperextension / Back Extension"
+      },
+      {
+        "nom": "Cable Kickback",
+        "series": 3,
+        "reps": "10 / jambe",
+        "charge": "Poulie, charge modérée",
+        "repos": "60s",
+        "notes": "Extension de hanche jambe tendue, sans cambrer. Contraction 1 s.",
+        "biblio": "Cable Kickback",
+        "blocNom": "Isolation fessiers"
+      },
+      {
+        "nom": "Nordic Curl",
+        "series": 3,
+        "reps": "4",
+        "charge": "Poids de corps (assisté si besoin)",
+        "repos": "90s",
+        "notes": "Prévention ischios : descente la plus lente possible.",
+        "biblio": "Nordic Curl",
+        "blocNom": "Prévention"
+      }
+    ]
+  },
+  {
+    "id": "hb_hanche_flexion",
+    "nom": "HB Hanche — Flexion & fléchisseurs (relance, sprint)",
+    "categorie": "Handball — Hanche",
+    "couleur": "#E5484D",
+    "equipement": "mixte",
+    "description": "Renforce les fléchisseurs de hanche (psoas, droit fémoral) pour la montée du genou à la course, la relance et l'impulsion du tir en suspension. Souvent oubliés, pourtant décisifs en vitesse.",
+    "protocole": "Durée ~40 min. Qualité d'abord : bassin neutre, tronc stable, pas de balancement. Les maintiens isométriques sont tenus à 90° de flexion. Travailler les deux jambes. À faire frais, idéalement 2 fois par semaine en phase de vitesse.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Hip 90/90",
+        "series": 2,
+        "reps": "6 / côté",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Mobilité de hanche en rotation interne/externe : prépare le travail de flexion.",
+        "biblio": "Hip 90/90",
+        "blocNom": "Mobilité"
+      },
+      {
+        "nom": "Montée de genou à la poulie basse",
+        "series": 4,
+        "reps": "8 / jambe",
+        "charge": "Poulie basse, sangle de cheville, charge modérée",
+        "repos": "60s",
+        "notes": "Debout, tronc droit, monter le genou à 90° et au-delà sans basculer le bassin. Descente contrôlée sur 2 s.",
+        "blocNom": "Flexion de hanche"
+      },
+      {
+        "nom": "Maintien isométrique genou à 90° (bande)",
+        "series": 3,
+        "reps": "20 s / jambe",
+        "charge": "Bande autour du pied, genou à 90° de flexion",
+        "repos": "45s",
+        "notes": "Debout sur une jambe, genou levé à 90° : tenir 20 s contre la traction de la bande. Bassin stable, tronc fixe."
+      },
+      {
+        "nom": "Marche genou haut résistée (bande)",
+        "series": 3,
+        "reps": "10 pas / jambe",
+        "charge": "Mini-band autour des pieds",
+        "repos": "60s",
+        "notes": "Marche lente en levant le genou à 90°, tronc droit, appui stable sur la jambe d'appui."
+      },
+      {
+        "nom": "Dead Bug",
+        "series": 3,
+        "reps": "8 / côté",
+        "charge": "Poids de corps",
+        "repos": "45s",
+        "notes": "Lombaires collées au sol, genou ramené à 90° : gainage + flexion de hanche.",
+        "biblio": "Dead Bug",
+        "blocNom": "Gainage"
+      },
+      {
+        "nom": "Squat bulgare",
+        "series": 3,
+        "reps": "6 / jambe",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "90s",
+        "notes": "Étirement du fléchisseur de la jambe arrière, poussée par la jambe avant.",
+        "biblio": "Squat bulgare",
+        "blocNom": "Force unilatérale"
+      },
+      {
+        "nom": "Éducatifs skipping explosifs",
+        "series": 3,
+        "reps": "15 m",
+        "charge": "Poids de corps",
+        "repos": "45s",
+        "notes": "Skipping rapide, genou haut, contact court. Transfert direct vers la course.",
+        "blocNom": "Transfert vitesse"
+      }
+    ]
+  },
+  {
+    "id": "hb_hanche_puissance",
+    "nom": "HB Hanche — Puissance d'extension (explosif)",
+    "categorie": "Handball — Hanche",
+    "couleur": "#E5484D",
+    "equipement": "salle",
+    "description": "Extension de hanche explosive : la source de puissance des sauts, des relances et des tirs. Mouvements balistiques d'abord, force ensuite.",
+    "protocole": "Durée ~50 min. À faire frais. Sur chaque mouvement explosif, l'intention est la vitesse maximale : on s'arrête dès que la vitesse baisse. Repos complets. 1 fois par semaine, 48 h avant un match minimum.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Kettlebell Swing",
+        "series": 5,
+        "reps": "8",
+        "charge": "Kettlebell lourd",
+        "repos": "90s",
+        "notes": "Extension de hanche explosive, bras relâchés, fessiers serrés en haut.",
+        "biblio": "Kettlebell Swing",
+        "blocNom": "Balistique"
+      },
+      {
+        "nom": "Hip Thrust",
+        "series": 4,
+        "reps": "4",
+        "charge": "50-60 % de ton max, vitesse max",
+        "repos": "2'",
+        "notes": "Montée la plus rapide possible, pause 1 s en haut, descente contrôlée.",
+        "biblio": "Hip Thrust"
+      },
+      {
+        "nom": "Jump Squat",
+        "series": 4,
+        "reps": "4",
+        "charge": "Barre légère (20-30 %) ou poids de corps",
+        "repos": "2'",
+        "notes": "Impulsion maximale par l'extension de hanche, réception amortie.",
+        "biblio": "Jump Squat"
+      },
+      {
+        "nom": "Broad Jump",
+        "series": 4,
+        "reps": "3",
+        "charge": "Poids de corps",
+        "repos": "90s",
+        "notes": "Saut en longueur départ arrêté, réception tenue 2 s. Mesurer.",
+        "biblio": "Broad Jump",
+        "blocNom": "Plyo horizontal"
+      },
+      {
+        "nom": "Box Jump",
+        "series": 3,
+        "reps": "4",
+        "charge": "Caisse 50 cm",
+        "repos": "90s",
+        "notes": "Extension explosive de hanche, réception souple sur la caisse.",
+        "biblio": "Box Jump"
+      },
+      {
+        "nom": "Lateral Bound",
+        "series": 3,
+        "reps": "4 / côté",
+        "charge": "Poids de corps",
+        "repos": "75s",
+        "notes": "Poussée latérale par la hanche, réception tenue.",
+        "biblio": "Lateral Bound"
+      }
+    ]
+  },
+  {
+    "id": "hb_hanche_complete",
+    "nom": "HB Hanche — Protocole complet (extension, flexion, stabilité)",
+    "categorie": "Handball — Hanche",
+    "couleur": "#E5484D",
+    "equipement": "salle",
+    "description": "Séance qui travaille toute la hanche dans tous les plans : extension (fessiers), flexion (fléchisseurs), abduction (fessier moyen) et stabilité. Idéale en une seule séance par semaine.",
+    "protocole": "Durée ~60 min. Du plus lourd au plus fin. Bassin stable et sans compensation lombaire. Adapter les charges au niveau de chaque joueur. 1 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Hip 90/90",
+        "series": 2,
+        "reps": "6 / côté",
+        "charge": "Poids de corps",
+        "repos": "30s",
+        "notes": "Mobilité de hanche en rotation, activation de départ.",
+        "biblio": "Hip 90/90",
+        "blocNom": "Mobilité"
+      },
+      {
+        "nom": "Hip Thrust",
+        "series": 4,
+        "reps": "6",
+        "charge": "Lourd (RPE 8)",
+        "repos": "2'30",
+        "notes": "Extension de hanche : pause 1 s en haut, fessiers serrés.",
+        "biblio": "Hip Thrust",
+        "blocNom": "Extension"
+      },
+      {
+        "nom": "Montée de genou à la poulie basse",
+        "series": 3,
+        "reps": "8 / jambe",
+        "charge": "Poulie basse, charge modérée",
+        "repos": "60s",
+        "notes": "Flexion de hanche contrôlée, tronc stable.",
+        "blocNom": "Flexion"
+      },
+      {
+        "nom": "Squat bulgare",
+        "series": 3,
+        "reps": "6 / jambe",
+        "charge": "Charge modérée-lourde (RPE 8)",
+        "repos": "90s",
+        "notes": "Hanche et genou, descente contrôlée.",
+        "biblio": "Squat bulgare",
+        "blocNom": "Unilatéral"
+      },
+      {
+        "nom": "Fente latérale",
+        "series": 3,
+        "reps": "6 / côté",
+        "charge": "Charge modérée",
+        "repos": "75s",
+        "notes": "Hanche dans le plan frontal, fessier moyen et adducteurs. Appuis comme en défense.",
+        "biblio": "Fente latérale",
+        "blocNom": "Plan frontal"
+      },
+      {
+        "nom": "Marche latérale bande",
+        "series": 3,
+        "reps": "10 pas / côté",
+        "charge": "Mini-band au-dessus des genoux",
+        "repos": "45s",
+        "notes": "Appuis fléchis, abduction contrôlée. Fessier moyen.",
+        "blocNom": "Stabilité"
+      },
+      {
+        "nom": "RDL unilatéral",
+        "series": 3,
+        "reps": "6 / jambe",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "90s",
+        "notes": "Équilibre et chaîne postérieure, hanche qui recule, bassin horizontal.",
+        "biblio": "RDL unilatéral"
+      }
+    ]
+  },
+  {
+    "id": "hb_hanche_stabilite",
+    "nom": "HB Hanche — Stabilité & fessier moyen (appuis, duels)",
+    "categorie": "Handball — Hanche",
+    "couleur": "#E5484D",
+    "equipement": "salle",
+    "description": "Contrôle de la hanche sur un appui et dans le plan frontal : fessier moyen, rotateurs et adducteurs. Protège le genou et la cheville lors des changements de direction et des duels.",
+    "protocole": "Durée ~35 min. Contrôle avant charge : genou aligné sur le pied, bassin horizontal. Faire d'abord le côté faible. 2 fois par semaine en prévention.",
+    "isTemplate": true,
+    "rpeCible": 6,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Clamshell",
+        "series": 3,
+        "reps": "15 / côté",
+        "charge": "Mini-band",
+        "repos": "30s",
+        "notes": "Rotation externe de hanche, bassin immobile. Activation du fessier moyen.",
+        "biblio": "Clamshell",
+        "blocNom": "Activation"
+      },
+      {
+        "nom": "Marche latérale bande",
+        "series": 3,
+        "reps": "12 pas / côté",
+        "charge": "Mini-band au-dessus des genoux",
+        "repos": "45s",
+        "notes": "Pas chassés en position fléchie, bande tendue en permanence."
+      },
+      {
+        "nom": "Step-up latéral",
+        "series": 3,
+        "reps": "8 / jambe",
+        "charge": "Caisse 30-40 cm, charge légère",
+        "repos": "60s",
+        "notes": "Montée latérale contrôlée, genou aligné, hanche stable.",
+        "biblio": "Step-up latéral",
+        "blocNom": "Appuis latéraux"
+      },
+      {
+        "nom": "Hip Thrust unilatéral",
+        "series": 3,
+        "reps": "8 / jambe",
+        "charge": "Charge modérée",
+        "repos": "75s",
+        "notes": "Bassin horizontal, pas de rotation. Corriger l'écart G/D.",
+        "biblio": "Hip Thrust unilatéral"
+      },
+      {
+        "nom": "Fente latérale",
+        "series": 3,
+        "reps": "6 / côté",
+        "charge": "Charge légère-modérée",
+        "repos": "60s",
+        "notes": "Hanche dans le plan frontal, appuis comme en défense.",
+        "biblio": "Fente latérale"
+      },
+      {
+        "nom": "Équilibre unipodal",
+        "series": 3,
+        "reps": "30 s / jambe",
+        "charge": "Poids de corps, yeux ouverts puis fermés",
+        "repos": "30s",
+        "notes": "Stabilité de hanche et de cheville, bassin horizontal.",
+        "biblio": "Équilibre unipodal",
+        "blocNom": "Équilibre"
+      }
+    ]
+  },
+  {
+    "id": "hb_fessiers_volume",
+    "nom": "HB Fessiers — Volume maximum (hypertrophie)",
+    "categorie": "Handball — Hanche",
+    "couleur": "#E5484D",
+    "equipement": "salle",
+    "description": "Séance de construction du fessier : volume élevé, séries moyennes et contractions longues, pour développer la masse utile à la puissance et à la prévention.",
+    "protocole": "Durée ~55 min. Contraction maximale à chaque rep, tempo contrôlé, 1-2 reps en réserve. Idéal en période d'accumulation (hors forte charge de match). 1 à 2 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Hip Thrust",
+        "series": 4,
+        "reps": "10",
+        "charge": "Charge modérée-lourde (RPE 7-8)",
+        "repos": "90s",
+        "notes": "Pause 1 s en haut, descente sur 2 s. Fessiers serrés.",
+        "biblio": "Hip Thrust",
+        "blocNom": "Volume principal"
+      },
+      {
+        "nom": "Romanian Deadlift (RDL)",
+        "series": 3,
+        "reps": "10",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "90s",
+        "notes": "Étirement maximal des fessiers et ischios.",
+        "biblio": "Romanian Deadlift (RDL)"
+      },
+      {
+        "nom": "Squat bulgare",
+        "series": 3,
+        "reps": "10 / jambe",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "90s",
+        "notes": "Buste légèrement penché, accent sur le fessier de la jambe avant.",
+        "biblio": "Squat bulgare"
+      },
+      {
+        "nom": "Cable Kickback",
+        "series": 3,
+        "reps": "12 / jambe",
+        "charge": "Poulie, charge modérée",
+        "repos": "45s",
+        "notes": "Extension jambe tendue, contraction 1 s, sans cambrer.",
+        "biblio": "Cable Kickback"
+      },
+      {
+        "nom": "Hyperextension / Back Extension",
+        "series": 3,
+        "reps": "12",
+        "charge": "Lesté (RPE 7), fessiers dominants",
+        "repos": "60s",
+        "notes": "Pivoter autour des hanches, fessiers serrés en haut.",
+        "biblio": "Hyperextension / Back Extension"
+      },
+      {
+        "nom": "Glute Bridge",
+        "series": 3,
+        "reps": "15",
+        "charge": "Poids de corps ou léger, pause 2 s",
+        "repos": "45s",
+        "notes": "Finisseur : brûlure fessière, bassin en rétroversion en haut.",
+        "biblio": "Glute Bridge",
+        "blocNom": "Finisseur"
+      }
+    ]
+  },
+  {
+    "id": "hb_halte_initiation",
+    "nom": "Haltéro — Initiation & éducatifs techniques",
+    "categorie": "Handball — Haltérophilie",
+    "couleur": "#F5C518",
+    "equipement": "salle",
+    "description": "Apprendre les bases de l'haltérophilie en sécurité : position de départ, tirage, réception. Que de l'éducatif, charges légères, aucune recherche de performance.",
+    "protocole": "Durée ~45 min. Pour les joueurs qui débutent ou reprennent. Barre à vide ou 40-50 %, UNE consigne technique par exercice, à encadrer par le coach. 2 fois par semaine pendant 4 à 6 semaines avant de monter les charges.",
+    "isTemplate": true,
+    "rpeCible": 4,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Position de départ & tirage depuis les genoux (Clean Pull léger)",
+        "series": 4,
+        "reps": "4",
+        "charge": "Barre à vide ou 40 %",
+        "repos": "60s",
+        "notes": "Dos plat, barre sous les genoux, extension complète hanche-genou-cheville, bras tendus. Apprendre la position de départ.",
+        "blocNom": "Éducatifs de tirage"
+      },
+      {
+        "nom": "Haussement d'épaules explosif (Jump Shrug)",
+        "series": 3,
+        "reps": "4",
+        "charge": "Barre à vide ou 40 %",
+        "repos": "60s",
+        "notes": "Extension explosive jusqu'à la pointe des pieds puis haussement. Bras tendus."
+      },
+      {
+        "nom": "Hang Power Clean léger",
+        "series": 4,
+        "reps": "3",
+        "charge": "40-50 % du max estimé",
+        "repos": "90s",
+        "notes": "Départ barre à mi-cuisse, extension, réception en quart de squat, coudes hauts. Technique avant tout.",
+        "biblio": "Power Clean",
+        "blocNom": "Éducatif épaulé"
+      },
+      {
+        "nom": "Front Squat léger (réception)",
+        "series": 3,
+        "reps": "5",
+        "charge": "Charge légère (RPE 5)",
+        "repos": "90s",
+        "notes": "Coudes hauts, tronc vertical : prépare la réception de l'épaulé.",
+        "biblio": "Front Squat"
+      },
+      {
+        "nom": "Squat overhead (barre à vide)",
+        "series": 3,
+        "reps": "5",
+        "charge": "Barre à vide ou bâton",
+        "repos": "60s",
+        "notes": "Bras tendus au-dessus de la tête, mobilité d'épaule et de hanche. Prépare l'arraché.",
+        "biblio": "Squat overhead",
+        "blocNom": "Éducatif arraché"
+      },
+      {
+        "nom": "Tirage arraché depuis les genoux (Snatch Pull léger)",
+        "series": 3,
+        "reps": "4",
+        "charge": "Barre à vide ou 40 %",
+        "repos": "60s",
+        "notes": "Prise large, extension explosive, la barre monte jusqu'au nombril."
+      }
+    ]
+  },
+  {
+    "id": "hb_halte_force",
+    "nom": "Haltéro — Force (tirages lourds & squat)",
+    "categorie": "Handball — Haltérophilie",
+    "couleur": "#F5C518",
+    "equipement": "salle",
+    "description": "Pure FORCE : tirages lourds et squats en peu de répétitions. On construit la force de base sans chercher la vitesse ni la réception.",
+    "protocole": "Durée ~60 min. Charges lourdes, repos longs (2'30 à 3'), jamais jusqu'à l'échec. Tirages à 100-110 % du max d'épaulé / d'arraché, pas de réception. 1 fois par semaine, en début de cycle ou loin du match.",
+    "isTemplate": true,
+    "rpeCible": 8,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Tirage épaulé depuis le sol (Clean Pull)",
+        "series": 5,
+        "reps": "3",
+        "charge": "100-110 % du max d'épaulé",
+        "repos": "2'30",
+        "notes": "Extension triple lourde, bras tendus, pas de réception. Vitesse non recherchée.",
+        "blocNom": "Tirages lourds"
+      },
+      {
+        "nom": "Tirage arraché depuis le sol (Snatch Pull)",
+        "series": 4,
+        "reps": "3",
+        "charge": "100-105 % du max d'arraché",
+        "repos": "2'",
+        "notes": "Extension complète en prise large."
+      },
+      {
+        "nom": "Front Squat",
+        "series": 5,
+        "reps": "3",
+        "charge": "85 % 1RM (RPE 8)",
+        "repos": "3'",
+        "notes": "Coudes hauts, tronc vertical, force de jambes.",
+        "biblio": "Front Squat",
+        "blocNom": "Squats lourds"
+      },
+      {
+        "nom": "Back Squat",
+        "series": 4,
+        "reps": "3",
+        "charge": "85-90 % 1RM (RPE 8)",
+        "repos": "3'",
+        "notes": "Force de jambes, 1-2 reps en réserve.",
+        "biblio": "Back Squat"
+      },
+      {
+        "nom": "Deadlift conventionnel",
+        "series": 3,
+        "reps": "3",
+        "charge": "85 % 1RM (RPE 8)",
+        "repos": "3'",
+        "notes": "Force de tirage depuis le sol, dos plat.",
+        "biblio": "Deadlift conventionnel"
+      }
+    ]
+  },
+  {
+    "id": "hb_halte_vitesse",
+    "nom": "Haltéro — Vitesse de barre (charges légères, intention max)",
+    "categorie": "Handball — Haltérophilie",
+    "couleur": "#F5C518",
+    "equipement": "salle",
+    "description": "Pure VITESSE / puissance : mouvements olympiques à charge légère et vitesse de barre maximale. Aucune recherche de charge ni de force.",
+    "protocole": "Durée ~40 min. À faire frais (début de séance), séries courtes, repos complets : on arrête dès que la technique ou la vitesse de barre se dégrade. Charge 55-70 % du max, la barre ne doit jamais ralentir. Aucun squat lourd, aucun travail de force. 1 à 2 fois par semaine en phase de vitesse.",
+    "isTemplate": true,
+    "rpeCible": 6,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Power Clean",
+        "series": 8,
+        "reps": "2",
+        "charge": "55-70 % du max d'épaulé",
+        "repos": "90s",
+        "notes": "Vitesse de barre maximale, réception en quart de squat. On arrête dès que la barre ralentit.",
+        "biblio": "Power Clean",
+        "blocNom": "Vitesse de barre"
+      },
+      {
+        "nom": "Power Snatch",
+        "series": 6,
+        "reps": "2",
+        "charge": "55-65 % du max d'arraché",
+        "repos": "90s",
+        "notes": "Extension explosive, barre bras tendus au-dessus de la tête. Vitesse avant tout."
+      },
+      {
+        "nom": "Jump Shrug",
+        "series": 4,
+        "reps": "3",
+        "charge": "50-60 % du max d'épaulé",
+        "repos": "90s",
+        "notes": "Extension triple explosive, sans réception, pointes de pieds."
+      },
+      {
+        "nom": "Push Press léger",
+        "series": 4,
+        "reps": "3",
+        "charge": "55-65 % du max de développé militaire",
+        "repos": "90s",
+        "notes": "Impulsion de jambes rapide, barre qui part vite."
+      }
+    ]
+  },
+  {
+    "id": "hb_halte_hang_match",
+    "nom": "Haltéro — Veille de match : suspension haute uniquement (hang)",
+    "categorie": "Handball — Haltérophilie",
+    "couleur": "#F5C518",
+    "equipement": "salle",
+    "description": "Séance courte à placer avant un match : uniquement des mouvements depuis la suspension haute (hang), volume bas et charges modérées. Garde la puissance sans fatigue.",
+    "protocole": "Durée ~25 min. À placer à J-1 ou J-2 du match. UNIQUEMENT des départs en suspension haute (barre à mi-cuisse), pas de départ du sol, aucun squat. 70 % du max, 2 reps, vitesse maximale, 3 reps en réserve. On sort plus frais qu'en entrant.",
+    "isTemplate": true,
+    "rpeCible": 4,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Hang Power Clean (suspension haute)",
+        "series": 5,
+        "reps": "2",
+        "charge": "70 % du max d'épaulé",
+        "repos": "90s",
+        "notes": "Barre à mi-cuisse, extension explosive, réception en quart de squat. Vitesse maximale, aucune fatigue.",
+        "biblio": "Power Clean",
+        "blocNom": "Hang — veille de match"
+      },
+      {
+        "nom": "Hang Power Snatch (suspension haute)",
+        "series": 4,
+        "reps": "2",
+        "charge": "65-70 % du max d'arraché",
+        "repos": "90s",
+        "notes": "Départ mi-cuisse, extension explosive, barre bras tendus au-dessus de la tête."
+      },
+      {
+        "nom": "Jump Shrug en suspension haute",
+        "series": 3,
+        "reps": "3",
+        "charge": "60 % du max d'épaulé",
+        "repos": "75s",
+        "notes": "Extension explosive sans réception. Active le système nerveux sans fatiguer."
+      }
+    ]
+  },
+  {
+    "id": "hb_halte_complexes",
+    "nom": "Haltéro — Complexes (enchaînements sans reposer la barre)",
+    "categorie": "Handball — Haltérophilie",
+    "couleur": "#F5C518",
+    "equipement": "salle",
+    "description": "Complexes olympiques : plusieurs mouvements enchaînés sans reposer la barre, présentés exercice par exercice. Travaille la coordination, la puissance et l'endurance de puissance.",
+    "protocole": "Durée ~40 min. Chaque complexe = les exercices listés dans l'ordre, enchaînés SANS reposer la barre (1 rep de chaque), puis repos complet de 2'30 après le dernier mouvement. Une « série » = un passage complet du complexe. Charge calée sur le mouvement le plus faible (souvent 60-65 % du max d'épaulé). Technique irréprochable, on arrête dès que la barre ralentit. 1 fois par semaine, à distance du match.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Hang Power Clean",
+        "series": 5,
+        "reps": "1",
+        "charge": "60-65 % du max d'épaulé",
+        "repos": "5s",
+        "notes": "Départ mi-cuisse, extension explosive, réception en quart de squat. Enchaîner directement avec le Front Squat, sans reposer la barre.",
+        "biblio": "Power Clean",
+        "blocNom": "Complexe A — Épaulé + Front Squat + Jeté"
+      },
+      {
+        "nom": "Front Squat",
+        "series": 5,
+        "reps": "1",
+        "charge": "Même barre",
+        "repos": "5s",
+        "notes": "Directement après l'épaulé : descendre en front squat, coudes hauts, puis remonter. Enchaîner avec le Push Jerk.",
+        "biblio": "Front Squat"
+      },
+      {
+        "nom": "Push Jerk",
+        "series": 5,
+        "reps": "1",
+        "charge": "Même barre",
+        "repos": "2'30",
+        "notes": "Dip rapide, extension, réception genoux fléchis, bras verrouillés. Fin du complexe : reposer la barre, repos complet 2'30 avant le tour suivant."
+      },
+      {
+        "nom": "Hang Power Snatch",
+        "series": 4,
+        "reps": "1",
+        "charge": "50-60 % du max d'arraché",
+        "repos": "5s",
+        "notes": "Départ mi-cuisse, extension explosive, barre bras tendus au-dessus de la tête. Enchaîner directement avec le squat overhead.",
+        "blocNom": "Complexe B — Arraché + Squat overhead"
+      },
+      {
+        "nom": "Squat overhead",
+        "series": 4,
+        "reps": "1",
+        "charge": "Même barre",
+        "repos": "2'30",
+        "notes": "Descendre en squat bras tendus au-dessus de la tête, tronc vertical, puis remonter. Fin du complexe : reposer la barre, repos complet 2'30.",
+        "biblio": "Squat overhead"
+      },
+      {
+        "nom": "Clean Pull (tirage épaulé)",
+        "series": 4,
+        "reps": "1",
+        "charge": "55-60 % du max d'épaulé",
+        "repos": "5s",
+        "notes": "Tirage depuis le sol, extension complète, bras tendus. Enchaîner directement avec le Hang Power Clean.",
+        "blocNom": "Complexe C — Tirage + Épaulé + Push Press"
+      },
+      {
+        "nom": "Hang Power Clean",
+        "series": 4,
+        "reps": "1",
+        "charge": "Même barre",
+        "repos": "5s",
+        "notes": "Départ mi-cuisse, extension explosive, réception en quart de squat. Enchaîner avec le Push Press.",
+        "biblio": "Power Clean"
+      },
+      {
+        "nom": "Push Press",
+        "series": 4,
+        "reps": "1",
+        "charge": "Même barre",
+        "repos": "2'30",
+        "notes": "Poussée explosive portée par les jambes. Fin du complexe : reposer la barre, repos complet 2'30."
+      }
+    ]
+  },
+  {
+    "id": "hb_halte_epaule",
+    "nom": "Haltéro — Épaulé (famille clean)",
+    "categorie": "Handball — Haltérophilie",
+    "couleur": "#F5C518",
+    "equipement": "salle",
+    "description": "Spécialisation sur l'épaulé : Power Clean du sol et de la suspension, tirage et front squat de réception. Un seul mouvement olympique travaillé.",
+    "protocole": "Durée ~50 min. À faire frais (début de séance), séries courtes, repos complets : on arrête dès que la technique ou la vitesse de barre se dégrade. Charge 75-85 % du max d'épaulé. 1 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Power Clean (du sol)",
+        "series": 6,
+        "reps": "2",
+        "charge": "75-85 % du max d'épaulé",
+        "repos": "2'30",
+        "notes": "Départ du sol, extension triple explosive, réception en quart de squat, coudes hauts.",
+        "biblio": "Power Clean",
+        "blocNom": "Épaulé"
+      },
+      {
+        "nom": "Hang Power Clean",
+        "series": 4,
+        "reps": "2",
+        "charge": "70-75 % du max d'épaulé",
+        "repos": "2'",
+        "notes": "Départ mi-cuisse, extension rapide.",
+        "biblio": "Power Clean"
+      },
+      {
+        "nom": "Tirage épaulé depuis le sol (Clean Pull)",
+        "series": 3,
+        "reps": "3",
+        "charge": "100-105 % du max d'épaulé",
+        "repos": "2'",
+        "notes": "Tirage lourd, extension complète."
+      },
+      {
+        "nom": "Front Squat",
+        "series": 3,
+        "reps": "3",
+        "charge": "80 % 1RM (RPE 7)",
+        "repos": "2'30",
+        "notes": "Réception et force de jambes en position d'épaulé.",
+        "biblio": "Front Squat"
+      }
+    ]
+  },
+  {
+    "id": "hb_halte_arrache",
+    "nom": "Haltéro — Arraché (famille snatch)",
+    "categorie": "Handball — Haltérophilie",
+    "couleur": "#F5C518",
+    "equipement": "salle",
+    "description": "Spécialisation sur l'arraché : Power Snatch, hang snatch, tirage et squat overhead. Vitesse de bras, mobilité d'épaule et coordination.",
+    "protocole": "Durée ~50 min. À faire frais (début de séance), séries courtes, repos complets : on arrête dès que la technique ou la vitesse de barre se dégrade. Mobilité d'épaule et de hanche indispensable : si le joueur ne tient pas la barre bras tendus au-dessus de la tête, travailler le squat overhead avant de monter les charges. 1 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Power Snatch (du sol)",
+        "series": 6,
+        "reps": "2",
+        "charge": "70-80 % du max d'arraché",
+        "repos": "2'30",
+        "notes": "Prise large, extension explosive, barre bras tendus au-dessus de la tête.",
+        "blocNom": "Arraché"
+      },
+      {
+        "nom": "Hang Power Snatch",
+        "series": 4,
+        "reps": "2",
+        "charge": "65-70 % du max d'arraché",
+        "repos": "2'",
+        "notes": "Départ mi-cuisse, extension rapide."
+      },
+      {
+        "nom": "Tirage arraché depuis le sol (Snatch Pull)",
+        "series": 3,
+        "reps": "3",
+        "charge": "100-105 % du max d'arraché",
+        "repos": "2'",
+        "notes": "Tirage lourd en prise arraché, extension complète."
+      },
+      {
+        "nom": "Squat overhead",
+        "series": 3,
+        "reps": "3",
+        "charge": "Charge modérée (RPE 7)",
+        "repos": "2'",
+        "notes": "Barre au-dessus de la tête, bras tendus, tronc vertical.",
+        "biblio": "Squat overhead"
+      }
+    ]
+  },
+  {
+    "id": "hb_halte_jete",
+    "nom": "Haltéro — Jeté & Push Press (famille jerk)",
+    "categorie": "Handball — Haltérophilie",
+    "couleur": "#F5C518",
+    "equipement": "salle",
+    "description": "Spécialisation sur la poussée olympique : Push Press, Push Jerk et Split Jerk, portés par l'impulsion des jambes.",
+    "protocole": "Durée ~45 min. À faire frais (début de séance), séries courtes, repos complets : on arrête dès que la technique ou la vitesse de barre se dégrade. Gainage serré, verrouillage complet des bras. Charge 75-85 % du max de jeté. 1 fois par semaine.",
+    "isTemplate": true,
+    "rpeCible": 7,
+    "cycles": [],
+    "exercicesRef": [
+      {
+        "nom": "Push Press",
+        "series": 5,
+        "reps": "3",
+        "charge": "80 % du max de développé militaire",
+        "repos": "2'30",
+        "notes": "Flexion rapide des jambes, extension explosive, verrouillage complet.",
+        "blocNom": "Jeté"
+      },
+      {
+        "nom": "Push Jerk",
+        "series": 5,
+        "reps": "2",
+        "charge": "75-85 % du max de jeté",
+        "repos": "2'30",
+        "notes": "Dip rapide, extension, réception genoux fléchis, bras verrouillés."
+      },
+      {
+        "nom": "Split Jerk",
+        "series": 4,
+        "reps": "2",
+        "charge": "70-75 % du max de jeté",
+        "repos": "2'30",
+        "notes": "Réception en fente, bras verrouillés, pieds stables."
+      }
+    ]
+  }
+];
+
 const METHODES_MUSCU = [
   {
-    id: "wendler531", nom: "5/3/1 Wendler", categorie: "Force", couleur: "#FF4455", equipement: "salle",
+    id: "wendler531", nom: "5/3/1 Wendler", categorie: "Force", couleur: "#FF4455", equipement: "salle", tmFactor: 0.9,
     description: "Progression lineaire sur 4 semaines basee sur 90% du 1RM (Training Max). 3 series par seance avec AMRAP sur la derniere. Augmenter TM de +2.5kg haut du corps / +5kg bas apres chaque cycle.",
     cycles: [
       { sem: "S1", label: "Semaine des 5",
@@ -3903,7 +6466,7 @@ const METHODES_MUSCU = [
           { serie: 2, reps: "3",  pct: 90 },
           { serie: 3, reps: "1+", pct: 100, amrap: true, note: "AMRAP - tout donner sur cette serie" },
         ],
-        note: "Semaine la plus intense. AMRAP a 100% TM (= ~90% du 1RM reel) = vrai test de force du cycle.",
+        note: "Semaine la plus intense. AMRAP a 100% du TM (= 90% du 1RM reel) = vrai test de force du cycle. Les % de cette methode sont des % du TM : ils sont convertis automatiquement en % du 1RM a la creation de la seance.",
       },
       { sem: "S4", label: "Deload obligatoire",
         details: [
@@ -4859,6 +7422,7 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
   const [showCreate, setShowCreate] = React.useState(false);
   const [formM, setFormM] = React.useState({ nom:'', categorie:'Force', couleur:'#FFA420', equipement:'salle', description:'', exercices:[] });
   const [newEx, setNewEx] = React.useState({ nom:'', series:'3', reps:'8', repos:'90s', charge:'', notes:'' });
+  const [filtreQualite, setFiltreQualite] = React.useState('toutes');
   const [filtreEquip, setFiltreEquip] = React.useState('tous'); // filtre affiché : tous | salle | poids_corps | mixte
 
   function saveCustomMethode() {
@@ -4894,6 +7458,55 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
     mixte:       { label: 'Mixte',           emoji: '🔀', color: '#FFA420' },
   };
   const equipOf = (m) => EQUIP_TAGS[m.equipement] || null;
+  // Qualités physiques travaillées : une méthode peut en avoir plusieurs
+  const QUALITES = {
+    force:        { label: 'Force',           emoji: '💪', color: '#FF4455' },
+    puissance:    { label: 'Puissance',       emoji: '⚡', color: '#FFA420' },
+    vitesse:      { label: 'Vitesse',         emoji: '🏃', color: '#00D2D3' },
+    plyo:         { label: 'Plyométrie',      emoji: '🦘', color: '#38BDF8' },
+    hypertrophie: { label: 'Hypertrophie',    emoji: '📈', color: '#7C6FFF' },
+    endurance:    { label: 'Endurance musculaire', emoji: '🔁', color: '#FFB800' },
+    prevention:   { label: 'Prévention',      emoji: '🛡️', color: '#4CAF50' },
+    poussee:      { label: 'Poussée & triceps', emoji: '💥', color: '#FF6B9D' },
+    halte:        { label: 'Haltérophilie', emoji: '🏋️', color: '#F5C518' },
+    hanche:       { label: 'Hanche & fessiers', emoji: '🦵', color: '#E5484D' },
+    epaule:       { label: 'Épaule & haut du dos', emoji: '🦾', color: '#FF6B9D' },
+    reprise:      { label: 'Reprise / Santé', emoji: '🌱', color: '#4CAF50' },
+    bilan:        { label: 'Tests & bilans',  emoji: '📋', color: '#FF6B9D' },
+  };
+  const QUALITES_PAR_ID = {
+    wendler531:['force'], force_hyp:['force','hypertrophie'], cinq_par_cinq:['force'], conjuguee:['force','puissance'],
+    volume_allemand:['hypertrophie','force'], pyramide_descendante:['force'], clusters:['puissance','force'],
+    pliometrie:['plyo','puissance'], hypertrophie:['hypertrophie'], prevention:['prevention'],
+    testing_charges:['bilan'], bilan_bas_corps:['bilan'], bilan_haut_corps:['bilan'], bilan_mobilite_coordination:['bilan'],
+    emom:['endurance','puissance'], circuit_haut_hb:['endurance','puissance'], circuit_bas_hb:['endurance','puissance'],
+    pyramide_hb:['puissance','endurance'], defi_chrono_hb:['vitesse','endurance'],
+    hb_plyo_bas:['plyo','puissance'], hb_plyo_unilat:['plyo'], hb_puiss_bas:['puissance','force'],
+    hb_contraste_bas:['puissance','force'], hb_puiss_haut:['puissance'], hb_vitesse_ligne:['vitesse'],
+    hb_vitesse_appuis:['vitesse'], hb_mix_vitesse_force:['puissance','vitesse','plyo','force'],
+    hb_match_court:['puissance','vitesse'], hb_reprise_maladie:['reprise'],
+    hb_epaule_stabilite:['epaule','prevention'], hb_epaule_isometrie:['epaule','prevention'], hb_rhomboides_trapezes:['epaule','hypertrophie'],
+    hb_epaule_activation:['epaule','prevention'], hb_haut_force:['force','poussee'], hb_halte_initiation:['halte'], hb_halte_force:['halte','force'], hb_halte_vitesse:['halte','vitesse','puissance'], hb_halte_hang_match:['halte','puissance'], hb_halte_complexes:['halte','puissance'], hb_halte_epaule:['halte','puissance'], hb_halte_arrache:['halte','puissance'], hb_halte_jete:['halte','poussee','puissance'], hb_hanche_extension_force:['hanche','force'], hb_hanche_flexion:['hanche','vitesse'], hb_hanche_puissance:['hanche','puissance','plyo'], hb_hanche_complete:['hanche','force','prevention'], hb_hanche_stabilite:['hanche','prevention'], hb_fessiers_volume:['hanche','hypertrophie'], hb_push_puissance:['poussee','puissance'], hb_push_plyo:['poussee','plyo','puissance'], hb_push_vitesse:['poussee','vitesse','puissance'], hb_push_contraste:['poussee','puissance','force'], hb_triceps_epaules_force:['poussee','force'], hb_triceps_epaules_volume:['poussee','hypertrophie'], hb_tirage_force_dos:['force','epaule'], hb_haut_volume:['hypertrophie'],
+  };
+  const qualitesOf = (m) => {
+    if (Array.isArray(m.qualites) && m.qualites.length) return m.qualites;
+    if (QUALITES_PAR_ID[m.id]) return QUALITES_PAR_ID[m.id];
+    const c = String(m.categorie || '').toLowerCase();
+    const q = [];
+    if (/force/.test(c)) q.push('force');
+    if (/puissance|explos/.test(c)) q.push('puissance');
+    if (/vitesse/.test(c)) q.push('vitesse');
+    if (/plyo/.test(c)) q.push('plyo');
+    if (/hypertro|volume/.test(c)) q.push('hypertrophie');
+    if (/endurance/.test(c)) q.push('endurance');
+    if (/pr[ée]vention|r[ée]hab/.test(c)) q.push('prevention');
+    if (/reprise|sant[ée]/.test(c)) q.push('reprise');
+    if (/test|bilan/.test(c)) q.push('bilan');
+    return q;
+  };
+  const passesFiltreQualite = (m) => filtreQualite === 'toutes' || qualitesOf(m).includes(filtreQualite);
+  const passesFiltres = (m) => passesFiltreEquip(m) && passesFiltreQualite(m);
+  const nbParQualite = (k) => [...standard, ...custom].filter(m => passesFiltreEquip(m) && qualitesOf(m).includes(k)).length;
   const passesFiltreEquip = (m) => filtreEquip === 'tous' || m.equipement === filtreEquip;
 
   return _h`<div>
@@ -4901,6 +7514,21 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
       Sélectionne une méthode pour créer automatiquement une séance pré-remplie.
     </div>
 
+    <!-- Filtre par qualité physique -->
+    <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:6 }}>Qualité physique</div>
+    <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
+      ${[['toutes','Toutes','#fff'], ...Object.entries(QUALITES).map(([k,t])=>[k, t.emoji+' '+t.label, t.color])].map(([key,label,color]) => {
+        const n = key === 'toutes' ? null : nbParQualite(key);
+        if (n === 0 && filtreQualite !== key) return null;
+        return _h`<button key=${key}
+        onClick=${() => setFiltreQualite(key)}
+        style=${{ padding:'6px 12px', borderRadius:20, cursor:'pointer', fontSize:11, fontWeight:700,
+          border:'1px solid '+(filtreQualite===key ? color : 'rgba(255,255,255,.1)'),
+          background: filtreQualite===key ? color+'18' : 'rgba(255,255,255,.03)',
+          color: filtreQualite===key ? color : 'rgba(255,255,255,.4)' }}>${label}${n != null ? ' ('+n+')' : ''}</button>`;
+      })}
+    </div>
+    <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:6 }}>Équipement</div>
     <!-- Filtre par équipement -->
     <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:16 }}>
       ${[['tous','Toutes','#fff'], ...Object.entries(EQUIP_TAGS).map(([k,t])=>[k, t.emoji+' '+t.label, t.color])].map(([key,label,color]) => _h`<button key=${key}
@@ -4996,7 +7624,7 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
     <!-- Méthodes custom -->
     ${custom.length > 0 ? _h`<div style=${{ marginBottom:20 }}>
       <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:10 }}>Mes méthodes personnalisées</div>
-      ${custom.filter(passesFiltreEquip).map(m => _h`<div key=${m.id} style=${{
+      ${custom.filter(passesFiltres).map(m => _h`<div key=${m.id} style=${{
         background: showMethode===m.id ? m.couleur+'0A' : 'rgba(255,255,255,.025)',
         border:'1px solid '+(showMethode===m.id ? m.couleur+'40' : 'rgba(255,255,255,.1)'),
         borderRadius:14, padding:'14px 18px', marginBottom:8
@@ -5028,8 +7656,8 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
     </div>` : null}
 
     <!-- Méthodes standard -->
-    <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:10 }}>Méthodes d&apos;entraînement</div>
-    ${standard.filter(passesFiltreEquip).map(m => _h`<div key=${m.id} style=${{
+    <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:10 }}>Méthodes d'entraînement</div>
+    ${standard.filter(passesFiltres).map(m => _h`<div key=${m.id} style=${{
       background: showMethode===m.id ? m.couleur+'0A' : 'rgba(255,255,255,.025)',
       border:'1px solid '+(showMethode===m.id ? m.couleur+'40' : 'rgba(255,255,255,.07)'),
       borderRadius:14, padding:'14px 18px', marginBottom:8, cursor:'pointer'
@@ -5119,7 +7747,7 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
                 })}
               </div>
             </div>` : null}
-            ${m.isBilanDepart ? _h`<div style=${{ marginBottom:12 }}>
+            ${(m.isBilanDepart || m.isTemplate) ? _h`<div style=${{ marginBottom:12 }}>
               ${m.protocole ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', background:'rgba(255,255,255,.03)', borderRadius:8, padding:'8px 12px', marginBottom:8, lineHeight:1.6 }}>
                 <span style=${{ color:m.couleur, fontWeight:700 }}>Protocole : </span>${m.protocole}
               </div>` : null}
@@ -5134,7 +7762,7 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
             </div>` : null}
             <button class="btn btn-primary" style=${{ width:'100%' }}
               onClick=${e => { e.stopPropagation(); createFromMethode(m, selCycleSem[m.id] || 0); }}>
-              ${m.isBilanDepart ? 'Créer la séance de test (modifiable)' : '\u2192 Créer séance — ' + (m.cycles[(selCycleSem[m.id] || 0)]?.sem || 'S1')}
+              ${m.isTemplate ? 'Créer cette séance (modifiable)' : m.isBilanDepart ? 'Créer la séance de test (modifiable)' : '\u2192 Créer séance — ' + (m.cycles[(selCycleSem[m.id] || 0)]?.sem || 'S1')}
             </button>
           </div>`
         }
@@ -7675,7 +10303,7 @@ function imageExoPour(ex) {
   try {
     if (ex.imageUrl && !ex.imageAuto) return ex.imageUrl;
     const m = findBiblioMatch(biblioNomPour(ex));
-    return (m && m.imageUrl) || '';
+    return (m && (m.imageUrl || (m.videoId ? 'https://youtu.be/' + m.videoId : (m.videoUrl || '')))) || '';
   } catch (e) { return ex.imageAuto ? '' : (ex.imageUrl || ''); }
 }
 
@@ -8073,9 +10701,9 @@ function MuscuSeanceEditor({ seance, onSave, onClose, player }) {
       <!-- Champ URL image (collapsible) -->
       ${ex._showImg ? _h`<div style=${{ display:'flex', gap:6, alignItems:'center' }}>
         <input class="ex-inp" value=${ex.imageUrl||''} onInput=${e => updEx(i,'imageUrl',e.target.value)}
-          placeholder="https://... URL de l'image GIF ou photo"
+          placeholder="Lien image, GIF ou VIDÉO (YouTube, Instagram, Vimeo, mp4, Drive…)"
           style=${{ flex:1, fontSize:11 }}/>
-        ${ex.imageUrl ? _h`<img src=${ex.imageUrl} alt="" style=${{ width:44, height:44, objectFit:'cover', borderRadius:6, border:'1px solid rgba(255,255,255,.15)', flexShrink:0 }} onError=${e => e.target.style.display='none'} />` : null}
+        ${ex.imageUrl ? _h`<${ZoomableImage} src=${ex.imageUrl} alt="" style=${{ width:44, height:44, objectFit:'cover', borderRadius:6, border:'1px solid rgba(255,255,255,.15)', flexShrink:0 }} />` : null}
       </div>` : null}
     </div>`;
   }
@@ -13279,7 +15907,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
 
   function createFromMethode(methode, cycleIdx) {
     // Méthode personnalisée : structure différente (exercicesRef flat, pas de cycles %1RM)
-    if (methode.isCustom || methode.isBilanDepart) {
+    if (methode.isCustom || methode.isBilanDepart || methode.isTemplate) {
       const exercices = (methode.exercicesRef || []).map(ex => ({
         nom: ex.nom, series: parseInt(ex.series) || 3, reps: ex.reps || '8-10',
         charge: ex.charge || '', repos: ex.repos || '90s', notes: ex.notes || '',
@@ -13293,13 +15921,14 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
         // exercice EMOM sauvegardé dans une méthode personnalisée perdait donc son chrono EMOM
         // (repassait en repos classique) à chaque fois que la méthode était réutilisée.
         ...(ex.emom ? { emom: true, emomDuree: ex.emomDuree || 10 } : {}),
+        ...(ex.blocNom != null ? { blocNom: ex.blocNom } : {}),
       }));
       const base = {
-        nom: methode.isBilanDepart ? methode.nom : 'Séance — ' + methode.nom,
+        nom: (methode.isBilanDepart || methode.isTemplate) ? methode.nom : 'Séance — ' + methode.nom,
         datePrevu: localDateStr(),
         methode: methode.nom,
-        contexte: '', objectif: methode.description, rpeCible: methode.isBilanDepart ? 5 : null,
-        notes: methode.isBilanDepart ? (methode.protocole || '') : '', cycle: '', exercices,
+        contexte: '', objectif: methode.description, rpeCible: methode.isTemplate ? (methode.rpeCible || null) : (methode.isBilanDepart ? 5 : null),
+        notes: (methode.isBilanDepart || methode.isTemplate) ? (methode.protocole || '') : '', cycle: '', exercices,
       };
       setNewSeanceBase(base);
       setShowAddSeance(true);
@@ -13357,8 +15986,12 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
       }
       if (details && details.length > 0) {
         // One exercise entry per serie detail
+        // Méthodes basées sur un Training Max (ex. 5/3/1 : TM = 90 % du 1RM) : les % de la méthode
+        // sont des % du TM, convertis ici en % du 1RM (100 % du TM = 90 % du 1RM).
+        const tm = methode.tmFactor || 1;
+        const cv = v => (v && tm !== 1) ? Math.round(v * tm * 10) / 10 : v;
         const firstDetail = details[0];
-        const pct = firstDetail.pct || 0;
+        const pct = cv(firstDetail.pct || 0);
         return {
           nom: ex,
           series: details.length,
@@ -13367,9 +16000,9 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
           chargeDetails: details.map(d => ({
             serie: d.serie,
             reps: d.reps,
-            pct: d.pct,
+            pct: cv(d.pct),
             amrap: d.amrap || false,
-            note: d.note || '',
+            note: ((d.pct && tm !== 1) ? d.pct + ' % du TM (= ' + cv(d.pct) + ' % du 1RM)' + (d.note ? ' — ' : '') : '') + (d.note || ''),
           })),
           repos: '2min',
           notes: firstCycle.note || '',
@@ -13417,7 +16050,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
 
   const CAT_COLORS = { 'Force':'#FF4455', 'Force/Volume':'#FF7A00', 'Puissance':'#FFA420', 'Prévention':'#4CAF50', 'Volume':'#7C6FFF' };
 
-  const allMethodes = [...METHODES_MUSCU, ...(db.customMethodes || [])]
+  const allMethodes = [...METHODES_HB_TEMPLATES, ...METHODES_MUSCU, ...(db.customMethodes || [])]
   const _tabMethodes = React.createElement(MuscuMethodesTab, { methodes: allMethodes, showMethode, setShowMethode, createFromMethode, addSeance, setShowTesting, selCycleSem, setSelCycleSem, isCoach, db, setDb });
 
   return _h`<div>
@@ -16404,7 +19037,7 @@ function BiblioLinkButton({ nomExercice }) {
           </div>
         </div>` : match.imageUrl ? _h`<div>
           <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1.5, marginBottom:8 }}>Image</div>
-          <img src=${match.imageUrl} alt=${match.nom} style=${{ width:'100%', maxHeight:260, objectFit:'cover', borderRadius:10 }} onError=${e => e.target.style.display='none'} />
+          <${ZoomableImage} src=${match.imageUrl} alt=${match.nom} style=${{ width:'100%', height:200, objectFit:'cover', borderRadius:10 }} />
         </div>` : null}
       </div>
     </div>` : null}
@@ -16662,7 +19295,7 @@ function BibliothequeView({ db, setDb, readOnly }) {
                 allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen=${true}
               ></iframe>
-            </div>` : m.imageUrl ? _h`<img src=${m.imageUrl} style=${{ width:'100%', maxHeight:200, objectFit:'contain', borderRadius:8, marginBottom:10, marginTop:10, background:'rgba(255,255,255,.03)' }} onError=${e => e.target.style.display='none'} />` : null}
+            </div>` : m.imageUrl ? _h`<${ZoomableImage} src=${m.imageUrl} alt=${m.nom} style=${{ width:'100%', height:200, objectFit:'contain', borderRadius:8, marginBottom:10, marginTop:10, background:'rgba(255,255,255,.04)' }} />` : null}
             <div style=${{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10 }}>
               ${m.variante ? _h`<div style=${{ gridColumn:'1/-1', background:'rgba(255,255,255,.04)', borderRadius:8, padding:'7px 10px' }}>
                 <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>Variante</div>
@@ -17697,7 +20330,7 @@ async function exporterRapportJoueurExcel(r) {
 }
 
 // ── Export Excel ÉQUIPE : une ligne par joueur + matrice de charge par semaine ───────────────
-async function exporterRapportEquipeExcel(players, from, to, titre) {
+async function exporterRapportEquipeExcel(players, from, to, titre, clubs) {
   try {
     if (typeof ExcelJS === 'undefined') { alert("La librairie d'export Excel n'a pas pu charger. Vérifie ta connexion et réessaie."); return; }
     const reps = (players || []).filter(p => p && !p.archived).map(p => { try { return buildRapportJoueur(p, from, to); } catch (e) { console.warn(e); return null; } }).filter(Boolean);
@@ -17706,7 +20339,20 @@ async function exporterRapportEquipeExcel(players, from, to, titre) {
     const hdr = ws => { const hr = ws.getRow(1); hr.eachCell(c => { c.font = { bold: true, color: { argb: 'FF141418' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFA420' } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; }); hr.height = 30; ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }]; ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ws.columnCount } }; };
     const n = v => v == null || v === '' ? null : v;
     const rmOf = (r, id) => r.rm.find(m => m.id === id);
-    const ws = wb.addWorksheet('Équipe');
+    // Une série de 3 feuilles PAR ÉQUIPE (club / groupe), pour ne pas mélanger N1, Prénationale, U18…
+    const groupes = [];
+    reps.forEach(r => { const cid = r.player.clubId || '_autres'; let g = groupes.find(x => x.cid === cid);
+      if (!g) { const c = (clubs || []).find(c => c.id === cid); g = { cid, label: c ? c.name : (cid === '_autres' ? 'Profils individuels' : String(cid)), reps: [] }; groupes.push(g); }
+      g.reps.push(r); });
+    groupes.sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+    const nomsPris = new Set();
+    groupes.forEach((g, gi) => {
+    const reps = g.reps.slice().sort((a, b) => String(a.player.name || '').localeCompare(String(b.player.name || ''), 'fr'));
+    let court = g.label.replace(/Union Sud Mayenne/gi, 'USM').replace(/[\\\/*?:\[\]()]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || ('Equipe ' + (gi + 1));
+    while (nomsPris.has(court.toLowerCase())) court += gi;
+    nomsPris.add(court.toLowerCase());
+    const nomFeuille = suf => groupes.length > 1 ? court + ' · ' + suf : suf;
+    const ws = wb.addWorksheet(nomFeuille('Synthèse'));
     ws.addRow(['Joueur', 'Poste', 'Muscu faites', 'Muscu prévues', 'Réalisation muscu %', 'Endu faites', 'Endu prévues', 'Réalisation endu %', 'Assiduité %', 'RPE moyen', 'Charge totale (UA)', 'ACWR', 'Tonnage muscu (kg)',
       'Squat 1RM', 'Squat Δ', 'Bench 1RM', 'Bench Δ', 'RDL 1RM', 'RDL Δ', 'Rowing 1RM', 'Rowing Δ', 'Sommeil /5', 'Énergie /5', 'Douleurs /5', 'Blessure / surveillance']);
     reps.forEach(r => {
@@ -17723,18 +20369,19 @@ async function exporterRapportEquipeExcel(players, from, to, titre) {
       if (j === 9 && typeof c.value === 'number') c.font = { bold: true, color: { argb: c.value >= 85 ? 'FF2E7D32' : c.value >= 65 ? 'FFE67800' : 'FFC62828' } }; }); });
     // Matrice charge hebdomadaire (UA)
     const weeks = reps[0].semaines.map(s => s.debut);
-    const w2 = wb.addWorksheet('Charge par semaine (UA)');
+    const w2 = wb.addWorksheet(nomFeuille('Charge UA'));
     w2.addRow(['Joueur'].concat(weeks.map(d => rpFr(d).slice(0, 5))).concat(['Total']));
     reps.forEach(r => w2.addRow([r.player.name].concat(r.semaines.map(s => s.ua || null)).concat([r.kpi.uaTotal])));
     w2.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 9; });
     hdr(w2);
     // Matrice assiduité hebdo (séances faites / prévues)
-    const w3 = wb.addWorksheet('Assiduité par semaine');
+    const w3 = wb.addWorksheet(nomFeuille('Assiduité'));
     w3.addRow(['Joueur'].concat(weeks.map(d => rpFr(d).slice(0, 5))));
     reps.forEach(r => w3.addRow([r.player.name].concat(r.semaines.map(s => (s.muscuPrevues + s.enduPrevues) ? (s.muscuFaites + s.enduFaites) + '/' + (s.muscuPrevues + s.enduPrevues) : ''))));
     w3.columns.forEach((c, i) => { c.width = i === 0 ? 24 : 9; });
     hdr(w3);
     w3.eachRow((row, i) => { if (i > 1) row.eachCell((c, j) => { if (j > 1) { c.alignment = { horizontal: 'center' }; const m = String(c.value || '').match(/^(\d+)\/(\d+)$/); if (m) c.font = { bold: true, color: { argb: m[1] === m[2] ? 'FF2E7D32' : +m[1] === 0 ? 'FFC62828' : 'FFE67800' } }; } }); });
+    });
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
@@ -18273,6 +20920,7 @@ function AdminView() {
   const [importText, setImportText] = useState('');
   const [editPerso, setEditPerso] = useState(null);
   const [selPerso, setSelPerso] = useState(null);
+  const [rapportPerso, setRapportPerso] = useState(null);
 
   const playersPerso = (db.playersPerso || []).filter(p => !p.archived);
   const playersPersoArchives = (db.playersPerso || []).filter(p => p.archived);
@@ -19075,6 +21723,8 @@ function AdminView() {
               <div style=${{ fontSize:11, color:'rgba(255,255,255,.4)' }}>${selPerso.email}</div>
             </div>
           </div>
+          <button class="btn btn-sm" onClick=${() => setRapportPerso((db.playersPerso||[]).find(p=>p.id===selPerso.id)||selPerso)}
+            style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700, flexShrink:0 }}>📊 Bilan PDF / Excel</button>
           <button class="btn btn-sm" onClick=${() => setEditPerso(selPerso)}
             style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420', flexShrink:0 }}>✏️</button>
         </div>
@@ -19082,6 +21732,7 @@ function AdminView() {
           ${React.createElement(PersoAdminDetail, { player: (db.playersPerso||[]).find(p=>p.id===selPerso.id)||selPerso, setDb })}
         </div>
       </div>` : null}
+      ${rapportPerso ? _h`<${RapportJoueurModal} player=${rapportPerso} onClose=${() => setRapportPerso(null)} />` : null}
       ${page === 'staff-manager' ? _h`<div class="page-pad">${React.createElement(StaffManagerView)}</div>` : null}
       ${page === 'staff' && React.createElement(StaffView)}
 
@@ -19180,6 +21831,8 @@ function AdminView() {
                       // de passe en clair. Remplacé par l'email de (ré)initialisation Firebase.
                       envoyerReinitialisation(p.email);
                     }}>🔑 Mot de passe</button>
+                  <button class="btn btn-sm" style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700, fontSize:10 }}
+                    onClick=${e => { e.stopPropagation(); setRapportPerso(p); }}>📊 Bilan</button>
                   <button class="btn btn-sm" style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420' }}
                     onClick=${e => { e.stopPropagation(); setEditPerso(p); }}>✏️</button>
                   <button class="btn btn-sm" title="Archiver ce profil (contrat terminé) — historique conservé"
@@ -19207,6 +21860,8 @@ function AdminView() {
                   <div style=${{ fontSize:10, color:'rgba(255,255,255,.35)' }}>${p.sport||'Handball'} · Archivé le ${p.archivedDate||'?'}</div>
                 </div>
                 <div style=${{ display:'flex', gap:8 }}>
+                  <button class="btn btn-sm" style=${{ background:'rgba(76,175,80,.1)', border:'1px solid rgba(76,175,80,.3)', color:'#4CAF50', padding:'3px 10px', fontSize:11 }}
+                    onClick=${() => setRapportPerso(p)}>📊 Bilan</button>
                   <button class="btn btn-sm" style=${{ background:'rgba(76,175,80,.1)', border:'1px solid rgba(76,175,80,.3)', color:'#4CAF50', padding:'3px 10px', fontSize:11 }}
                     onClick=${() => unarchivePerso(p.id)}>↩ Réactiver</button>
                   <button class="btn btn-sm btn-danger" style=${{ padding:'3px 8px', fontSize:12 }} title="Supprimer définitivement"
@@ -23696,6 +26351,7 @@ function VolumeEquipeView({ players }) {
 function ChargeDashboard({ players, clubs }) {
   if (!players || !players.length) return _h`<div style=${{ padding:40, textAlign:"center", color:"rgba(255,255,255,.3)" }}>Aucun joueur à afficher.</div>`;
   const [selP, setSelP] = useState(null);
+  const [rapportP, setRapportP] = useState(null);
   const [wellnessHistExp, setWellnessHistExp] = useState(null);
 
   // Fusionne les bilans terrain manuels avec les séances muscu/endurance déjà
@@ -23811,7 +26467,7 @@ function ChargeDashboard({ players, clubs }) {
       <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10, alignItems:'center' }}>
         <span style=${{ fontSize:10, color:'rgba(255,255,255,.4)', textTransform:'uppercase', letterSpacing:1 }}>📗 Export Excel équipe :</span>
         ${rpPeriodes({}).filter(pp => pp.id !== 'tout').map(pp => _h`<button key=${pp.id} class="btn btn-sm" style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700 }}
-          onClick=${() => exporterRapportEquipeExcel(players, pp.from, pp.to, ((clubs && clubs[0] && clubs[0].name) || 'equipe'))}>${pp.label}</button>`)}
+          onClick=${() => exporterRapportEquipeExcel(players, pp.from, pp.to, ((clubs && clubs[0] && clubs[0].name) || 'equipe'), clubs)}>${pp.label}</button>`)}
       </div>
     </div>
 
@@ -23826,7 +26482,7 @@ function ChargeDashboard({ players, clubs }) {
     <!-- Tableau(x) équipe — groupé par club si plusieurs clubs sont représentés -->
     ${(() => {
       const tableHead = _h`<thead><tr>
-        ${['Joueur','Charge 7j','Charge 21j','Tendance','ACWR','RPE moy.','Fatigue moy.','Dernière séance'].map(h =>
+        ${['Joueur','Charge 7j','Charge 21j','Tendance','ACWR','RPE moy.','Fatigue moy.','Dernière séance','Rapport'].map(h =>
           _h`<th key=${h} style=${{ padding:'8px 10px', textAlign:'left', fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:1.5, textTransform:'uppercase', borderBottom:'1px solid rgba(255,255,255,.06)', fontWeight:500 }}>${h}</th>`
         )}
       </tr></thead>`;
@@ -23879,6 +26535,10 @@ function ChargeDashboard({ players, clubs }) {
             <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:11, color:'rgba(255,255,255,.4)' }}>
               ${lastB ? lastB.type + ' · RPE ' + lastB.rpe : '—'}
             </td>
+            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+              <button class="btn btn-sm" title="Rapport PDF / Excel de ${p.name}" onClick=${e => { e.stopPropagation(); setRapportP(p); }}
+                style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700, whiteSpace:'nowrap', padding:'4px 9px', fontSize:11 }}>📄 PDF / Excel</button>
+            </td>
           </tr>`;
         });
       }
@@ -23886,7 +26546,7 @@ function ChargeDashboard({ players, clubs }) {
       function renderTable(list) {
         return _h`<div class="card" style=${{ marginBottom:16 }}>
           <div style=${{ overflowX:'auto' }}>
-            <table style=${{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
+            <table style=${{ width:'100%', borderCollapse:'collapse', minWidth:680 }}>
               ${tableHead}
               <tbody>${renderRows(list)}</tbody>
             </table>
@@ -23900,7 +26560,15 @@ function ChargeDashboard({ players, clubs }) {
       if (clubList.length < 2) {
         return renderTable(players);
       }
-      return clubList.map(c => {
+      const sansClub = players.filter(p => !clubList.some(c => playerInClub(p, c.id)));
+      const blocIndiv = sansClub.length ? _h`<div key="_indiv">
+          <div style=${{ display:'flex', alignItems:'center', gap:8, marginBottom:8, marginTop:6 }}>
+            <div style=${{ fontSize:14, fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif" }}>Profils individuels</div>
+            <div style=${{ fontSize:11, color:'rgba(255,255,255,.35)' }}>${sansClub.length} joueur${sansClub.length>1?'s':''}</div>
+          </div>
+          ${renderTable(sansClub)}
+        </div>` : null;
+      return [...clubList.map(c => {
         const clubPlayers = players.filter(p => playerInClub(p, c.id));
         if (!clubPlayers.length) return null;
         return _h`<div key=${c.id}>
@@ -23910,8 +26578,9 @@ function ChargeDashboard({ players, clubs }) {
           </div>
           ${renderTable(clubPlayers)}
         </div>`;
-      });
+      }), blocIndiv];
     })()}
+    ${rapportP ? _h`<${RapportJoueurModal} player=${rapportP} onClose=${() => setRapportP(null)} />` : null}
 
     <!-- ── WELLNESS DU MATIN — AUJOURD'HUI ─────────────────────────────── -->
     ${(() => {
@@ -30264,10 +32933,38 @@ function PerfHandApp() {
     }
   }
 
+  // Données toujours à jour pour la vérification : le minuteur horaire ci-dessous garde sinon la
+  // copie de `db` prise à l'ouverture de l'appli, et signalait comme « non validées » des séances
+  // validées depuis (fausses alertes Telegram).
+  const dbPourAlertesRef = React.useRef(db);
+  dbPourAlertesRef.current = db;
+
+  // Relit la séance directement dans la base juste avant d'alerter : la copie locale peut être en
+  // retard (données pas encore arrivées au démarrage, séance validée sur un autre appareil).
+  // En cas de doute (lecture impossible), on n'alerte pas.
+  async function seanceToujoursNonValidee(playerId, champ, seanceId) {
+    if (!window.__perfhand_db) return false;
+    try {
+      const snap = await window.__perfhand_db.ref('perfhand/playersPerso/' + playerId + '/' + champ).once('value');
+      const s = enTableau(snap.val()).find(x => String(x.id) === String(seanceId));
+      return !!(s && s.datePrevu && s.datePrevu < localDateStr() && !s.dateFaite);
+    } catch(e) { return false; }
+  }
+
   function checkSeancesNonValidees() {
     const today = localDateStr();
     // Ne checker que les profils perso (pas les joueurs clubs sans séances réelles)
-    const allPlayers = [...(db.playersPerso || [])];
+    const allPlayers = [...(dbPourAlertesRef.current.playersPerso || [])];
+
+    const alerter = (player, champ, s, key, lines) => {
+      if (alreadySentStrict(key)) return;
+      tgLocalLock.current[key] = today; // verrou local pendant la vérification serveur
+      seanceToujoursNonValidee(player.id, champ, s.id).then(nonValidee => {
+        if (!nonValidee) { delete tgLocalLock.current[key]; return; }
+        markSentStrict(key); // Marquer AVANT d'envoyer
+        sendTelegram(lines);
+      });
+    };
 
     allPlayers.forEach(player => {
       const nom = player.name || "Joueur inconnu";
@@ -30275,36 +32972,26 @@ function PerfHandApp() {
       // Seances muscu non validées (passées de plus de 1 jour)
       (player.muscuSeances || []).forEach(s => {
         if (s.datePrevu && s.datePrevu < today && !s.dateFaite) {
-          const key = "muscu_" + (player.id||"") + "_" + s.id;
-          if (!alreadySentStrict(key)) {
-            markSentStrict(key); // Marquer AVANT d'envoyer
-            const lines = [
-              "⚠️ [MUSCU] Séance non validée",
-              "Joueur : " + nom,
-              "Prévue le : " + s.datePrevu,
-              "Séance : " + (s.nom || "Sans nom"),
-              s.methode ? "Méthode : " + s.methode : null,
-            ].filter(Boolean).join("\n");
-            sendTelegram(lines);
-          }
+          alerter(player, 'muscuSeances', s, "muscu_" + (player.id||"") + "_" + s.id, [
+            "⚠️ [MUSCU] Séance non validée",
+            "Joueur : " + nom,
+            "Prévue le : " + s.datePrevu,
+            "Séance : " + (s.nom || "Sans nom"),
+            s.methode ? "Méthode : " + s.methode : null,
+          ].filter(Boolean).join("\n"));
         }
       });
 
       // Seances endurance non validées
       (player.enduranceSeances || []).forEach(s => {
         if (s.datePrevu && s.datePrevu < today && !s.dateFaite) {
-          const key = "end_" + (player.id||"") + "_" + s.id;
-          if (!alreadySentStrict(key)) {
-            markSentStrict(key); // Marquer AVANT d'envoyer
-            const lines = [
-              "⚠️ [ENDURANCE] Séance non validée",
-              "Joueur : " + nom,
-              "Prévue le : " + s.datePrevu,
-              "Séance : " + (s.nom || "Sans nom"),
-              s.duree ? "Durée : " + s.duree + " min" : null,
-            ].filter(Boolean).join("\n");
-            sendTelegram(lines);
-          }
+          alerter(player, 'enduranceSeances', s, "end_" + (player.id||"") + "_" + s.id, [
+            "⚠️ [ENDURANCE] Séance non validée",
+            "Joueur : " + nom,
+            "Prévue le : " + s.datePrevu,
+            "Séance : " + (s.nom || "Sans nom"),
+            s.duree ? "Durée : " + s.duree + " min" : null,
+          ].filter(Boolean).join("\n"));
         }
       });
     });

@@ -1,8 +1,8 @@
-// PerfHand v1789789000
-console.log("PerfHand v1789789000 - chargement...");
+// PerfHand v1789803000
+console.log("PerfHand v1789803000 - chargement...");
 // Force cache bust: si version en cache différente, reload
 (function() {
-  var VER = "1789789000";
+  var VER = "1789803000";
   var stored = sessionStorage.getItem("perfhand_ver");
   if (stored && stored !== VER) { sessionStorage.setItem("perfhand_ver", VER); window.location.reload(true); }
   else { sessionStorage.setItem("perfhand_ver", VER); }

@@ -474,7 +474,7 @@ function BiblioLinkButton({ nomExercice }) {
           </div>
         </div>` : match.imageUrl ? _h`<div>
           <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1.5, marginBottom:8 }}>Image</div>
-          <img src=${match.imageUrl} alt=${match.nom} style=${{ width:'100%', maxHeight:260, objectFit:'cover', borderRadius:10 }} onError=${e => e.target.style.display='none'} />
+          <${ZoomableImage} src=${match.imageUrl} alt=${match.nom} style=${{ width:'100%', height:200, objectFit:'cover', borderRadius:10 }} />
         </div>` : null}
       </div>
     </div>` : null}
@@ -732,7 +732,7 @@ function BibliothequeView({ db, setDb, readOnly }) {
                 allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen=${true}
               ></iframe>
-            </div>` : m.imageUrl ? _h`<img src=${m.imageUrl} style=${{ width:'100%', maxHeight:200, objectFit:'contain', borderRadius:8, marginBottom:10, marginTop:10, background:'rgba(255,255,255,.03)' }} onError=${e => e.target.style.display='none'} />` : null}
+            </div>` : m.imageUrl ? _h`<${ZoomableImage} src=${m.imageUrl} alt=${m.nom} style=${{ width:'100%', height:200, objectFit:'contain', borderRadius:8, marginBottom:10, marginTop:10, background:'rgba(255,255,255,.04)' }} />` : null}
             <div style=${{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10 }}>
               ${m.variante ? _h`<div style=${{ gridColumn:'1/-1', background:'rgba(255,255,255,.04)', borderRadius:8, padding:'7px 10px' }}>
                 <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>Variante</div>

@@ -109,7 +109,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
 
   function createFromMethode(methode, cycleIdx) {
     // Méthode personnalisée : structure différente (exercicesRef flat, pas de cycles %1RM)
-    if (methode.isCustom || methode.isBilanDepart) {
+    if (methode.isCustom || methode.isBilanDepart || methode.isTemplate) {
       const exercices = (methode.exercicesRef || []).map(ex => ({
         nom: ex.nom, series: parseInt(ex.series) || 3, reps: ex.reps || '8-10',
         charge: ex.charge || '', repos: ex.repos || '90s', notes: ex.notes || '',
@@ -123,13 +123,14 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
         // exercice EMOM sauvegardé dans une méthode personnalisée perdait donc son chrono EMOM
         // (repassait en repos classique) à chaque fois que la méthode était réutilisée.
         ...(ex.emom ? { emom: true, emomDuree: ex.emomDuree || 10 } : {}),
+        ...(ex.blocNom != null ? { blocNom: ex.blocNom } : {}),
       }));
       const base = {
-        nom: methode.isBilanDepart ? methode.nom : 'Séance — ' + methode.nom,
+        nom: (methode.isBilanDepart || methode.isTemplate) ? methode.nom : 'Séance — ' + methode.nom,
         datePrevu: localDateStr(),
         methode: methode.nom,
-        contexte: '', objectif: methode.description, rpeCible: methode.isBilanDepart ? 5 : null,
-        notes: methode.isBilanDepart ? (methode.protocole || '') : '', cycle: '', exercices,
+        contexte: '', objectif: methode.description, rpeCible: methode.isTemplate ? (methode.rpeCible || null) : (methode.isBilanDepart ? 5 : null),
+        notes: (methode.isBilanDepart || methode.isTemplate) ? (methode.protocole || '') : '', cycle: '', exercices,
       };
       setNewSeanceBase(base);
       setShowAddSeance(true);
@@ -187,8 +188,12 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
       }
       if (details && details.length > 0) {
         // One exercise entry per serie detail
+        // Méthodes basées sur un Training Max (ex. 5/3/1 : TM = 90 % du 1RM) : les % de la méthode
+        // sont des % du TM, convertis ici en % du 1RM (100 % du TM = 90 % du 1RM).
+        const tm = methode.tmFactor || 1;
+        const cv = v => (v && tm !== 1) ? Math.round(v * tm * 10) / 10 : v;
         const firstDetail = details[0];
-        const pct = firstDetail.pct || 0;
+        const pct = cv(firstDetail.pct || 0);
         return {
           nom: ex,
           series: details.length,
@@ -197,9 +202,9 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
           chargeDetails: details.map(d => ({
             serie: d.serie,
             reps: d.reps,
-            pct: d.pct,
+            pct: cv(d.pct),
             amrap: d.amrap || false,
-            note: d.note || '',
+            note: ((d.pct && tm !== 1) ? d.pct + ' % du TM (= ' + cv(d.pct) + ' % du 1RM)' + (d.note ? ' — ' : '') : '') + (d.note || ''),
           })),
           repos: '2min',
           notes: firstCycle.note || '',
@@ -247,7 +252,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
 
   const CAT_COLORS = { 'Force':'#FF4455', 'Force/Volume':'#FF7A00', 'Puissance':'#FFA420', 'Prévention':'#4CAF50', 'Volume':'#7C6FFF' };
 
-  const allMethodes = [...METHODES_MUSCU, ...(db.customMethodes || [])]
+  const allMethodes = [...METHODES_HB_TEMPLATES, ...METHODES_MUSCU, ...(db.customMethodes || [])]
   const _tabMethodes = React.createElement(MuscuMethodesTab, { methodes: allMethodes, showMethode, setShowMethode, createFromMethode, addSeance, setShowTesting, selCycleSem, setSelCycleSem, isCoach, db, setDb });
 
   return _h`<div>

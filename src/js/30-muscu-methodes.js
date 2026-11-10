@@ -1,10 +1,7 @@
 
-
-
-// ── METHODES MUSCULATION DATA ─────────────────────────────────────────────────────
 const METHODES_MUSCU = [
   {
-    id: "wendler531", nom: "5/3/1 Wendler", categorie: "Force", couleur: "#FF4455", equipement: "salle",
+    id: "wendler531", nom: "5/3/1 Wendler", categorie: "Force", couleur: "#FF4455", equipement: "salle", tmFactor: 0.9,
     description: "Progression lineaire sur 4 semaines basee sur 90% du 1RM (Training Max). 3 series par seance avec AMRAP sur la derniere. Augmenter TM de +2.5kg haut du corps / +5kg bas apres chaque cycle.",
     cycles: [
       { sem: "S1", label: "Semaine des 5",
@@ -29,7 +26,7 @@ const METHODES_MUSCU = [
           { serie: 2, reps: "3",  pct: 90 },
           { serie: 3, reps: "1+", pct: 100, amrap: true, note: "AMRAP - tout donner sur cette serie" },
         ],
-        note: "Semaine la plus intense. AMRAP a 100% TM (= ~90% du 1RM reel) = vrai test de force du cycle.",
+        note: "Semaine la plus intense. AMRAP a 100% du TM (= 90% du 1RM reel) = vrai test de force du cycle. Les % de cette methode sont des % du TM : ils sont convertis automatiquement en % du 1RM a la creation de la seance.",
       },
       { sem: "S4", label: "Deload obligatoire",
         details: [
@@ -985,6 +982,7 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
   const [showCreate, setShowCreate] = React.useState(false);
   const [formM, setFormM] = React.useState({ nom:'', categorie:'Force', couleur:'#FFA420', equipement:'salle', description:'', exercices:[] });
   const [newEx, setNewEx] = React.useState({ nom:'', series:'3', reps:'8', repos:'90s', charge:'', notes:'' });
+  const [filtreQualite, setFiltreQualite] = React.useState('toutes');
   const [filtreEquip, setFiltreEquip] = React.useState('tous'); // filtre affiché : tous | salle | poids_corps | mixte
 
   function saveCustomMethode() {
@@ -1020,6 +1018,55 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
     mixte:       { label: 'Mixte',           emoji: '🔀', color: '#FFA420' },
   };
   const equipOf = (m) => EQUIP_TAGS[m.equipement] || null;
+  // Qualités physiques travaillées : une méthode peut en avoir plusieurs
+  const QUALITES = {
+    force:        { label: 'Force',           emoji: '💪', color: '#FF4455' },
+    puissance:    { label: 'Puissance',       emoji: '⚡', color: '#FFA420' },
+    vitesse:      { label: 'Vitesse',         emoji: '🏃', color: '#00D2D3' },
+    plyo:         { label: 'Plyométrie',      emoji: '🦘', color: '#38BDF8' },
+    hypertrophie: { label: 'Hypertrophie',    emoji: '📈', color: '#7C6FFF' },
+    endurance:    { label: 'Endurance musculaire', emoji: '🔁', color: '#FFB800' },
+    prevention:   { label: 'Prévention',      emoji: '🛡️', color: '#4CAF50' },
+    poussee:      { label: 'Poussée & triceps', emoji: '💥', color: '#FF6B9D' },
+    halte:        { label: 'Haltérophilie', emoji: '🏋️', color: '#F5C518' },
+    hanche:       { label: 'Hanche & fessiers', emoji: '🦵', color: '#E5484D' },
+    epaule:       { label: 'Épaule & haut du dos', emoji: '🦾', color: '#FF6B9D' },
+    reprise:      { label: 'Reprise / Santé', emoji: '🌱', color: '#4CAF50' },
+    bilan:        { label: 'Tests & bilans',  emoji: '📋', color: '#FF6B9D' },
+  };
+  const QUALITES_PAR_ID = {
+    wendler531:['force'], force_hyp:['force','hypertrophie'], cinq_par_cinq:['force'], conjuguee:['force','puissance'],
+    volume_allemand:['hypertrophie','force'], pyramide_descendante:['force'], clusters:['puissance','force'],
+    pliometrie:['plyo','puissance'], hypertrophie:['hypertrophie'], prevention:['prevention'],
+    testing_charges:['bilan'], bilan_bas_corps:['bilan'], bilan_haut_corps:['bilan'], bilan_mobilite_coordination:['bilan'],
+    emom:['endurance','puissance'], circuit_haut_hb:['endurance','puissance'], circuit_bas_hb:['endurance','puissance'],
+    pyramide_hb:['puissance','endurance'], defi_chrono_hb:['vitesse','endurance'],
+    hb_plyo_bas:['plyo','puissance'], hb_plyo_unilat:['plyo'], hb_puiss_bas:['puissance','force'],
+    hb_contraste_bas:['puissance','force'], hb_puiss_haut:['puissance'], hb_vitesse_ligne:['vitesse'],
+    hb_vitesse_appuis:['vitesse'], hb_mix_vitesse_force:['puissance','vitesse','plyo','force'],
+    hb_match_court:['puissance','vitesse'], hb_reprise_maladie:['reprise'],
+    hb_epaule_stabilite:['epaule','prevention'], hb_epaule_isometrie:['epaule','prevention'], hb_rhomboides_trapezes:['epaule','hypertrophie'],
+    hb_epaule_activation:['epaule','prevention'], hb_haut_force:['force','poussee'], hb_halte_initiation:['halte'], hb_halte_force:['halte','force'], hb_halte_vitesse:['halte','vitesse','puissance'], hb_halte_hang_match:['halte','puissance'], hb_halte_complexes:['halte','puissance'], hb_halte_epaule:['halte','puissance'], hb_halte_arrache:['halte','puissance'], hb_halte_jete:['halte','poussee','puissance'], hb_hanche_extension_force:['hanche','force'], hb_hanche_flexion:['hanche','vitesse'], hb_hanche_puissance:['hanche','puissance','plyo'], hb_hanche_complete:['hanche','force','prevention'], hb_hanche_stabilite:['hanche','prevention'], hb_fessiers_volume:['hanche','hypertrophie'], hb_push_puissance:['poussee','puissance'], hb_push_plyo:['poussee','plyo','puissance'], hb_push_vitesse:['poussee','vitesse','puissance'], hb_push_contraste:['poussee','puissance','force'], hb_triceps_epaules_force:['poussee','force'], hb_triceps_epaules_volume:['poussee','hypertrophie'], hb_tirage_force_dos:['force','epaule'], hb_haut_volume:['hypertrophie'],
+  };
+  const qualitesOf = (m) => {
+    if (Array.isArray(m.qualites) && m.qualites.length) return m.qualites;
+    if (QUALITES_PAR_ID[m.id]) return QUALITES_PAR_ID[m.id];
+    const c = String(m.categorie || '').toLowerCase();
+    const q = [];
+    if (/force/.test(c)) q.push('force');
+    if (/puissance|explos/.test(c)) q.push('puissance');
+    if (/vitesse/.test(c)) q.push('vitesse');
+    if (/plyo/.test(c)) q.push('plyo');
+    if (/hypertro|volume/.test(c)) q.push('hypertrophie');
+    if (/endurance/.test(c)) q.push('endurance');
+    if (/pr[ée]vention|r[ée]hab/.test(c)) q.push('prevention');
+    if (/reprise|sant[ée]/.test(c)) q.push('reprise');
+    if (/test|bilan/.test(c)) q.push('bilan');
+    return q;
+  };
+  const passesFiltreQualite = (m) => filtreQualite === 'toutes' || qualitesOf(m).includes(filtreQualite);
+  const passesFiltres = (m) => passesFiltreEquip(m) && passesFiltreQualite(m);
+  const nbParQualite = (k) => [...standard, ...custom].filter(m => passesFiltreEquip(m) && qualitesOf(m).includes(k)).length;
   const passesFiltreEquip = (m) => filtreEquip === 'tous' || m.equipement === filtreEquip;
 
   return _h`<div>
@@ -1027,6 +1074,21 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
       Sélectionne une méthode pour créer automatiquement une séance pré-remplie.
     </div>
 
+    <!-- Filtre par qualité physique -->
+    <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:6 }}>Qualité physique</div>
+    <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
+      ${[['toutes','Toutes','#fff'], ...Object.entries(QUALITES).map(([k,t])=>[k, t.emoji+' '+t.label, t.color])].map(([key,label,color]) => {
+        const n = key === 'toutes' ? null : nbParQualite(key);
+        if (n === 0 && filtreQualite !== key) return null;
+        return _h`<button key=${key}
+        onClick=${() => setFiltreQualite(key)}
+        style=${{ padding:'6px 12px', borderRadius:20, cursor:'pointer', fontSize:11, fontWeight:700,
+          border:'1px solid '+(filtreQualite===key ? color : 'rgba(255,255,255,.1)'),
+          background: filtreQualite===key ? color+'18' : 'rgba(255,255,255,.03)',
+          color: filtreQualite===key ? color : 'rgba(255,255,255,.4)' }}>${label}${n != null ? ' ('+n+')' : ''}</button>`;
+      })}
+    </div>
+    <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:6 }}>Équipement</div>
     <!-- Filtre par équipement -->
     <div style=${{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:16 }}>
       ${[['tous','Toutes','#fff'], ...Object.entries(EQUIP_TAGS).map(([k,t])=>[k, t.emoji+' '+t.label, t.color])].map(([key,label,color]) => _h`<button key=${key}
@@ -1122,7 +1184,7 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
     <!-- Méthodes custom -->
     ${custom.length > 0 ? _h`<div style=${{ marginBottom:20 }}>
       <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:10 }}>Mes méthodes personnalisées</div>
-      ${custom.filter(passesFiltreEquip).map(m => _h`<div key=${m.id} style=${{
+      ${custom.filter(passesFiltres).map(m => _h`<div key=${m.id} style=${{
         background: showMethode===m.id ? m.couleur+'0A' : 'rgba(255,255,255,.025)',
         border:'1px solid '+(showMethode===m.id ? m.couleur+'40' : 'rgba(255,255,255,.1)'),
         borderRadius:14, padding:'14px 18px', marginBottom:8
@@ -1154,8 +1216,8 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
     </div>` : null}
 
     <!-- Méthodes standard -->
-    <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:10 }}>Méthodes d&apos;entraînement</div>
-    ${standard.filter(passesFiltreEquip).map(m => _h`<div key=${m.id} style=${{
+    <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:10 }}>Méthodes d'entraînement</div>
+    ${standard.filter(passesFiltres).map(m => _h`<div key=${m.id} style=${{
       background: showMethode===m.id ? m.couleur+'0A' : 'rgba(255,255,255,.025)',
       border:'1px solid '+(showMethode===m.id ? m.couleur+'40' : 'rgba(255,255,255,.07)'),
       borderRadius:14, padding:'14px 18px', marginBottom:8, cursor:'pointer'
@@ -1245,7 +1307,7 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
                 })}
               </div>
             </div>` : null}
-            ${m.isBilanDepart ? _h`<div style=${{ marginBottom:12 }}>
+            ${(m.isBilanDepart || m.isTemplate) ? _h`<div style=${{ marginBottom:12 }}>
               ${m.protocole ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', background:'rgba(255,255,255,.03)', borderRadius:8, padding:'8px 12px', marginBottom:8, lineHeight:1.6 }}>
                 <span style=${{ color:m.couleur, fontWeight:700 }}>Protocole : </span>${m.protocole}
               </div>` : null}
@@ -1260,7 +1322,7 @@ function MuscuMethodesTab({ methodes, showMethode, setShowMethode, createFromMet
             </div>` : null}
             <button class="btn btn-primary" style=${{ width:'100%' }}
               onClick=${e => { e.stopPropagation(); createFromMethode(m, selCycleSem[m.id] || 0); }}>
-              ${m.isBilanDepart ? 'Créer la séance de test (modifiable)' : '\u2192 Créer séance — ' + (m.cycles[(selCycleSem[m.id] || 0)]?.sem || 'S1')}
+              ${m.isTemplate ? 'Créer cette séance (modifiable)' : m.isBilanDepart ? 'Créer la séance de test (modifiable)' : '\u2192 Créer séance — ' + (m.cycles[(selCycleSem[m.id] || 0)]?.sem || 'S1')}
             </button>
           </div>`
         }

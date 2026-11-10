@@ -18,6 +18,7 @@ function AdminView() {
   const [importText, setImportText] = useState('');
   const [editPerso, setEditPerso] = useState(null);
   const [selPerso, setSelPerso] = useState(null);
+  const [rapportPerso, setRapportPerso] = useState(null);
 
   const playersPerso = (db.playersPerso || []).filter(p => !p.archived);
   const playersPersoArchives = (db.playersPerso || []).filter(p => p.archived);
@@ -820,6 +821,8 @@ function AdminView() {
               <div style=${{ fontSize:11, color:'rgba(255,255,255,.4)' }}>${selPerso.email}</div>
             </div>
           </div>
+          <button class="btn btn-sm" onClick=${() => setRapportPerso((db.playersPerso||[]).find(p=>p.id===selPerso.id)||selPerso)}
+            style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700, flexShrink:0 }}>📊 Bilan PDF / Excel</button>
           <button class="btn btn-sm" onClick=${() => setEditPerso(selPerso)}
             style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420', flexShrink:0 }}>✏️</button>
         </div>
@@ -827,6 +830,7 @@ function AdminView() {
           ${React.createElement(PersoAdminDetail, { player: (db.playersPerso||[]).find(p=>p.id===selPerso.id)||selPerso, setDb })}
         </div>
       </div>` : null}
+      ${rapportPerso ? _h`<${RapportJoueurModal} player=${rapportPerso} onClose=${() => setRapportPerso(null)} />` : null}
       ${page === 'staff-manager' ? _h`<div class="page-pad">${React.createElement(StaffManagerView)}</div>` : null}
       ${page === 'staff' && React.createElement(StaffView)}
 
@@ -925,6 +929,8 @@ function AdminView() {
                       // de passe en clair. Remplacé par l'email de (ré)initialisation Firebase.
                       envoyerReinitialisation(p.email);
                     }}>🔑 Mot de passe</button>
+                  <button class="btn btn-sm" style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700, fontSize:10 }}
+                    onClick=${e => { e.stopPropagation(); setRapportPerso(p); }}>📊 Bilan</button>
                   <button class="btn btn-sm" style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420' }}
                     onClick=${e => { e.stopPropagation(); setEditPerso(p); }}>✏️</button>
                   <button class="btn btn-sm" title="Archiver ce profil (contrat terminé) — historique conservé"
@@ -952,6 +958,8 @@ function AdminView() {
                   <div style=${{ fontSize:10, color:'rgba(255,255,255,.35)' }}>${p.sport||'Handball'} · Archivé le ${p.archivedDate||'?'}</div>
                 </div>
                 <div style=${{ display:'flex', gap:8 }}>
+                  <button class="btn btn-sm" style=${{ background:'rgba(76,175,80,.1)', border:'1px solid rgba(76,175,80,.3)', color:'#4CAF50', padding:'3px 10px', fontSize:11 }}
+                    onClick=${() => setRapportPerso(p)}>📊 Bilan</button>
                   <button class="btn btn-sm" style=${{ background:'rgba(76,175,80,.1)', border:'1px solid rgba(76,175,80,.3)', color:'#4CAF50', padding:'3px 10px', fontSize:11 }}
                     onClick=${() => unarchivePerso(p.id)}>↩ Réactiver</button>
                   <button class="btn btn-sm btn-danger" style=${{ padding:'3px 8px', fontSize:12 }} title="Supprimer définitivement"

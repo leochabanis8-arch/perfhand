@@ -513,10 +513,38 @@ function PerfHandApp() {
     }
   }
 
+  // Données toujours à jour pour la vérification : le minuteur horaire ci-dessous garde sinon la
+  // copie de `db` prise à l'ouverture de l'appli, et signalait comme « non validées » des séances
+  // validées depuis (fausses alertes Telegram).
+  const dbPourAlertesRef = React.useRef(db);
+  dbPourAlertesRef.current = db;
+
+  // Relit la séance directement dans la base juste avant d'alerter : la copie locale peut être en
+  // retard (données pas encore arrivées au démarrage, séance validée sur un autre appareil).
+  // En cas de doute (lecture impossible), on n'alerte pas.
+  async function seanceToujoursNonValidee(playerId, champ, seanceId) {
+    if (!window.__perfhand_db) return false;
+    try {
+      const snap = await window.__perfhand_db.ref('perfhand/playersPerso/' + playerId + '/' + champ).once('value');
+      const s = enTableau(snap.val()).find(x => String(x.id) === String(seanceId));
+      return !!(s && s.datePrevu && s.datePrevu < localDateStr() && !s.dateFaite);
+    } catch(e) { return false; }
+  }
+
   function checkSeancesNonValidees() {
     const today = localDateStr();
     // Ne checker que les profils perso (pas les joueurs clubs sans séances réelles)
-    const allPlayers = [...(db.playersPerso || [])];
+    const allPlayers = [...(dbPourAlertesRef.current.playersPerso || [])];
+
+    const alerter = (player, champ, s, key, lines) => {
+      if (alreadySentStrict(key)) return;
+      tgLocalLock.current[key] = today; // verrou local pendant la vérification serveur
+      seanceToujoursNonValidee(player.id, champ, s.id).then(nonValidee => {
+        if (!nonValidee) { delete tgLocalLock.current[key]; return; }
+        markSentStrict(key); // Marquer AVANT d'envoyer
+        sendTelegram(lines);
+      });
+    };
 
     allPlayers.forEach(player => {
       const nom = player.name || "Joueur inconnu";
@@ -524,36 +552,26 @@ function PerfHandApp() {
       // Seances muscu non validées (passées de plus de 1 jour)
       (player.muscuSeances || []).forEach(s => {
         if (s.datePrevu && s.datePrevu < today && !s.dateFaite) {
-          const key = "muscu_" + (player.id||"") + "_" + s.id;
-          if (!alreadySentStrict(key)) {
-            markSentStrict(key); // Marquer AVANT d'envoyer
-            const lines = [
-              "⚠️ [MUSCU] Séance non validée",
-              "Joueur : " + nom,
-              "Prévue le : " + s.datePrevu,
-              "Séance : " + (s.nom || "Sans nom"),
-              s.methode ? "Méthode : " + s.methode : null,
-            ].filter(Boolean).join("\n");
-            sendTelegram(lines);
-          }
+          alerter(player, 'muscuSeances', s, "muscu_" + (player.id||"") + "_" + s.id, [
+            "⚠️ [MUSCU] Séance non validée",
+            "Joueur : " + nom,
+            "Prévue le : " + s.datePrevu,
+            "Séance : " + (s.nom || "Sans nom"),
+            s.methode ? "Méthode : " + s.methode : null,
+          ].filter(Boolean).join("\n"));
         }
       });
 
       // Seances endurance non validées
       (player.enduranceSeances || []).forEach(s => {
         if (s.datePrevu && s.datePrevu < today && !s.dateFaite) {
-          const key = "end_" + (player.id||"") + "_" + s.id;
-          if (!alreadySentStrict(key)) {
-            markSentStrict(key); // Marquer AVANT d'envoyer
-            const lines = [
-              "⚠️ [ENDURANCE] Séance non validée",
-              "Joueur : " + nom,
-              "Prévue le : " + s.datePrevu,
-              "Séance : " + (s.nom || "Sans nom"),
-              s.duree ? "Durée : " + s.duree + " min" : null,
-            ].filter(Boolean).join("\n");
-            sendTelegram(lines);
-          }
+          alerter(player, 'enduranceSeances', s, "end_" + (player.id||"") + "_" + s.id, [
+            "⚠️ [ENDURANCE] Séance non validée",
+            "Joueur : " + nom,
+            "Prévue le : " + s.datePrevu,
+            "Séance : " + (s.nom || "Sans nom"),
+            s.duree ? "Durée : " + s.duree + " min" : null,
+          ].filter(Boolean).join("\n"));
         }
       });
     });

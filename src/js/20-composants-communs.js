@@ -96,21 +96,59 @@ function SharedChat({ role, playerName, playerPos, playerAge, playerStatus, play
 }
 
 // ── IMAGE ZOOMABLE (clic pour agrandir en plein écran) ──────────────────────
+// Reconnaît le type de média d'un lien saisi par le coach : image/GIF, vidéo YouTube / Vimeo /
+// Instagram / Drive, fichier vidéo direct (mp4…), ou lien inconnu (ouvert dans un nouvel onglet).
+function mediaInfo(url) {
+  const u = String(url || '').trim();
+  let m = u.match(/(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  if (m) return { kind: 'iframe', embed: 'https://www.youtube.com/embed/' + m[1] + '?rel=0&modestbranding=1', thumb: 'https://img.youtube.com/vi/' + m[1] + '/hqdefault.jpg' };
+  m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (m) return { kind: 'iframe', embed: 'https://player.vimeo.com/video/' + m[1] };
+  m = u.match(/instagram\.com\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/);
+  if (m) return { kind: 'iframe', embed: 'https://www.instagram.com/' + (m[1] === 'reels' ? 'reel' : m[1]) + '/' + m[2] + '/embed', tall: true };
+  m = u.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/);
+  if (m) return { kind: 'iframe', embed: 'https://drive.google.com/file/d/' + m[1] + '/preview' };
+  if (/\.(mp4|webm|mov|m4v|ogg|ogv)(\?|#|$)/i.test(u)) return { kind: 'video' };
+  if (/(tiktok\.com|facebook\.com|fb\.watch|x\.com|twitter\.com|dropbox\.com|wetransfer|icloud\.com)/i.test(u)) return { kind: 'link' };
+  return { kind: 'image' };
+}
+
 function ZoomableImage({ src, alt, style, onError }) {
   const [zoom, setZoom] = useState(false);
+  const [failed, setFailed] = useState(false);
   if (!src) return null;
+  const mi = mediaInfo(src);
+  const kind = failed ? 'link' : mi.kind;
+  const ouvrir = e => { e.stopPropagation(); if (kind === 'link') { try { window.open(src, '_blank', 'noopener'); } catch (err) {} } else setZoom(true); };
+  const tileStyle = { ...style, position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center', overflow:'hidden',
+    background:'rgba(255,255,255,.06)', cursor:'pointer', boxSizing:'border-box' };
+  const badge = (ico) => _h`<span style=${{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, color:'#fff', textShadow:'0 1px 6px rgba(0,0,0,.8)', background:'rgba(0,0,0,.25)' }}>${ico}</span>`;
+  let thumb;
+  if (kind === 'image') {
+    thumb = _h`<img src=${src} alt=${alt || ''} onError=${() => setFailed(true)} onClick=${ouvrir}
+      style=${{ ...style, cursor:'zoom-in' }} />`;
+  } else if (kind === 'video') {
+    thumb = _h`<span onClick=${ouvrir} style=${tileStyle}>
+      <video src=${src + (src.indexOf('#') < 0 ? '#t=0.5' : '')} muted playsInline preload="metadata" style=${{ width:'100%', height:'100%', objectFit:'cover', pointerEvents:'none' }} onError=${() => setFailed(true)}></video>${badge('▶')}</span>`;
+  } else if (kind === 'iframe') {
+    thumb = _h`<span onClick=${ouvrir} style=${{ ...tileStyle, ...(mi.thumb ? { backgroundImage:'url(' + mi.thumb + ')', backgroundSize:'cover', backgroundPosition:'center' } : {}) }}>${badge('▶')}</span>`;
+  } else {
+    thumb = _h`<span onClick=${ouvrir} title="Ouvrir le lien" style=${tileStyle}>${badge('🔗')}</span>`;
+  }
   return _h`<span style=${{ display:'contents' }}>
-    <img src=${src} alt=${alt || ''} onError=${onError}
-      onClick=${e => { e.stopPropagation(); setZoom(true); }}
-      style=${{ ...style, cursor:'zoom-in' }} />
+    ${thumb}
     ${zoom && _h`<div style=${{ position:'fixed', inset:0, background:'rgba(0,0,0,.92)', zIndex:99999,
         display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
       onClick=${() => setZoom(false)}>
-      <img src=${src} alt=${alt || ''}
-        style=${{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:12 }} />
+      ${kind === 'image' ? _h`<img src=${src} alt=${alt || ''} style=${{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:12 }} />`
+        : kind === 'video' ? _h`<video src=${src} controls autoPlay playsInline onClick=${e => e.stopPropagation()} style=${{ maxWidth:'100%', maxHeight:'100%', borderRadius:12, background:'#000' }}></video>`
+        : _h`<div onClick=${e => e.stopPropagation()} style=${mi.tall ? { width:'min(420px,100%)', height:'min(720px,90vh)' } : { width:'min(900px,100%)', aspectRatio:'16/9' }}>
+            <iframe src=${mi.embed} style=${{ width:'100%', height:'100%', border:'none', borderRadius:12, background:'#000' }} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+          </div>`}
       <button onClick=${() => setZoom(false)}
         style=${{ position:'fixed', top:16, right:16, background:'rgba(255,255,255,.12)', border:'none',
           color:'#fff', borderRadius:20, width:38, height:38, fontSize:20, cursor:'pointer' }}>×</button>
+      <a href=${src} target="_blank" rel="noopener" onClick=${e => e.stopPropagation()} style=${{ position:'fixed', bottom:16, left:'50%', transform:'translateX(-50%)', fontSize:12, color:'rgba(255,255,255,.7)', background:'rgba(255,255,255,.1)', padding:'6px 14px', borderRadius:20, textDecoration:'none' }}>Ouvrir le lien ↗</a>
     </div>`}
   </span>`;
 }

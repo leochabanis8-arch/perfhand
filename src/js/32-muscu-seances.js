@@ -146,7 +146,7 @@ function imageExoPour(ex) {
   try {
     if (ex.imageUrl && !ex.imageAuto) return ex.imageUrl;
     const m = findBiblioMatch(biblioNomPour(ex));
-    return (m && m.imageUrl) || '';
+    return (m && (m.imageUrl || (m.videoId ? 'https://youtu.be/' + m.videoId : (m.videoUrl || '')))) || '';
   } catch (e) { return ex.imageAuto ? '' : (ex.imageUrl || ''); }
 }
 
@@ -544,9 +544,9 @@ function MuscuSeanceEditor({ seance, onSave, onClose, player }) {
       <!-- Champ URL image (collapsible) -->
       ${ex._showImg ? _h`<div style=${{ display:'flex', gap:6, alignItems:'center' }}>
         <input class="ex-inp" value=${ex.imageUrl||''} onInput=${e => updEx(i,'imageUrl',e.target.value)}
-          placeholder="https://... URL de l'image GIF ou photo"
+          placeholder="Lien image, GIF ou VIDÉO (YouTube, Instagram, Vimeo, mp4, Drive…)"
           style=${{ flex:1, fontSize:11 }}/>
-        ${ex.imageUrl ? _h`<img src=${ex.imageUrl} alt="" style=${{ width:44, height:44, objectFit:'cover', borderRadius:6, border:'1px solid rgba(255,255,255,.15)', flexShrink:0 }} onError=${e => e.target.style.display='none'} />` : null}
+        ${ex.imageUrl ? _h`<${ZoomableImage} src=${ex.imageUrl} alt="" style=${{ width:44, height:44, objectFit:'cover', borderRadius:6, border:'1px solid rgba(255,255,255,.15)', flexShrink:0 }} />` : null}
       </div>` : null}
     </div>`;
   }
