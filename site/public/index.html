@@ -26363,14 +26363,15 @@ function ChargeDashboard({ players, clubs }) {
     const muscuDerived = (p.muscuSeances || [])
       .filter(s => s.dateFaite && s.rpeReel != null)
       .map(s => {
-        const duree = Math.max(30, Math.min(100, (s.exercices||[]).length * 9));
-        return { date: s.dateFaite, type:'Muscu', typeSeance: s.nom, rpe: s.rpeReel, fatigue: s.fatigue || 3, chargeSession: duree * s.rpeReel };
+        // Durée réelle si renseignée, sinon estimée d'après le nombre d'exercices
+        const duree = Number(s.duree) > 0 ? Number(s.duree) : Math.max(30, Math.min(100, (s.exercices||[]).length * 9));
+        return { date: s.dateFaite, type:'Muscu', typeSeance: s.nom, rpe: s.rpeReel, fatigue: typeof s.fatigue === 'number' ? s.fatigue : null, chargeSession: duree * s.rpeReel };
       });
     const enduranceDerived = (p.enduranceSeances || [])
       .filter(s => s.dateFaite && s.rpeReel != null)
       .map(s => {
         const duree = s.duree || 45;
-        return { date: s.dateFaite, type:'Endurance', typeSeance: s.nom, rpe: s.rpeReel, fatigue: s.fatigue || 3, chargeSession: duree * s.rpeReel };
+        return { date: s.dateFaite, type:'Endurance', typeSeance: s.nom, rpe: s.rpeReel, fatigue: typeof s.fatigue === 'number' ? s.fatigue : null, chargeSession: duree * s.rpeReel };
       });
     return [...terrain, ...muscuDerived, ...enduranceDerived];
   }
@@ -26411,48 +26412,79 @@ function ChargeDashboard({ players, clubs }) {
     </div>`);
   }
 
-  function weekCharge(p) {
-    return getAllBilans(p).filter(b => daysSince(b.date) <= 7)
-      .reduce((s, b) => s + (b.chargeSession||0), 0);
+  // ── ANALYSE PAR JOUEUR ──────────────────────────────────────────────────
+  // Charge d'une séance = durée (min) × RPE déclaré, en unités arbitraires (UA). « 7 j » = aujourd'hui
+  // et les 6 jours précédents. Le ratio d'évolution (ACWR = charge 7 j ÷ moyenne hebdo sur 28 j) n'a de
+  // sens qu'avec un historique suffisant : avec 1 ou 2 séances, un joueur qui reprenait doucement
+  // affichait « 2.0 » et passait en zone de risque sans être chargé. Il n'est donc calculé qu'avec
+  // ≥ 4 séances étalées sur ≥ 14 jours, et un pic ne compte comme risque que si la charge de la
+  // semaine est réellement élevée par rapport au reste de l'équipe (≥ médiane).
+  const today = localDateStr();
+  function signauxWellness(c) {
+    const s = [];
+    if ((c.douleurs||3) <= 2) s.push('douleurs');
+    if ((c.energie||3) <= 2) s.push('énergie basse');
+    if ((c.sommeil||3) <= 2) s.push('sommeil');
+    if ((c.humeur||3) <= 2) s.push('humeur basse');
+    if ((c.stress||3) <= 2) s.push('stress élevé');
+    if ((c.fatigue||3) >= 4) s.push('fatigue élevée');
+    return s;
   }
-  function charge21(p) {
-    return getAllBilans(p).filter(b => daysSince(b.date) <= 21)
-      .reduce((s, b) => s + (b.chargeSession||0), 0);
+  function scoreWellness(c) {
+    if (!c) return null;
+    const v = ['douleurs','energie','sommeil','humeur','stress'].map(k => c[k]).filter(x => typeof x === 'number');
+    return v.length ? Math.round(v.reduce((s, x) => s + x, 0) / v.length * 10) / 10 : null;
   }
-  function tendance7vs21(p) {
-    const c7 = weekCharge(p);
-    const c21 = charge21(p);
-    if (!c7 || !c21) return null;
-    const avg21 = c21 / 3; // moyenne hebdo sur 21j
-    return Math.round((c7 - avg21) / avg21 * 100);
+  function analyser(p) {
+    const bilans = getAllBilans(p).filter(b => b && b.date && daysSince(b.date) >= 0);
+    const sur = n => bilans.filter(b => daysSince(b.date) <= n - 1);
+    const b7 = sur(7), b28 = sur(28);
+    const somme = l => Math.round(l.reduce((s, b) => s + (b.chargeSession || 0), 0));
+    const moy = (l, k) => { const v = l.map(b => b[k]).filter(x => typeof x === 'number'); return v.length ? Math.round(v.reduce((s, x) => s + x, 0) / v.length * 10) / 10 : null; };
+    const charge7 = somme(b7), charge28 = somme(b28);
+    const anciennete = b28.length ? Math.max(...b28.map(b => daysSince(b.date))) : 0;
+    const historiqueOk = b28.length >= 4 && anciennete >= 14;
+    const acwr = historiqueOk && charge28 > 0 ? Math.round(charge7 / (charge28 / 4) * 100) / 100 : null;
+    const derniere = bilans.slice().sort((x, y) => String(x.date).localeCompare(String(y.date))).slice(-1)[0] || null;
+    const checkin = wellnessArr(p).find(w => w.dateRessenti === today) || null;
+    return { p, charge7, nb7: b7.length, nb28: b28.length, acwr, historiqueOk, rpe7: moy(b7, 'rpe'), fatigue7: moy(b7, 'fatigue'),
+             derniere, checkin, scoreJour: scoreWellness(checkin), signaux: checkin ? signauxWellness(checkin) : [] };
   }
-  function weekRpe(p) {
-    const w = getAllBilans(p).filter(b => daysSince(b.date) <= 7);
-    return w.length ? Math.round(w.reduce((s, b) => s + b.rpe, 0) / w.length * 10) / 10 : null;
-  }
-  function weekFatigue(p) {
-    const w = getAllBilans(p).filter(b => daysSince(b.date) <= 7);
-    return w.length ? Math.round(w.reduce((s, b) => s + b.fatigue, 0) / w.length * 10) / 10 : null;
-  }
-  function getAcwr(p) {
-    const acute   = getAllBilans(p).filter(b => daysSince(b.date) <= 7).reduce((s,b)=>s+(b.chargeSession||0),0);
-    const chronic = getAllBilans(p).filter(b => daysSince(b.date) <= 28).reduce((s,b)=>s+(b.chargeSession||0),0) / 4;
-    return chronic > 0 ? Math.round(acute/chronic*100)/100 : null;
-  }
-  function acwrColor(v) {
-    if (!v) return 'rgba(255,255,255,.2)';
-    return v < 0.8 ? '#38BDF8' : v <= 1.3 ? '#4CAF50' : v <= 1.5 ? '#FFB800' : '#FF4455';
-  }
-  function lastWellness(p) {
-    const w = (p.bilansSem || []);
-    return w.length ? w[w.length-1] : null;
-  }
-
-  const alerts = players.filter(p => {
-    const acwr = getAcwr(p);
-    const fat = weekFatigue(p);
-    return (acwr && acwr > 1.5) || (fat && fat >= 4);
+  const analyses = players.map(analyser);
+  const chargesEquipe = analyses.map(a => a.charge7).filter(c => c > 0).sort((x, y) => x - y);
+  const medianeCharge = chargesEquipe.length ? chargesEquipe[Math.floor(chargesEquipe.length / 2)] : 0;
+  const chargeMax = chargesEquipe.length ? chargesEquipe[chargesEquipe.length - 1] : 0;
+  analyses.forEach(a => {
+    const r = [];
+    if (a.signaux.length) r.push({ niveau: (a.signaux.length >= 2 || (a.checkin.douleurs||3) <= 1) ? 'rouge' : 'orange', texte: 'Wellness du jour : ' + a.signaux.join(', ') });
+    const chargeHaute = a.charge7 > 0 && a.charge7 >= medianeCharge;
+    if (a.acwr != null && a.acwr > 1.5 && chargeHaute) r.push({ niveau: 'rouge', texte: 'Pic de charge : ×' + a.acwr + ' par rapport à son habitude' });
+    else if (a.acwr != null && a.acwr > 1.3 && chargeHaute) r.push({ niveau: 'orange', texte: 'Charge en hausse : ×' + a.acwr + ' par rapport à son habitude' });
+    if (a.fatigue7 != null && a.fatigue7 >= 4) r.push({ niveau: 'orange', texte: 'Fatigue déclarée élevée sur 7 j (' + a.fatigue7 + '/5)' });
+    if (a.rpe7 != null && a.rpe7 >= 8.5) r.push({ niveau: 'orange', texte: 'Séances perçues très dures (RPE moyen ' + a.rpe7 + ')' });
+    a.raisons = r;
+    a.niveau = r.some(x => x.niveau === 'rouge') ? 'rouge' : r.length ? 'orange' : (a.nb28 || a.checkin ? 'ok' : 'vide');
   });
+  const analyseDe = {}; analyses.forEach(a => { analyseDe[a.p.id] = a; });
+  const ORDRE_NIVEAU = { rouge: 0, orange: 1, ok: 2, vide: 3 };
+  const trier = l => l.slice().sort((x, y) => ORDRE_NIVEAU[x.niveau] - ORDRE_NIVEAU[y.niveau] || y.charge7 - x.charge7 || x.p.name.localeCompare(y.p.name));
+  const aSurveiller = trier(analyses.filter(a => a.niveau === 'rouge' || a.niveau === 'orange'));
+  const NIVEAU_CFG = {
+    rouge:  { label: 'À risque',      color: '#FF4455' },
+    orange: { label: 'À surveiller',  color: '#FFB800' },
+    ok:     { label: 'OK',            color: '#4CAF50' },
+    vide:   { label: 'Pas de données', color: 'rgba(255,255,255,.3)' },
+  };
+  function evolutionInfo(a) {
+    if (a.acwr == null) return { texte: a.nb28 ? 'Historique court' : '—', color: 'rgba(255,255,255,.25)', detail: a.nb28 ? a.nb28 + ' séance(s) sur 28 j : pas assez pour comparer' : '' };
+    const v = a.acwr;
+    if (v < 0.8) return { texte: '×' + v, color: '#38BDF8', detail: 'Sous sa charge habituelle' };
+    if (v <= 1.3) return { texte: '×' + v, color: '#4CAF50', detail: 'Stable' };
+    if (v <= 1.5) return { texte: '×' + v, color: '#FFB800', detail: 'En hausse' };
+    return { texte: '×' + v, color: '#FF4455', detail: 'Forte hausse' };
+  }
+  const coul = (v, bon, moyen, inverse) => v == null ? 'rgba(255,255,255,.3)' : (inverse ? (v >= bon ? '#FF4455' : v >= moyen ? '#FFB800' : '#4CAF50') : (v >= bon ? '#4CAF50' : v >= moyen ? '#FFB800' : '#FF4455'));
+  const ilYa = d => { const n = daysSince(d); return n === 0 ? "aujourd'hui" : n === 1 ? 'hier' : 'il y a ' + n + ' j'; };
 
   return _h`<div class="page-pad" style=${{ maxWidth:"100%", overflowX:"hidden" }}>
     <div style=${{ marginBottom:20 }}>
@@ -26471,116 +26503,26 @@ function ChargeDashboard({ players, clubs }) {
       </div>
     </div>
 
-    <!-- Alertes -->
-    ${alerts.length > 0 && _h`<div style=${{ background:'rgba(255,68,85,.08)', border:'1px solid rgba(255,68,85,.3)', borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
-      <div style=${{ fontSize:12, fontWeight:700, color:'#FF4455', marginBottom:8 }}>⚠️ ${alerts.length} joueur${alerts.length>1?'s':''} en zone de risque</div>
-      <div style=${{ display:'flex', gap:8, flexWrap:'wrap' }}>
-        ${alerts.map(p => _h`<div key=${p.id} style=${{ fontSize:12, padding:'4px 12px', borderRadius:20, background:'rgba(255,68,85,.15)', color:'#FF4455', fontWeight:600 }}>${p.name}</div>`)}
-      </div>
-    </div>`}
-
-    <!-- Tableau(x) équipe — groupé par club si plusieurs clubs sont représentés -->
+    <!-- ── RÉSUMÉ DU JOUR ─────────────────────────────────────────────── -->
     ${(() => {
-      const tableHead = _h`<thead><tr>
-        ${['Joueur','Charge 7j','Charge 21j','Tendance','ACWR','RPE moy.','Fatigue moy.','Dernière séance','Rapport'].map(h =>
-          _h`<th key=${h} style=${{ padding:'8px 10px', textAlign:'left', fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:1.5, textTransform:'uppercase', borderBottom:'1px solid rgba(255,255,255,.06)', fontWeight:500 }}>${h}</th>`
-        )}
-      </tr></thead>`;
-
-      function renderRows(list) {
-        return list.map(p => {
-          const charge = weekCharge(p);
-          const acwr   = getAcwr(p);
-          const rpe    = weekRpe(p);
-          const fat    = weekFatigue(p);
-          const lw     = lastWellness(p);
-          const lastB  = getAllBilans(p).sort((a,b) => new Date(a.date) - new Date(b.date)).slice(-1)[0];
-          const sc = STATUS_CFG[p.status] || STATUS_CFG.ok;
-          return _h`<tr key=${p.id}
-            style=${{ cursor:'pointer', background: selP===p.id ? 'rgba(255,164,32,.04)' : 'transparent' }}
-            onClick=${() => setSelP(selP===p.id?null:p.id)}
-          >
-            <td style=${{ padding:'10px 10px', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
-              <div style=${{ display:'flex', alignItems:'center', gap:9 }}>
-                <${Avatar} name=${p.name} color=${sc.color} size=${26}/>
-                <div>
-                  <div style=${{ fontSize:12, fontWeight:600 }}>${p.name}</div>
-                  <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)' }}>${p.pos}</div>
-                </div>
-              </div>
-            </td>
-            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:14, fontWeight:700, color: charge>2000?'#FF4455':charge>1200?'#FFB800':'rgba(255,255,255,.7)', fontFamily:"'Barlow Condensed',sans-serif" }}>
-              ${charge || '—'}
-            </td>
-            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:13, fontWeight:600, color:'#38BDF8', fontFamily:"'Barlow Condensed',sans-serif" }}>
-              ${charge21(p) || '—'}
-            </td>
-            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
-              ${(() => {
-                const t = tendance7vs21(p);
-                if (!t) return _h`<span style=${{ color:'rgba(255,255,255,.25)' }}>—</span>`;
-                const col = t > 20 ? '#FF4455' : t > 0 ? '#FFB800' : t < -20 ? '#38BDF8' : '#4CAF50';
-                return _h`<span style=${{ fontSize:12, fontWeight:800, color:col }}>${t>0?'+':''}${t}%</span>`;
-              })()}
-            </td>
-            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
-              <span style=${{ fontSize:13, fontWeight:800, color:acwrColor(acwr), fontFamily:"'Barlow Condensed',sans-serif" }}>${acwr||'—'}</span>
-            </td>
-            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:13, fontWeight:700, color: rpe?rpe>=8?'#FF4455':rpe>=6?'#FFB800':'#4CAF50':'rgba(255,255,255,.3)', fontFamily:"'Barlow Condensed',sans-serif" }}>
-              ${rpe||'—'}
-            </td>
-            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:13, fontWeight:700, color: fat?fat>=4?'#FF4455':fat>=3?'#FFB800':'#4CAF50':'rgba(255,255,255,.3)', fontFamily:"'Barlow Condensed',sans-serif" }}>
-              ${fat||'—'}
-            </td>
-            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)', fontSize:11, color:'rgba(255,255,255,.4)' }}>
-              ${lastB ? lastB.type + ' · RPE ' + lastB.rpe : '—'}
-            </td>
-            <td style=${{ padding:'10px', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
-              <button class="btn btn-sm" title="Rapport PDF / Excel de ${p.name}" onClick=${e => { e.stopPropagation(); setRapportP(p); }}
-                style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700, whiteSpace:'nowrap', padding:'4px 9px', fontSize:11 }}>📄 PDF / Excel</button>
-            </td>
-          </tr>`;
-        });
-      }
-
-      function renderTable(list) {
-        return _h`<div class="card" style=${{ marginBottom:16 }}>
-          <div style=${{ overflowX:'auto' }}>
-            <table style=${{ width:'100%', borderCollapse:'collapse', minWidth:680 }}>
-              ${tableHead}
-              <tbody>${renderRows(list)}</tbody>
-            </table>
-          </div>
-        </div>`;
-      }
-
-      // Si 2+ clubs sont représentés parmi les joueurs affichés, on groupe par club.
-      // Sinon (vue mono-club, ex: CoachView), on garde une liste unique comme avant.
-      const clubList = clubs || [];
-      if (clubList.length < 2) {
-        return renderTable(players);
-      }
-      const sansClub = players.filter(p => !clubList.some(c => playerInClub(p, c.id)));
-      const blocIndiv = sansClub.length ? _h`<div key="_indiv">
-          <div style=${{ display:'flex', alignItems:'center', gap:8, marginBottom:8, marginTop:6 }}>
-            <div style=${{ fontSize:14, fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif" }}>Profils individuels</div>
-            <div style=${{ fontSize:11, color:'rgba(255,255,255,.35)' }}>${sansClub.length} joueur${sansClub.length>1?'s':''}</div>
-          </div>
-          ${renderTable(sansClub)}
-        </div>` : null;
-      return [...clubList.map(c => {
-        const clubPlayers = players.filter(p => playerInClub(p, c.id));
-        if (!clubPlayers.length) return null;
-        return _h`<div key=${c.id}>
-          <div style=${{ display:'flex', alignItems:'center', gap:8, marginBottom:8, marginTop: c===clubList[0]?0:6 }}>
-            <div style=${{ fontSize:14, fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif" }}>${c.name}</div>
-            <div style=${{ fontSize:11, color:'rgba(255,255,255,.35)' }}>${clubPlayers.length} joueur${clubPlayers.length>1?'s':''}</div>
-          </div>
-          ${renderTable(clubPlayers)}
-        </div>`;
-      }), blocIndiv];
+      const remplis = analyses.filter(a => a.checkin).length;
+      const nbRouge = analyses.filter(a => a.niveau === 'rouge').length, nbOrange = analyses.filter(a => a.niveau === 'orange').length;
+      const seances7 = analyses.reduce((s, a) => s + a.nb7, 0);
+      const actifs = chargesEquipe.length;
+      const tuiles = [
+        { label: 'Wellness remplis', val: remplis + '/' + players.length, color: remplis === players.length ? '#4CAF50' : '#FFB800' },
+        { label: 'À risque', val: nbRouge, color: nbRouge ? '#FF4455' : '#4CAF50' },
+        { label: 'À surveiller', val: nbOrange, color: nbOrange ? '#FFB800' : '#4CAF50' },
+        { label: 'Séances validées (7 j)', val: seances7, color: '#38BDF8' },
+        { label: 'Charge médiane (7 j)', val: actifs ? medianeCharge + ' UA' : '—', color: 'rgba(255,255,255,.8)' },
+      ];
+      return _h`<div style=${{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))', gap:8, marginBottom:16 }}>
+        ${tuiles.map(t => _h`<div key=${t.label} class="card" style=${{ padding:'10px 12px', marginBottom:0 }}>
+          <div style=${{ fontSize:9, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:1, marginBottom:4 }}>${t.label}</div>
+          <div style=${{ fontSize:22, fontWeight:800, color:t.color, fontFamily:"'Barlow Condensed',sans-serif", lineHeight:1 }}>${t.val}</div>
+        </div>`)}
+      </div>`;
     })()}
-    ${rapportP ? _h`<${RapportJoueurModal} player=${rapportP} onClose=${() => setRapportP(null)} />` : null}
 
     <!-- ── WELLNESS DU MATIN — AUJOURD'HUI ─────────────────────────────── -->
     ${(() => {
@@ -26606,7 +26548,7 @@ function ChargeDashboard({ players, clubs }) {
         <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', marginBottom:12 }}>${ok.length + alerte.length}/${players.length} ont rempli leur questionnaire</div>
 
         ${alerte.length > 0 ? _h`<div style=${{ marginBottom:12 }}>
-          <div style=${{ fontSize:10, color:'#FF4455', fontWeight:700, marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>⚠️ À surveiller (${alerte.length})</div>
+          <div style=${{ fontSize:10, color:'#FF4455', fontWeight:700, marginBottom:6, textTransform:'uppercase', letterSpacing:1 }}>⚠️ Signaux wellness (${alerte.length})</div>
           ${(() => {
             const groups = groupByClub(alerte.map(r => r.player));
             const rowByPlayerId = {}; alerte.forEach(r => { rowByPlayerId[r.player.id] = r; });
@@ -26654,6 +26596,126 @@ function ChargeDashboard({ players, clubs }) {
         </div>
       </div>`;
     })()}
+
+    <!-- ── À SURVEILLER — AVEC LA RAISON ──────────────────────────────── -->
+    <div class="card" style=${{ marginBottom:16, border: aSurveiller.length ? '1px solid rgba(255,68,85,.3)' : '1px solid rgba(76,175,80,.25)' }}>
+      <div style=${{ fontSize:13, fontWeight:800, marginBottom:4 }}>🎯 À surveiller aujourd'hui</div>
+      <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', marginBottom:10 }}>Wellness du jour, pic de charge réel, fatigue ou RPE élevés — la raison est indiquée pour chaque joueur</div>
+      ${aSurveiller.length === 0 ? _h`<div style=${{ fontSize:12, color:'#4CAF50' }}>✓ Aucun signal particulier aujourd'hui.</div>`
+        : _h`<div style=${{ display:'flex', flexDirection:'column', gap:6 }}>
+          ${aSurveiller.map(a => {
+            const cfg = NIVEAU_CFG[a.niveau];
+            return _h`<div key=${a.p.id} style=${{ display:'flex', gap:10, alignItems:'flex-start', padding:'8px 10px', borderRadius:8, background:cfg.color+'0d', border:'1px solid '+cfg.color+'33' }}>
+              <span style=${{ fontSize:9, fontWeight:800, padding:'2px 8px', borderRadius:20, background:cfg.color+'22', color:cfg.color, whiteSpace:'nowrap', marginTop:1 }}>${cfg.label}</span>
+              <div style=${{ flex:1 }}>
+                <div style=${{ fontSize:12, fontWeight:700 }}>${a.p.name} <span style=${{ fontSize:10, color:'rgba(255,255,255,.35)', fontWeight:400 }}>${groupLabel(a.p)}</span></div>
+                ${a.raisons.map((r, i) => _h`<div key=${i} style=${{ fontSize:11, color: r.niveau === 'rouge' ? '#FF4455' : '#FFB800', marginTop:2 }}>• ${r.texte}</div>`)}
+              </div>
+            </div>`;
+          })}
+        </div>`}
+    </div>
+
+    <!-- Tableau(x) équipe — groupé par club si plusieurs clubs sont représentés -->
+    ${(() => {
+      const tableHead = _h`<thead><tr>
+        ${['Joueur','Statut','Wellness du jour','Charge 7 j','Évolution','RPE moy. 7 j','Fatigue moy. 7 j','Dernière séance','Rapport'].map(h =>
+          _h`<th key=${h} style=${{ padding:'8px 10px', textAlign:'left', fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:1.2, textTransform:'uppercase', borderBottom:'1px solid rgba(255,255,255,.06)', fontWeight:500, whiteSpace:'nowrap' }}>${h}</th>`
+        )}
+      </tr></thead>`;
+
+      function renderRows(list) {
+        const td = { padding:'9px 10px', borderBottom:'1px solid rgba(255,255,255,.04)', verticalAlign:'middle' };
+        return trier(list.map(p => analyseDe[p.id])).map(a => {
+          const p = a.p;
+          const cfg = NIVEAU_CFG[a.niveau];
+          const sc = STATUS_CFG[p.status] || STATUS_CFG.ok;
+          const evo = evolutionInfo(a);
+          const largeur = chargeMax ? Math.round(a.charge7 / chargeMax * 100) : 0;
+          return _h`<tr key=${p.id}
+            style=${{ cursor:'pointer', background: selP===p.id ? 'rgba(255,164,32,.04)' : 'transparent' }}
+            onClick=${() => setSelP(selP===p.id?null:p.id)}
+          >
+            <td style=${td}>
+              <div style=${{ display:'flex', alignItems:'center', gap:9 }}>
+                <${Avatar} name=${p.name} color=${sc.color} size=${26}/>
+                <div>
+                  <div style=${{ fontSize:12, fontWeight:600 }}>${p.name}</div>
+                  <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)' }}>${p.pos || ''}</div>
+                </div>
+              </div>
+            </td>
+            <td style=${td} title=${a.raisons.map(r => r.texte).join('\n')}>
+              <span style=${{ fontSize:10, fontWeight:800, padding:'2px 8px', borderRadius:20, background: a.niveau === 'vide' ? 'rgba(255,255,255,.05)' : cfg.color+'1f', color:cfg.color, whiteSpace:'nowrap' }}>${cfg.label}</span>
+            </td>
+            <td style=${td}>
+              ${a.checkin
+                ? _h`<span style=${{ fontSize:14, fontWeight:800, color: coul(a.scoreJour, 4, 3), fontFamily:"'Barlow Condensed',sans-serif" }}>${a.scoreJour}/5</span>`
+                : _h`<span style=${{ fontSize:10, color:'rgba(255,255,255,.25)' }}>non rempli</span>`}
+            </td>
+            <td style=${{ ...td, minWidth:110 }}>
+              ${a.charge7 ? _h`<div>
+                <div style=${{ fontSize:14, fontWeight:700, fontFamily:"'Barlow Condensed',sans-serif" }}>${a.charge7} <span style=${{ fontSize:9, color:'rgba(255,255,255,.3)', fontWeight:400 }}>UA · ${a.nb7} séance${a.nb7>1?'s':''}</span></div>
+                <div style=${{ height:4, background:'rgba(255,255,255,.06)', borderRadius:2, marginTop:3 }}>
+                  <div style=${{ height:'100%', width:largeur+'%', background: a.charge7 >= medianeCharge ? '#FFA420' : '#38BDF8', borderRadius:2 }}></div>
+                </div>
+              </div>` : _h`<span style=${{ color:'rgba(255,255,255,.25)' }}>—</span>`}
+            </td>
+            <td style=${td} title=${evo.detail}>
+              <div style=${{ fontSize:13, fontWeight:800, color:evo.color, fontFamily:"'Barlow Condensed',sans-serif" }}>${evo.texte}</div>
+              ${evo.detail ? _h`<div style=${{ fontSize:9, color:'rgba(255,255,255,.3)' }}>${evo.detail}</div>` : null}
+            </td>
+            <td style=${{ ...td, fontSize:13, fontWeight:700, color: coul(a.rpe7, 8.5, 7, true), fontFamily:"'Barlow Condensed',sans-serif" }}>${a.rpe7 != null ? a.rpe7 : '—'}</td>
+            <td style=${{ ...td, fontSize:13, fontWeight:700, color: coul(a.fatigue7, 4, 3, true), fontFamily:"'Barlow Condensed',sans-serif" }}>${a.fatigue7 != null ? a.fatigue7 : '—'}</td>
+            <td style=${{ ...td, fontSize:11, color:'rgba(255,255,255,.45)' }}>
+              ${a.derniere ? _h`<div>${a.derniere.type} · RPE ${a.derniere.rpe}</div><div style=${{ fontSize:9, color:'rgba(255,255,255,.3)' }}>${ilYa(a.derniere.date)}</div>` : '—'}
+            </td>
+            <td style=${td}>
+              <button class="btn btn-sm" title="Rapport PDF / Excel de ${p.name}" onClick=${e => { e.stopPropagation(); setRapportP(p); }}
+                style=${{ background:'rgba(76,175,80,.12)', border:'1px solid rgba(76,175,80,.4)', color:'#4CAF50', fontWeight:700, whiteSpace:'nowrap', padding:'4px 9px', fontSize:11 }}>📄 PDF / Excel</button>
+            </td>
+          </tr>`;
+        });
+      }
+
+      function renderTable(list) {
+        return _h`<div class="card" style=${{ marginBottom:16 }}>
+          <div style=${{ overflowX:'auto' }}>
+            <table style=${{ width:'100%', borderCollapse:'collapse', minWidth:820 }}>
+              ${tableHead}
+              <tbody>${renderRows(list)}</tbody>
+            </table>
+          </div>
+        </div>`;
+      }
+
+      // Si 2+ clubs sont représentés parmi les joueurs affichés, on groupe par club.
+      // Sinon (vue mono-club, ex: CoachView), on garde une liste unique comme avant.
+      const clubList = clubs || [];
+      if (clubList.length < 2) {
+        return renderTable(players);
+      }
+      const sansClub = players.filter(p => !clubList.some(c => playerInClub(p, c.id)));
+      const blocIndiv = sansClub.length ? _h`<div key="_indiv">
+          <div style=${{ display:'flex', alignItems:'center', gap:8, marginBottom:8, marginTop:6 }}>
+            <div style=${{ fontSize:14, fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif" }}>Profils individuels</div>
+            <div style=${{ fontSize:11, color:'rgba(255,255,255,.35)' }}>${sansClub.length} joueur${sansClub.length>1?'s':''}</div>
+          </div>
+          ${renderTable(sansClub)}
+        </div>` : null;
+      return [...clubList.map(c => {
+        const clubPlayers = players.filter(p => playerInClub(p, c.id));
+        if (!clubPlayers.length) return null;
+        return _h`<div key=${c.id}>
+          <div style=${{ display:'flex', alignItems:'center', gap:8, marginBottom:8, marginTop: c===clubList[0]?0:6 }}>
+            <div style=${{ fontSize:14, fontWeight:800, fontFamily:"'Barlow Condensed',sans-serif" }}>${c.name}</div>
+            <div style=${{ fontSize:11, color:'rgba(255,255,255,.35)' }}>${clubPlayers.length} joueur${clubPlayers.length>1?'s':''}</div>
+          </div>
+          ${renderTable(clubPlayers)}
+        </div>`;
+      }), blocIndiv];
+    })()}
+    ${rapportP ? _h`<${RapportJoueurModal} player=${rapportP} onClose=${() => setRapportP(null)} />` : null}
 
     <!-- ── HISTORIQUE WELLNESS — COMPARAISON DANS LE TEMPS ─────────────── -->
     ${(() => {
@@ -26781,14 +26843,19 @@ function ChargeDashboard({ players, clubs }) {
         </div>` : _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.25)', fontStyle:'italic', borderTop:'1px solid rgba(255,255,255,.06)', paddingTop:12 }}>Aucune séance validée sur cette période.</div>`}
       </div>`;
     })()}
-    <div style=${{ display:'flex', gap:8, flexWrap:'wrap', fontSize:11, marginBottom:24 }}>
-      <div style=${{ fontWeight:700, color:'rgba(255,255,255,.4)', marginRight:4 }}>ACWR :</div>
-      ${[['< 0.8 Sous-charge','#38BDF8'],['0.8–1.3 Zone optimale','#4CAF50'],['1.3–1.5 Attention','#FFB800'],['> 1.5 Surcharge','#FF4455']].map(([l,c]) =>
-        _h`<div key=${l} style=${{ display:'flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:20, background:c+'12', border:'1px solid '+c+'30' }}>
-          <div style=${{ width:6, height:6, borderRadius:'50%', background:c }}></div>
-          <span style=${{ color:c }}>${l}</span>
-        </div>`
-      )}
+    <!-- ── COMMENT LIRE CETTE PAGE ──────────────────────────────────────── -->
+    <div class="card" style=${{ marginBottom:24, fontSize:11, color:'rgba(255,255,255,.55)', lineHeight:1.7 }}>
+      <div style=${{ fontSize:12, fontWeight:800, color:'rgba(255,255,255,.85)', marginBottom:6 }}>ℹ️ Comment lire cette page</div>
+      <div><b>Charge 7 j</b> : somme des séances validées sur les 7 derniers jours, chacune = durée (min) × RPE déclaré, en unités arbitraires (UA). La barre situe le joueur par rapport au plus chargé de l'équipe (orange = au-dessus de la médiane).</div>
+      <div><b>Évolution</b> : charge des 7 derniers jours comparée à sa moyenne hebdomadaire sur 28 jours (×1 = comme d'habitude). Calculée seulement à partir de 4 séances étalées sur au moins 14 jours ; sinon « Historique court ».</div>
+      <div style=${{ display:'flex', gap:8, flexWrap:'wrap', margin:'4px 0' }}>
+        ${[['< ×0.8 Sous sa charge habituelle','#38BDF8'],['×0.8–1.3 Stable','#4CAF50'],['×1.3–1.5 En hausse','#FFB800'],['> ×1.5 Forte hausse','#FF4455']].map(([l,c]) =>
+          _h`<div key=${l} style=${{ display:'flex', alignItems:'center', gap:5, padding:'2px 9px', borderRadius:20, background:c+'12', border:'1px solid '+c+'30' }}>
+            <div style=${{ width:6, height:6, borderRadius:'50%', background:c }}></div><span style=${{ color:c }}>${l}</span>
+          </div>`)}
+      </div>
+      <div><b>Statut</b> : <span style=${{ color:'#FF4455' }}>À risque</span> = pic de charge réel (forte hausse ET charge de la semaine au-dessus de la médiane de l'équipe) ou wellness du jour avec plusieurs signaux ; <span style=${{ color:'#FFB800' }}>À surveiller</span> = un signal (wellness, hausse de charge, fatigue ≥ 4/5, RPE ≥ 8.5). Une forte hausse sur une petite charge (reprise) n'est pas un risque.</div>
+      <div><b>RPE / fatigue moy.</b> : moyennes de ce que le joueur a déclaré sur 7 jours (une fatigue non déclarée n'est pas comptée).</div>
     </div>
 
     <!-- ── COMPARAISON RPE DÉCLARÉ vs CIBLE ─────────────────────────────── -->
