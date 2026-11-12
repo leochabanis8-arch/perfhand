@@ -159,6 +159,14 @@ function PlanifClubView({ club, players, readOnly, clubPlanifOverride, onSaveOve
     return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'short' });
   }
 
+  // Date exacte d'un jour (semaine i, jour ji 0=Lun) — vide si pas de date de début
+  function dayDate(i, ji) {
+    if (!dateDebut) return '';
+    const d = new Date(dateDebut);
+    d.setDate(d.getDate() + i*7 + ji);
+    return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
+  }
+
   const CYCLES_COLORS = {
     ppg:'#FF4455', pps1:'#FF7A00', pps2:'#FFA420',
     competition:'#4CAF50', prevention:'#7C6FFF', repos:'#38BDF8', vide:'rgba(255,255,255,.15)'
@@ -440,7 +448,10 @@ function PlanifClubView({ club, players, readOnly, clubPlanifOverride, onSaveOve
                     }}>
                       <div style=${{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                         <!-- Jour (affiché seulement sur la 1ère séance du jour) -->
-                        <div style=${{ fontSize:13, fontWeight:800, color:typeInfo?typeInfo.color:'rgba(255,255,255,.5)', minWidth:36 }}>${si===0?jour:''}</div>
+                        <div style=${{ minWidth:36, textAlign:'center', lineHeight:1.15 }}>
+                          <div style=${{ fontSize:13, fontWeight:800, color:typeInfo?typeInfo.color:'rgba(255,255,255,.5)' }}>${si===0?jour:''}</div>
+                          ${si===0 && dayDate(selWeek,ji) ? _h`<div style=${{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,.55)' }}>${dayDate(selWeek,ji)}</div>` : null}
+                        </div>
                         <!-- Type séance -->
                         <select style=${{ flex:1, minWidth:0, background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.15)', borderRadius:8, color:'#fff', fontSize:12, padding:'6px 8px', fontFamily:'Inter,sans-serif' }}
                           value=${j.type} onChange=${e=>updJourSession(selWeek,ji,si,'type',e.target.value)}>
