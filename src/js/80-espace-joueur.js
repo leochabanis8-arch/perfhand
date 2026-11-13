@@ -549,6 +549,7 @@ function PlayerView() {
 
     </div>
 
+    ${player ? React.createElement(MessagesCoachDirect, { player }) : null}
     ${showWellnessPopup ? React.createElement(WellnessPopup, {
       player: player,
       mode: 'wellness',

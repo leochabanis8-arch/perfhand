@@ -368,6 +368,7 @@ function PersoPlayerView() {
     </div>
 
     <!-- Wellness -->
+    ${player ? React.createElement(MessagesCoachDirect, { player }) : null}
     ${(showWellness || showWellnessRef.current) && _h`<${WellnessPopup}
       mode=${'bilan'}
       onClose=${() => { showWellnessRef.current = false; setShowWellness(false); }}

@@ -154,6 +154,8 @@ function ChargeDashboard({ players, clubs }) {
       </div>
     </div>
 
+    ${React.createElement(SuiviDirectCoach, { players })}
+
     <!-- ── RÉSUMÉ DU JOUR ─────────────────────────────────────────────── -->
     ${(() => {
       const remplis = analyses.filter(a => a.checkin).length;

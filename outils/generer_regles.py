@@ -68,6 +68,8 @@ regles = {
         ".read": joueur_perso('$pid'), ".write": f"{joueur_perso('$pid')} && newData.exists()"}},
       "staffAccounts": {".read": EQUIPE, ".write": EQUIPE},
       "muscuProgress": {".read": EQUIPE, ".write": EQUIPE, "$pid": {".read": joueur('$pid'), ".write": joueur('$pid')}},
+      # Suivi en direct des séances : le joueur publie sa progression, l'équipe la lit et lui écrit.
+      "seancesLive": {".read": EQUIPE, ".write": EQUIPE, "$pid": {".read": joueur('$pid'), ".write": joueur('$pid')}},
       "tactiqueQuiz": {".read": MEMBRE, ".write": EQUIPE, "$play": {"$jid": {".write": joueur('$jid')}}},
       "$autre": {".read": MEMBRE, ".write": EQUIPE},
     },

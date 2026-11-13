@@ -1010,7 +1010,7 @@ function blocHeaderEl(exercices, i, key) {
   </div>`;
 }
 
-function GroupedExercicesRenderer({ exercices, seanceId, player }) {
+function GroupedExercicesRenderer({ exercices, seanceId, player, seanceNom }) {
   if (!exercices || exercices.length === 0) return null;
 
   const blocks = [];
@@ -1055,7 +1055,7 @@ function GroupedExercicesRenderer({ exercices, seanceId, player }) {
               groupColor: col,
               isGrouped: true,
               showConnector: gi < groupExs.length-1,
-              player
+              player, seanceNom, nbExercices: exercices.length
             })}
           </div>`)}
         </div>`);
@@ -1066,7 +1066,7 @@ function GroupedExercicesRenderer({ exercices, seanceId, player }) {
       blocks.push(React.createElement(ExerciceAvecChrono, {
         key: seanceId+'-'+i,
         ex, exIndex: i, seanceId,
-        player
+        player, seanceNom, nbExercices: exercices.length
       }));
     }
   });
@@ -1131,7 +1131,48 @@ function seriesRepsLabel(ex) {
   return { main: (ex.series || '') + ' × ' + reps.replace(/\/\s*$/, ''), sub: '' };
 }
 
-function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, showConnector, player }) {
+// ── SUIVI EN DIRECT DES SÉANCES ─────────────────────────────────────────────────
+// Le joueur publie sa progression (séance, exercice, série, ressenti) dans perfhand/seancesLive/{id}
+// à chaque série validée. Le staff la suit en direct (SuiviDirectCoach) et peut lui envoyer un message,
+// affiché sur son écran (MessagesCoachDirect). Seul le joueur connecté publie : un coach qui consulte
+// la séance d'un joueur n'écrit rien.
+const SUIVI_RESSENTIS = [
+  { id: 'facile',  label: 'Facile',  emoji: '😌', color: '#38BDF8' },
+  { id: 'ok',      label: 'Bien',    emoji: '👍', color: '#4CAF50' },
+  { id: 'dur',     label: 'Dur',     emoji: '😤', color: '#FFB800' },
+  { id: 'douleur', label: 'Douleur', emoji: '⚠️', color: '#FF4455' },
+];
+function suiviDirectAutorise(user, player) {
+  return !!(user && player && user.playerId === player.id && ['player', 'usm_code', 'perso'].includes(user.role));
+}
+function suiviDirectRef(pid, sous) {
+  return window.__perfhand_db ? window.__perfhand_db.ref('perfhand/seancesLive/' + pid + (sous ? '/' + sous : '')) : null;
+}
+// Publie l'état courant et ajoute la série au journal. Une nouvelle séance repart d'un journal vide.
+// Renvoie la clé de l'entrée du journal (pour y rattacher le ressenti), ou null.
+function publierProgression(pid, etat) {
+  const r = suiviDirectRef(pid);
+  if (!r) return Promise.resolve(null);
+  const ts = Date.now();
+  return r.child('seanceId').once('value').then(sn => {
+    const nouvelle = sn.val() !== etat.seanceId;
+    const maj = { ...etat, statut: etat.termine ? 'terminee' : 'en_cours', maj: ts };
+    if (nouvelle) Object.assign(maj, { debut: ts, journal: null, dernierRessenti: null });
+    return r.update(JSON.parse(JSON.stringify(maj, (k, v) => v === undefined ? null : v)));
+  }).then(() => {
+    const entree = r.child('journal').push();
+    return entree.set({ ts, exIndex: etat.exIndex, exNom: etat.exNom || '', serie: etat.serie, totalSeries: etat.totalSeries })
+      .then(() => entree.key);
+  }).catch(e => { console.warn('[suivi direct] publication impossible :', e && e.message); return null; });
+}
+function noterRessenti(pid, cleJournal, ressenti) {
+  const r = suiviDirectRef(pid);
+  if (!r || !cleJournal) return;
+  r.child('journal/' + cleJournal + '/ressenti').set(ressenti).catch(() => {});
+  r.update({ dernierRessenti: ressenti, maj: Date.now() }).catch(() => {});
+}
+
+function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, showConnector, player, seanceNom, nbExercices }) {
   // EMOM : le champ "emomDuree" (rempli par le coach dans le champ "EMOM (min)" du formulaire)
   // contient le nombre de minutes total — PAS "series" qui reste le champ "Séries" classique
   // (souvent laissé à sa valeur par défaut). L'EMOM est un chrono qui tourne tout seul minute
@@ -1173,6 +1214,22 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
     return 60;
   }
   const reposSec = parseRepos(ex.repos);
+
+  // Suivi en direct : publié uniquement par le joueur connecté sur sa propre séance
+  const app = useApp() || {};
+  const suiviOn = suiviDirectAutorise(app.user, player);
+  const [ressentiCle, setRessentiCle] = useState(null);     // entrée du journal de la dernière série
+  const [ressentiChoisi, setRessentiChoisi] = useState(null);
+  function signalerSerie(serie, termineExo) {
+    if (!suiviOn) return;
+    const prevu = ex.emom ? (totalSeries + ' min EMOM · ' + ex.reps + ' reps/min') : seriesRepsLabel(ex).main;
+    const charge = chargeCalc && chargeCalc.ok ? chargeCalc.kg + ' kg' : (ex.charge || '');
+    publierProgression(player.id, {
+      seanceId: String(seanceId || '').replace(/_(r|n)$/, ''), seanceNom: seanceNom || '', nbExercices: nbExercices || null,
+      exIndex, exNom: ex.nom || '', serie, totalSeries, prevu, charge,
+      termine: !!(termineExo && nbExercices && exIndex === nbExercices - 1),
+    }).then(cle => { setRessentiCle(cle); setRessentiChoisi(null); });
+  }
 
   // ── Séries validées conservées (appareil + Firebase) : survivent à la fermeture / au rechargement ──
   const progKey = (function(){ const c = x => String(x == null ? '' : x).replace(/[.#$\[\]\/]/g, '_'); return { pid: c(player && player.id || 'anon'), sid: c(String(seanceId || '').replace(/_(r|n)$/, '')), ix: c(exIndex) }; })();
@@ -1223,7 +1280,7 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
     }
   }, [emomMinuteIdx, emomStartTs, emomFinished]);
 
-  function startEmom() { setEmomStartTs(Date.now()); }
+  function startEmom() { setEmomStartTs(Date.now()); signalerSerie(1, false); }
   function resetEmom() { setEmomStartTs(null); setEmomNow(Date.now()); }
 
   // Recalcul basé sur timestamp — résiste au backgrounding mobile (exercices classiques)
@@ -1252,6 +1309,7 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
     if (seriesDone >= totalSeries) return;
     const next = seriesDone + 1;
     setSeriesDone(next);
+    signalerSerie(next, next >= totalSeries);
     if (next < totalSeries) {
       setChronoTotal(reposSec);
       setChronoRestant(reposSec);
@@ -1394,6 +1452,18 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
         Prochaine série dans...
       </div>
     </div>`}
+
+    ${suiviOn && ressentiCle ? _h`<div style=${{ marginTop:8, padding:'8px 10px', borderRadius:10, background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.08)' }}>
+      ${ressentiChoisi
+        ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.5)', textAlign:'center' }}>Ressenti envoyé au coach : ${(SUIVI_RESSENTIS.find(r => r.id === ressentiChoisi) || {}).emoji} ${(SUIVI_RESSENTIS.find(r => r.id === ressentiChoisi) || {}).label}</div>`
+        : _h`<div>
+          <div style=${{ fontSize:11, color:'rgba(255,255,255,.55)', marginBottom:6, textAlign:'center' }}>Comment s'est passée cette série ? <span style=${{ color:'rgba(255,255,255,.3)' }}>(facultatif)</span></div>
+          <div style=${{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap' }}>
+            ${SUIVI_RESSENTIS.map(r => _h`<button key=${r.id} onClick=${() => { setRessentiChoisi(r.id); noterRessenti(player.id, ressentiCle, r.id); }}
+              style=${{ background:r.color+'1a', border:'1px solid '+r.color+'55', color:r.color, borderRadius:20, padding:'5px 11px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Inter,sans-serif' }}>${r.emoji} ${r.label}</button>`)}
+          </div>
+        </div>`}
+    </div>` : null}
 
     ${!ex.emom && allDone && _h`<div style=${{ fontSize:11, color:"#4CAF50", fontWeight:700, textAlign:"center", padding:"4px 0" }}>
       ✅ Exercice terminé — ${totalSeries}/${totalSeries} séries

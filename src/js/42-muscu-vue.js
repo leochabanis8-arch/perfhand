@@ -292,7 +292,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
                 <div style=${{ fontSize:16, fontWeight:800, marginBottom:4 }}>${s.nom}</div>
                 ${s.objectif ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.5)', marginBottom:10, fontStyle:'italic' }}>${s.objectif}</div>` : null}
                 ${s.exercices && s.exercices.length > 0 && _h`<div style=${{ borderTop:'1px solid rgba(255,255,255,.07)', paddingTop:10, marginBottom:10 }}>
-                  ${React.createElement(GroupedExercicesRenderer, { exercices: s.exercices, seanceId: s.id, player })}
+                  ${React.createElement(GroupedExercicesRenderer, { exercices: s.exercices, seanceId: s.id, player, seanceNom: s.nom })}
                 </div>`}
                 <div style=${{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   ${!s.dateFaite ? _h`<button class="btn btn-primary" style=${{ flex:1, minWidth:140 }}
@@ -338,7 +338,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
               ${isOpen ? _h`<div style=${{ borderTop:'1px solid rgba(255,107,53,.15)', padding:'10px 14px' }}>
                 ${s.objectif ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.4)', marginBottom:8, fontStyle:'italic' }}>${s.objectif}</div>` : null}
                 ${s.rpeCible ? _h`<div style=${{ fontSize:11, color:'#FFA420', marginBottom:8 }}>RPE cible coach : ${s.rpeCible}/10</div>` : null}
-                ${React.createElement(GroupedExercicesRenderer, { exercices: s.exercices, seanceId: s.id + '_r', player })}
+                ${React.createElement(GroupedExercicesRenderer, { exercices: s.exercices, seanceId: s.id + '_r', player, seanceNom: s.nom })}
                 <div style=${{ display:'flex', gap:8, flexWrap:'wrap', marginTop:12 }}>
                   <button class="btn btn-primary" style=${{ flex:1, minWidth:140 }}
                     onClick=${() => {
@@ -381,7 +381,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
               ${isOpen ? _h`<div style=${{ borderTop:'1px solid rgba(255,255,255,.06)', padding:'10px 14px' }}>
                 ${s.objectif ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.4)', marginBottom:8, fontStyle:'italic' }}>${s.objectif}</div>` : null}
                 ${s.rpeCible ? _h`<div style=${{ fontSize:11, color:'#FFA420', marginBottom:8 }}>RPE cible coach : ${s.rpeCible}/10</div>` : null}
-                ${React.createElement(GroupedExercicesRenderer, { exercices: s.exercices, seanceId: s.id + '_n', player })}
+                ${React.createElement(GroupedExercicesRenderer, { exercices: s.exercices, seanceId: s.id + '_n', player, seanceNom: s.nom })}
                 ${s.notes ? _h`<div style=${{ fontSize:11, color:'rgba(255,255,255,.4)', marginTop:8, fontStyle:'italic' }}>📝 ${s.notes}</div>` : null}
               </div>` : null}
             </div>`;
@@ -735,7 +735,7 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
                   <div style=${{ fontSize:10, color:'rgba(255,255,255,.3)', marginBottom:8, letterSpacing:1, textTransform:'uppercase' }}>
                     Clique sur chaque numéro pour valider la série → le chrono de repos démarre
                   </div>
-                  ${React.createElement(GroupedExercicesRenderer, { exercices: s.exercices, seanceId: s.id, player })}
+                  ${React.createElement(GroupedExercicesRenderer, { exercices: s.exercices, seanceId: s.id, player, seanceNom: s.nom })}
                 </div>`
               }
             </div>`}

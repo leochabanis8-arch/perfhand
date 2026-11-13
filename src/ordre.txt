@@ -39,5 +39,6 @@ js/83-profils-perso.js
 js/84-planif-club.js
 js/85-rm-staff.js
 js/86-tactique.js
+js/87-suivi-direct.js
 js/90-application.js
 page/3-fin.html
