@@ -3,7 +3,7 @@
   "private": true,
   "description": "Tests de sécurité et de non-régression de PerfHand (émulateur Firebase local, jamais la vraie base)",
   "scripts": {
-    "test": "firebase emulators:exec --config ../firebase.json --project demo-perfhand --only database,auth \"node audit-regles.mjs && node telegram.mjs && node scenarios.cjs && node wellness-noam.cjs ../index.html ../database.rules.json && node alertes-seances.cjs && node alertes-appli-ouverte.cjs && node reproduction-admin.cjs ../index.html 300 && node page-charge.cjs && node suivi-direct.cjs\"",
+    "test": "firebase emulators:exec --config ../firebase.json --project demo-perfhand --only database,auth \"node audit-regles.mjs && node telegram.mjs && node scenarios.cjs && node wellness-noam.cjs ../index.html ../database.rules.json && node alertes-seances.cjs && node alertes-appli-ouverte.cjs && node reproduction-admin.cjs ../index.html 300 && node page-charge.cjs && node suivi-direct.cjs && node suivi-direct-perso.cjs\"",
     "test:regles": "firebase emulators:exec --config ../firebase.json --project demo-perfhand --only database,auth \"node audit-regles.mjs\"",
     "test:appli": "firebase emulators:exec --config ../firebase.json --project demo-perfhand --only database,auth \"node scenarios.cjs\""
   },

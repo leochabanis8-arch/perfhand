@@ -32614,6 +32614,15 @@ const SUIVI_MESSAGES_RAPIDES = ['Bien joué 💪', 'Monte la charge', 'Baisse la
 const SUIVI_DELAI_INACTIF = 30 * 60 * 1000;
 
 function SuiviDirectCoach({ players }) {
+  // Les profils individuels (coaching perso) ne figurent pas dans les listes d'équipe : on les
+  // ajoute pour l'admin, les coachs et le staff, afin de suivre aussi leurs séances en direct.
+  const app = useApp() || {};
+  const voitPersos = !!(app.user && ['admin', 'coach', 'staff'].includes(app.user.role));
+  const tous = React.useMemo(() => {
+    const vus = new Set((players || []).map(p => p.id));
+    const persos = voitPersos ? ((app.db && app.db.playersPerso) || []).filter(p => p && p.id && !p.archived && !vus.has(p.id)) : [];
+    return [...(players || []), ...persos];
+  }, [players, voitPersos, app.db && app.db.playersPerso]);
   const [live, setLive] = useState({});
   const [maintenant, setMaintenant] = useState(Date.now());
   const [ouvert, setOuvert] = useState(null);
@@ -32631,7 +32640,7 @@ function SuiviDirectCoach({ players }) {
   }, []);
 
   const aujourdhui = localDateStr();
-  const suivis = (players || [])
+  const suivis = tous
     .map(p => ({ p, l: live[p.id] }))
     .filter(x => x.l && x.l.maj && localDateStr(new Date(x.l.maj)) === aujourdhui);
   const enCours = suivis.filter(x => x.l.statut === 'en_cours' && maintenant - x.l.maj < SUIVI_DELAI_INACTIF)
