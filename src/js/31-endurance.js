@@ -855,6 +855,9 @@ function blocsEndu(s) {
   const src = (s.distance || '') + ' ' + notes;
   const pm = src.match(/(\d+)\s*-\s*(\d+)\s*%/) || src.match(/(\d+)\s*%\s*(?:de\s*)?VMA/i);
   let pct = pm ? (pm[2] ? [+pm[1], +pm[2]] : [+pm[1], +pm[1]]) : null;
+  // Réglage manuel du % VMA (éditeur de séance) : prioritaire sur tout le reste
+  const pMn = parseFloat(String(s.pctMin ?? '').replace(',', '.')), pMx = parseFloat(String(s.pctMax ?? '').replace(',', '.'));
+  if (pMn > 0 || pMx > 0) { const lo = pMn > 0 ? pMn : pMx, hi = pMx > 0 ? pMx : pMn; pct = [Math.min(lo, hi), Math.max(lo, hi)]; }
   if (!pct) pct = dist && PISTE_PCT[dist] ? PISTE_PCT[dist] : (TYPE_PCT_ENDU[s.type] || [70, 80]);
   return [{ reps, repsMax, dist, sec, pct, recup: s.recup || '' }];
 }
@@ -1942,6 +1945,19 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
               </div>` : null}
             </div>
           </div>
+          ${modalite === 'course' ? _h`<div style=${{ marginBottom:12 }}>
+            <div class="lbl">% de VMA (réglage libre)</div>
+            <div style=${{ display:'flex', alignItems:'center', gap:8 }}>
+              <input class="inp" type="number" inputmode="decimal" min="30" max="130" step="1" value=${form.pctMin ?? ''} onInput=${e=>upd('pctMin',e.target.value)}
+                placeholder=${(TYPE_PCT_ENDU[form.type]||[70,80])[0]} style=${{ fontSize:13, flex:1 }}/>
+              <span style=${{ color:'rgba(255,255,255,.4)' }}>à</span>
+              <input class="inp" type="number" inputmode="decimal" min="30" max="130" step="1" value=${form.pctMax ?? ''} onInput=${e=>upd('pctMax',e.target.value)}
+                placeholder=${(TYPE_PCT_ENDU[form.type]||[70,80])[1]} style=${{ fontSize:13, flex:1 }}/>
+              <span style=${{ color:'rgba(255,255,255,.4)', fontSize:12 }}>% VMA</span>
+              ${(form.pctMin || form.pctMax) ? _h`<button type="button" class="btn btn-sm" onClick=${()=>{ upd('pctMin',''); upd('pctMax',''); }} style=${{ fontSize:10 }}>Auto</button>` : null}
+            </div>
+            <div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', marginTop:4 }}>Laisse vide pour le % par défaut du type de séance. Mets la même valeur dans les 2 cases pour un % fixe (ex : 60 et 60). Allures et distances cibles se recalculent.</div>
+          </div>` : null}
           <div class="edit-row">
             <div><div class="lbl">Intensité / FC cible</div><input class="inp" value=${form.intensite} onInput=${e=>upd('intensite',e.target.value)} placeholder="Ex: 75-80% FCmax"/></div>
             <div><div class="lbl">Date prévue</div><input class="inp" type="date" value=${form.datePrevu} onInput=${e=>upd('datePrevu',e.target.value)}/></div>
