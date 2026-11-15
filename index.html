@@ -10608,6 +10608,40 @@ function MuscuSeanceEditor({ seance, onSave, onClose, player }) {
       exercices: f.exercices.map((e, j) => j === i ? { ...e, [k]: v } : e)
     }));
   }
+  // Détail série par série (méthodes pré-remplies : clusters, 5-3-1…) : modifiable par le coach.
+  // C'est ce détail que voit le joueur, donc on garde Séries / Reps / Charge alignés dessus.
+  function avecDetails(e, rows) {
+    if (!rows.length) { const { chargeDetails, ...reste } = e; return reste; }
+    rows = rows.map((d, k) => ({ ...d, serie: k + 1 }));
+    const res = { ...e, chargeDetails: rows, series: rows.length };
+    if (rows.every(d => d.reps !== undefined && String(d.reps).trim() !== '')) res.reps = rows.map(d => String(d.reps).trim()).join(' / ');
+    if (rows.every(d => d.pct)) res.charge = rows.map(d => d.pct + '%').join(' - ');
+    return res;
+  }
+  function majDetails(i, fn) {
+    setForm(f => ({ ...f, exercices: f.exercices.map((e, j) => j === i ? avecDetails(e, fn((e.chargeDetails || []).map(d => ({ ...d })))) : e) }));
+  }
+  function updDetail(i, di, k, v) {
+    majDetails(i, rows => rows.map((d, k2) => {
+      if (k2 !== di) return d;
+      const n = { ...d, [k]: v };
+      if (k === 'pct') {
+        const pct = parseFloat(String(v).replace(',', '.'));
+        if (isNaN(pct)) delete n.pct; else n.pct = pct;
+        delete n.charge; // l'ancien poids figé ne correspond plus : recalculé depuis le 1RM
+      }
+      return n;
+    }));
+  }
+  function changerSeries(i, v) {
+    const ex = form.exercices[i];
+    const nb = parseInt(v);
+    if (!ex || !ex.chargeDetails || !ex.chargeDetails.length || !(nb >= 1 && nb <= 20)) return updEx(i, 'series', v);
+    majDetails(i, rows => {
+      while (rows.length < nb) rows.push({ ...rows[rows.length - 1] });
+      return rows.slice(0, nb);
+    });
+  }
   function addEx() {
     // CORRECTIF EMOM : dans une séance dont la MÉTHODE est EMOM, un exercice ajouté à la main doit
     // démarrer marqué EMOM par défaut (au lieu d'obliger le coach à penser à cocher le bouton "EMOM"
@@ -10764,7 +10798,7 @@ function MuscuSeanceEditor({ seance, onSave, onClose, player }) {
       <div style=${{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 0.8fr 1fr 28px', gap:5, alignItems:'center' }}>
         <div>
           <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>Séries</div>
-          <input class="ex-inp" type="number" value=${ex.series} onInput=${e => updEx(i,'series',e.target.value)} style=${{ width:'100%' }}/>
+          <input class="ex-inp" type="number" value=${ex.series} onInput=${e => changerSeries(i, e.target.value)} style=${{ width:'100%' }}/>
         </div>
         <div>
           <div style=${{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>Reps</div>
@@ -10812,22 +10846,37 @@ function MuscuSeanceEditor({ seance, onSave, onClose, player }) {
           ${hint.ok ? '🧮 ' : '⚠ '}${hint.text}${evolutive ? ' — 1ère série (charge évolutive, voir détail ci-dessous)' : ''}
         </div>`;
       })()}
-      <!-- Détail charges par série (si calculé depuis 1RM) -->
-      ${ex.chargeDetails && ex.chargeDetails.length > 0 ? _h`<div style=${{ marginTop:6 }}>
-        <button onClick=${() => updEx(i,'_showCharges',!ex._showCharges)}
+      <!-- Détail série par série (si la séance vient d'une méthode) : MODIFIABLE par le coach -->
+      ${ex.chargeDetails && ex.chargeDetails.length > 0 ? (() => {
+        const ouvert = ex._showCharges !== false;
+        const petit = { fontSize:11, padding:'4px 6px', textAlign:'center' };
+        return _h`<div style=${{ marginTop:6 }}>
+        <button onClick=${() => updEx(i,'_showCharges',!ouvert)}
           style=${{ background:'rgba(255,164,32,.08)', border:'1px solid rgba(255,164,32,.2)', borderRadius:7, padding:'4px 10px', cursor:'pointer', fontSize:10, color:'#FFA420', fontWeight:700, width:'100%', textAlign:'left' }}>
-          📊 Charges 1RM ${ex._showCharges ? '▲' : '▼'}
+          📊 Détail par série — modifiable (c'est ce que voit le joueur) ${ouvert ? '▲' : '▼'}
         </button>
-        ${ex._showCharges ? _h`<div style=${{ marginTop:4, background:'rgba(255,164,32,.05)', border:'1px solid rgba(255,164,32,.15)', borderRadius:8, padding:'8px 10px' }}>
-          ${ex.chargeDetails.map((d, di) => _h`<div key=${di} style=${{ display:'flex', alignItems:'center', gap:8, padding:'3px 0', borderBottom: di < ex.chargeDetails.length-1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
-            <span style=${{ fontSize:10, color:'rgba(255,255,255,.4)', minWidth:30 }}>S${d.serie}</span>
-            <span style=${{ fontSize:11, fontWeight:700, color:d.amrap?'#FFA420':'rgba(255,255,255,.8)', minWidth:50 }}>${d.reps}${d.amrap?' 🔥':''}</span>
-            <span style=${{ fontSize:12, fontWeight:800, color:'#38BDF8', minWidth:60 }}>${chargeDetailHint(ex, d)}</span>
-            <span style=${{ fontSize:10, color:'rgba(255,255,255,.3)' }}>${d.pct ? '@ '+d.pct+'%' : ''}</span>
-            ${d.note ? _h`<span style=${{ fontSize:9, color:'rgba(255,255,255,.25)', flex:1, textAlign:'right' }}>${d.note}</span>` : null}
+        ${ouvert ? _h`<div style=${{ marginTop:4, background:'rgba(255,164,32,.05)', border:'1px solid rgba(255,164,32,.15)', borderRadius:8, padding:'8px 10px' }}>
+          <div style=${{ display:'grid', gridTemplateColumns:'30px 1.2fr 70px 70px 2fr 24px', gap:6, fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1, marginBottom:4 }}>
+            <span></span><span>Reps</span><span>% 1RM</span><span>Charge</span><span>Consigne</span><span></span>
+          </div>
+          ${ex.chargeDetails.map((d, di) => _h`<div key=${di} style=${{ display:'grid', gridTemplateColumns:'30px 1.2fr 70px 70px 2fr 24px', gap:6, alignItems:'center', padding:'3px 0' }}>
+            <span style=${{ fontSize:10, color:'rgba(255,255,255,.4)' }}>S${di + 1}</span>
+            <input class="ex-inp" value=${d.reps == null ? '' : d.reps} onInput=${e => updDetail(i, di, 'reps', e.target.value)} placeholder="8" style=${petit}/>
+            <input class="ex-inp" inputmode="decimal" value=${d.pct == null ? '' : d.pct} onInput=${e => updDetail(i, di, 'pct', e.target.value)} placeholder="%" style=${petit}/>
+            <span style=${{ fontSize:12, fontWeight:800, color:'#38BDF8', textAlign:'center' }}>${chargeDetailHint(ex, d)}</span>
+            <input class="ex-inp" value=${d.note || ''} onInput=${e => updDetail(i, di, 'note', e.target.value)} placeholder="Consigne de la série" style=${{ ...petit, textAlign:'left' }}/>
+            <button title="Supprimer cette série" onClick=${() => majDetails(i, rows => rows.filter((_, k) => k !== di))}
+              style=${{ width:22, height:22, borderRadius:6, border:'1px solid rgba(255,68,85,.3)', background:'rgba(255,68,85,.08)', color:'#FF4455', cursor:'pointer', fontSize:12, padding:0 }}>×</button>
           </div>`)}
+          <div style=${{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
+            <button onClick=${() => majDetails(i, rows => [...rows, { ...rows[rows.length - 1] }])}
+              style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:10.5, color:'#FFA420', fontWeight:700 }}>+ Ajouter une série</button>
+            <button onClick=${() => { if (confirm('Retirer le détail par série ? Le joueur verra alors seulement Séries / Reps / Charge saisis au-dessus.')) majDetails(i, () => []); }}
+              style=${{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.12)', borderRadius:6, padding:'4px 10px', cursor:'pointer', fontSize:10.5, color:'rgba(255,255,255,.5)' }}>Retirer le détail par série</button>
+          </div>
         </div>` : null}
-      </div>` : null}
+      </div>`;
+      })() : null}
       <!-- Champ URL image (collapsible) -->
       ${ex._showImg ? _h`<div style=${{ display:'flex', gap:6, alignItems:'center' }}>
         <input class="ex-inp" value=${ex.imageUrl||''} onInput=${e => updEx(i,'imageUrl',e.target.value)}
