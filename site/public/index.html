@@ -762,6 +762,47 @@ async function indexerTousLesCodesTenants() {
   } catch(e) { console.warn('[index codes] impossible:', e && e.message); }
 }
 
+// ── ENREGISTREMENT DES SÉANCES PAR FUSION ─────────────────────────────────────
+// Avant : chaque enregistrement réécrivait TOUTE la liste des séances du joueur (.set) à partir de la
+// copie de l'appareil. Une copie en retard (autre appareil, bilan rempli après coup, coach qui modifie
+// le programme pendant que le joueur valide) effaçait des validations déjà enregistrées. Ici on ne
+// touche que les séances réellement modifiées localement (comparées à la liste d'avant), fusionnées
+// par identifiant dans la version du serveur, de façon atomique (transaction).
+function idSeance(s) { return s && s.id != null ? String(s.id) : null; }
+function fusionnerSeances(serveur, avant, apres) {
+  const versAvant = new Map(enTableau(avant).filter(idSeance).map(s => [idSeance(s), JSON.stringify(s)]));
+  const idsApres = new Set(enTableau(apres).map(idSeance).filter(Boolean));
+  const supprimees = [...versAvant.keys()].filter(id => !idsApres.has(id));
+  let liste = enTableau(serveur).filter(s => !supprimees.includes(idSeance(s)));
+  enTableau(apres).forEach(s => {
+    const id = idSeance(s);
+    if (!id || versAvant.get(id) === JSON.stringify(s)) return; // inchangée localement : on garde le serveur
+    const propre = JSON.parse(JSON.stringify(s));
+    const i = liste.findIndex(x => idSeance(x) === id);
+    if (i >= 0) liste[i] = { ...liste[i], ...propre }; else liste.push(propre);
+  });
+  return liste;
+}
+function enregistrerSeancesFusion(chemin, avant, apres) {
+  const fdb = window.__perfhand_db;
+  if (!fdb) return Promise.reject(new Error('Connexion au serveur indisponible'));
+  if (enTableau(apres).some(s => !idSeance(s))) {
+    // Séances sans identifiant : impossible de fusionner, on garde l'ancien comportement
+    return fdb.ref(chemin).set(JSON.parse(JSON.stringify(apres || [])));
+  }
+  return fdb.ref(chemin).transaction(courant => fusionnerSeances(courant, avant, apres)).then(r => {
+    if (r && r.committed === false) throw new Error('Enregistrement non confirmé');
+    return r;
+  });
+}
+// Emplacement de la fiche : un profil individuel (même rattaché à un club) est dans playersPerso.
+function cheminFiche(db, player) {
+  const id = player && player.id;
+  if ((db && db.playersPerso || []).some(p => p && p.id === id)) return 'perfhand/playersPerso/';
+  if ((db && db.playerProfiles || []).some(p => p && p.id === id)) return 'perfhand/playerProfiles/';
+  return player && player.clubId ? 'perfhand/playerProfiles/' : 'perfhand/playersPerso/';
+}
+
 // ── MOTS DE PASSE : JAMAIS STOCKÉS ───────────────────────────────────────────
 // La connexion passe uniquement par Firebase Auth (qui stocke les mots de passe de façon sûre).
 // Une copie en clair dans la base n'était qu'un pense-bête lisible par quiconque accède aux données :
@@ -9151,10 +9192,10 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
   function saveSeances(newSeances) {
     // Sync Firebase
     if (window.__perfhand_db && player && player.id) {
-      let safeSeances; try { safeSeances = JSON.parse(JSON.stringify(newSeances)); } catch(e) { safeSeances = newSeances; }
-      const inProfiles = !!(livePlayerEndu.clubId);
-      const path = inProfiles ? 'perfhand/playerProfiles/' : 'perfhand/playersPerso/';
-      window.__perfhand_db.ref(path + player.id + '/enduranceSeances').set(safeSeances)
+      // Avant : l'emplacement dépendait de la présence d'un club — un profil individuel rattaché à un
+      // club voyait ses validations d'endurance envoyées vers une fiche « club » inexistante (refusées).
+      const path = cheminFiche(liveDbEndu, player);
+      enregistrerSeancesFusion(path + player.id + '/enduranceSeances', seances, newSeances)
         .then(() => console.log('[enduranceSeances] ✅ écrit pour', player.name))
         .catch(e => { console.error('[enduranceSeances] ❌ échec:', e && e.code, e && e.message); alert('Erreur : la séance n\'a pas pu être enregistrée. Vérifie ta connexion et réessaie.'); });
     }
@@ -15915,11 +15956,9 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
 
   function saveSeances(newSeances) {
     if (window.__perfhand_db && player && player.id) {
-      let safeSeances; try { safeSeances = JSON.parse(JSON.stringify(newSeances)); } catch(e) { safeSeances = newSeances; }
-      // Joueur USM collectif → playerProfiles
-      const inProfiles = (db.playerProfiles||[]).some(pl => pl.id === player.id);
-      const path = inProfiles ? 'perfhand/playerProfiles/' : 'perfhand/playersPerso/';
-      window.__perfhand_db.ref(path + player.id + '/muscuSeances').set(safeSeances)
+      // Fusion par séance dans la version serveur (voir enregistrerSeancesFusion)
+      const path = cheminFiche(liveDb || db, player);
+      enregistrerSeancesFusion(path + player.id + '/muscuSeances', seances, newSeances)
         .then(() => console.log('[muscuSeances] ✅ écrit pour', player.name))
         .catch(e => { console.error('[muscuSeances] ❌ échec:', e && e.code, e && e.message); alert('Erreur : la séance n\'a pas pu être enregistrée. Vérifie ta connexion et réessaie.'); });
     }
@@ -28072,13 +28111,13 @@ function PersoPlayerView() {
         // partait donc JAMAIS vers Firebase — au rechargement suivant, la séance réapparaissait sans
         // wellness et le questionnaire se redéclenchait, alors que le joueur l'avait déjà rempli.
         if (window.__perfhand_db && player.id) {
-          try {
-            let safeMuscu, safeEndur;
-            try { safeMuscu = JSON.parse(JSON.stringify(updMuscu)); } catch(e) { safeMuscu = updMuscu; }
-            try { safeEndur = JSON.parse(JSON.stringify(updEndur)); } catch(e) { safeEndur = updEndur; }
-            window.__perfhand_db.ref('perfhand/playersPerso/' + player.id + '/muscuSeances').set(safeMuscu);
-            window.__perfhand_db.ref('perfhand/playersPerso/' + player.id + '/enduranceSeances').set(safeEndur);
-          } catch(e) { console.warn('[wellness bilan] sync error', e); }
+          // Fusion par séance : seules les séances qui reçoivent le bilan sont écrites (avant, les deux
+          // listes complètes étaient réécrites depuis la copie de l'appareil et pouvaient effacer des
+          // validations faites ailleurs).
+          enregistrerSeancesFusion('perfhand/playersPerso/' + player.id + '/muscuSeances', player.muscuSeances, updMuscu)
+            .catch(e => console.warn('[wellness bilan] muscu', e && e.message));
+          enregistrerSeancesFusion('perfhand/playersPerso/' + player.id + '/enduranceSeances', player.enduranceSeances, updEndur)
+            .catch(e => console.warn('[wellness bilan] endurance', e && e.message));
         }
       }}
     />`}

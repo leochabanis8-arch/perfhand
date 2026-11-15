@@ -399,13 +399,13 @@ function PersoPlayerView() {
         // partait donc JAMAIS vers Firebase — au rechargement suivant, la séance réapparaissait sans
         // wellness et le questionnaire se redéclenchait, alors que le joueur l'avait déjà rempli.
         if (window.__perfhand_db && player.id) {
-          try {
-            let safeMuscu, safeEndur;
-            try { safeMuscu = JSON.parse(JSON.stringify(updMuscu)); } catch(e) { safeMuscu = updMuscu; }
-            try { safeEndur = JSON.parse(JSON.stringify(updEndur)); } catch(e) { safeEndur = updEndur; }
-            window.__perfhand_db.ref('perfhand/playersPerso/' + player.id + '/muscuSeances').set(safeMuscu);
-            window.__perfhand_db.ref('perfhand/playersPerso/' + player.id + '/enduranceSeances').set(safeEndur);
-          } catch(e) { console.warn('[wellness bilan] sync error', e); }
+          // Fusion par séance : seules les séances qui reçoivent le bilan sont écrites (avant, les deux
+          // listes complètes étaient réécrites depuis la copie de l'appareil et pouvaient effacer des
+          // validations faites ailleurs).
+          enregistrerSeancesFusion('perfhand/playersPerso/' + player.id + '/muscuSeances', player.muscuSeances, updMuscu)
+            .catch(e => console.warn('[wellness bilan] muscu', e && e.message));
+          enregistrerSeancesFusion('perfhand/playersPerso/' + player.id + '/enduranceSeances', player.enduranceSeances, updEndur)
+            .catch(e => console.warn('[wellness bilan] endurance', e && e.message));
         }
       }}
     />`}

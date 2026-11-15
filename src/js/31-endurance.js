@@ -968,10 +968,10 @@ function EnduranceView({ player, setDb, isCoach, onSeanceDone, db: dbProp }) {
   function saveSeances(newSeances) {
     // Sync Firebase
     if (window.__perfhand_db && player && player.id) {
-      let safeSeances; try { safeSeances = JSON.parse(JSON.stringify(newSeances)); } catch(e) { safeSeances = newSeances; }
-      const inProfiles = !!(livePlayerEndu.clubId);
-      const path = inProfiles ? 'perfhand/playerProfiles/' : 'perfhand/playersPerso/';
-      window.__perfhand_db.ref(path + player.id + '/enduranceSeances').set(safeSeances)
+      // Avant : l'emplacement dépendait de la présence d'un club — un profil individuel rattaché à un
+      // club voyait ses validations d'endurance envoyées vers une fiche « club » inexistante (refusées).
+      const path = cheminFiche(liveDbEndu, player);
+      enregistrerSeancesFusion(path + player.id + '/enduranceSeances', seances, newSeances)
         .then(() => console.log('[enduranceSeances] ✅ écrit pour', player.name))
         .catch(e => { console.error('[enduranceSeances] ❌ échec:', e && e.code, e && e.message); alert('Erreur : la séance n\'a pas pu être enregistrée. Vérifie ta connexion et réessaie.'); });
     }

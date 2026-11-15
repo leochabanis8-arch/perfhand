@@ -195,6 +195,47 @@ async function indexerTousLesCodesTenants() {
   } catch(e) { console.warn('[index codes] impossible:', e && e.message); }
 }
 
+// ── ENREGISTREMENT DES SÉANCES PAR FUSION ─────────────────────────────────────
+// Avant : chaque enregistrement réécrivait TOUTE la liste des séances du joueur (.set) à partir de la
+// copie de l'appareil. Une copie en retard (autre appareil, bilan rempli après coup, coach qui modifie
+// le programme pendant que le joueur valide) effaçait des validations déjà enregistrées. Ici on ne
+// touche que les séances réellement modifiées localement (comparées à la liste d'avant), fusionnées
+// par identifiant dans la version du serveur, de façon atomique (transaction).
+function idSeance(s) { return s && s.id != null ? String(s.id) : null; }
+function fusionnerSeances(serveur, avant, apres) {
+  const versAvant = new Map(enTableau(avant).filter(idSeance).map(s => [idSeance(s), JSON.stringify(s)]));
+  const idsApres = new Set(enTableau(apres).map(idSeance).filter(Boolean));
+  const supprimees = [...versAvant.keys()].filter(id => !idsApres.has(id));
+  let liste = enTableau(serveur).filter(s => !supprimees.includes(idSeance(s)));
+  enTableau(apres).forEach(s => {
+    const id = idSeance(s);
+    if (!id || versAvant.get(id) === JSON.stringify(s)) return; // inchangée localement : on garde le serveur
+    const propre = JSON.parse(JSON.stringify(s));
+    const i = liste.findIndex(x => idSeance(x) === id);
+    if (i >= 0) liste[i] = { ...liste[i], ...propre }; else liste.push(propre);
+  });
+  return liste;
+}
+function enregistrerSeancesFusion(chemin, avant, apres) {
+  const fdb = window.__perfhand_db;
+  if (!fdb) return Promise.reject(new Error('Connexion au serveur indisponible'));
+  if (enTableau(apres).some(s => !idSeance(s))) {
+    // Séances sans identifiant : impossible de fusionner, on garde l'ancien comportement
+    return fdb.ref(chemin).set(JSON.parse(JSON.stringify(apres || [])));
+  }
+  return fdb.ref(chemin).transaction(courant => fusionnerSeances(courant, avant, apres)).then(r => {
+    if (r && r.committed === false) throw new Error('Enregistrement non confirmé');
+    return r;
+  });
+}
+// Emplacement de la fiche : un profil individuel (même rattaché à un club) est dans playersPerso.
+function cheminFiche(db, player) {
+  const id = player && player.id;
+  if ((db && db.playersPerso || []).some(p => p && p.id === id)) return 'perfhand/playersPerso/';
+  if ((db && db.playerProfiles || []).some(p => p && p.id === id)) return 'perfhand/playerProfiles/';
+  return player && player.clubId ? 'perfhand/playerProfiles/' : 'perfhand/playersPerso/';
+}
+
 // ── MOTS DE PASSE : JAMAIS STOCKÉS ───────────────────────────────────────────
 // La connexion passe uniquement par Firebase Auth (qui stocke les mots de passe de façon sûre).
 // Une copie en clair dans la base n'était qu'un pense-bête lisible par quiconque accède aux données :

@@ -31,11 +31,9 @@ function MuscuView({ player, setDb, isCoach, db, onSeanceDone }) {
 
   function saveSeances(newSeances) {
     if (window.__perfhand_db && player && player.id) {
-      let safeSeances; try { safeSeances = JSON.parse(JSON.stringify(newSeances)); } catch(e) { safeSeances = newSeances; }
-      // Joueur USM collectif → playerProfiles
-      const inProfiles = (db.playerProfiles||[]).some(pl => pl.id === player.id);
-      const path = inProfiles ? 'perfhand/playerProfiles/' : 'perfhand/playersPerso/';
-      window.__perfhand_db.ref(path + player.id + '/muscuSeances').set(safeSeances)
+      // Fusion par séance dans la version serveur (voir enregistrerSeancesFusion)
+      const path = cheminFiche(liveDb || db, player);
+      enregistrerSeancesFusion(path + player.id + '/muscuSeances', seances, newSeances)
         .then(() => console.log('[muscuSeances] ✅ écrit pour', player.name))
         .catch(e => { console.error('[muscuSeances] ❌ échec:', e && e.code, e && e.message); alert('Erreur : la séance n\'a pas pu être enregistrée. Vérifie ta connexion et réessaie.'); });
     }
