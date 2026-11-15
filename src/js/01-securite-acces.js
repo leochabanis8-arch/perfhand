@@ -71,7 +71,8 @@ function fusionnerPersoDistant(local, remote) {
 // Les règles ne savent pas chercher dans une liste : pour savoir « cet email est-il un coach/staff ? »
 // ou « quelle fiche appartient à cet email ? », elles lisent ces index, clés = email avec '.' → ','.
 //   acces/equipe/{email}         = true                    (coachs + staff : accès complet)
-//   acces/joueurs/{email}        = { type:'club'|'perso', id }
+//   acces/joueurs/{email}        = { type:'club'|'perso', id }   (club prioritaire si les deux)
+//   acces/joueursPerso/{email}   = id de la fiche individuelle   (un même email peut avoir les deux)
 //   acces/joueursTenant/{email}  = { tenantId, playerId }
 // Reconstruits par l'admin à chaque connexion, complétés par l'équipe au fil des ajouts.
 const ADMIN_EMAIL = 'leo.chabanis@gmail.com';
@@ -84,10 +85,10 @@ function emailAutoJoueur(p) { // même règle que resolveRole (prénom@player.fr
 }
 function enTableau(v) { return !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean); }
 function calculerIndexAcces({ clubs, staffAccounts, playerProfiles, playersPerso, tenants }) {
-  const equipe = {}, joueurs = {}, joueursTenant = {};
+  const equipe = {}, joueurs = {}, joueursPerso = {}, joueursTenant = {};
   enTableau(clubs).forEach(c => { const k = cleEmail(c && c.coach && c.coach.email); if (k) equipe[k] = true; });
   enTableau(staffAccounts).forEach(st => { const k = cleEmail(st.email); if (k) equipe[k] = true; });
-  enTableau(playersPerso).forEach(p => { const k = cleEmail(p.email); if (k && p.id) joueurs[k] = { type: 'perso', id: p.id }; });
+  enTableau(playersPerso).forEach(p => { const k = cleEmail(p.email); if (k && p.id) { joueurs[k] = { type: 'perso', id: p.id }; joueursPerso[k] = p.id; } });
   enTableau(playerProfiles).forEach(p => { // club après perso : même priorité que resolveRole
     if (!p.id) return;
     const k = cleEmail(p.email) || cleEmail(emailAutoJoueur(p));
@@ -96,7 +97,7 @@ function calculerIndexAcces({ clubs, staffAccounts, playerProfiles, playersPerso
   Object.entries(tenants || {}).forEach(([tid, t]) => {
     enTableau(t && t.playersPerso).forEach(p => { const k = cleEmail(p.email); if (k && p.id) joueursTenant[k] = { tenantId: tid, playerId: p.id }; });
   });
-  return { equipe, joueurs, joueursTenant };
+  return { equipe, joueurs, joueursPerso, joueursTenant };
 }
 // Admin : reconstruction complète depuis Firebase (retire aussi les accès supprimés).
 async function reconstruireIndexAcces() {
@@ -121,6 +122,7 @@ function completerIndexAcces(db) {
   const maj = {};
   Object.entries(idx.equipe).forEach(([k, v]) => { maj['equipe/' + k] = v; });
   Object.entries(idx.joueurs).forEach(([k, v]) => { maj['joueurs/' + k] = v; });
+  Object.entries(idx.joueursPerso).forEach(([k, v]) => { maj['joueursPerso/' + k] = v; });
   if (Object.keys(maj).length) fdb.ref('acces').update(maj).catch(e => console.warn('[index accès] complément refusé :', e && e.message));
 }
 // Préparateur (tenant) : indexe l'email de ses joueurs.
@@ -228,6 +230,46 @@ function enregistrerSeancesFusion(chemin, avant, apres) {
     return r;
   });
 }
+// ── RÉCUPÉRATION DES VALIDATIONS RESTÉES SUR L'APPAREIL DU JOUEUR ───────────────
+// Si l'enregistrement d'une validation a été refusé (droits, réseau, ancienne version de l'appli),
+// le téléphone du joueur l'affiche comme faite alors que la base ne l'a jamais reçue. À l'ouverture,
+// on renvoie ces validations : uniquement pour une séance qui existe dans la base et n'y est pas
+// validée, en complétant les champs vides (date, RPE, fatigue, bilan) sans rien écraser.
+const CHAMPS_VALIDATION = ['dateFaite', 'rpeReel', 'fatigue', 'wellness', 'notesJoueur'];
+function validationsARecuperer(localListe, serveurListe) {
+  const serveur = enTableau(serveurListe);
+  const res = [];
+  enTableau(localListe).forEach(l => {
+    if (!l.dateFaite || !idSeance(l)) return;
+    const s = serveur.find(x => idSeance(x) === idSeance(l));
+    if (!s || s.dateFaite) return; // supprimée côté serveur, ou déjà validée
+    const complement = {};
+    CHAMPS_VALIDATION.forEach(k => { if (l[k] != null && s[k] == null) complement[k] = l[k]; });
+    res.push({ ...s, ...complement });
+  });
+  return res;
+}
+const recuperationsTentees = new Set();
+// Renvoie la fiche serveur complétée des validations locales (pour l'affichage) et lance leur envoi.
+function recupererValidationsLocales(cheminFicheJoueur, local, remote) {
+  if (!local || !remote) return remote;
+  let complete = remote;
+  ['muscuSeances', 'enduranceSeances'].forEach(champ => {
+    const aRecup = validationsARecuperer(local[champ], remote[champ]);
+    if (!aRecup.length) return;
+    const serveur = enTableau(remote[champ]);
+    const apres = serveur.map(s => aRecup.find(r => idSeance(r) === idSeance(s)) || s);
+    complete = { ...complete, [champ]: apres };
+    const nouvelles = aRecup.filter(s => !recuperationsTentees.has(champ + ':' + idSeance(s)));
+    if (!nouvelles.length) return;
+    nouvelles.forEach(s => recuperationsTentees.add(champ + ':' + idSeance(s)));
+    enregistrerSeancesFusion(cheminFicheJoueur + '/' + champ, serveur, apres)
+      .then(() => console.log('[récupération] validations renvoyées vers la base :', nouvelles.length, champ))
+      .catch(e => console.warn('[récupération] envoi impossible pour l\'instant :', e && e.message));
+  });
+  return complete;
+}
+
 // Emplacement de la fiche : un profil individuel (même rattaché à un club) est dans playersPerso.
 function cheminFiche(db, player) {
   const id = player && player.id;

@@ -17,9 +17,10 @@ def joueur_club(pid):   # fiche joueur de club : son email (index) ou son code (
             f"({SESSION_CODE}.child('playerId').val() === {pid} && "
             f"root.child('perfhand/codes').child({SESSION_CODE}.child('code').val()).child('playerId').val() === {pid})))")
 
-def joueur_perso(pid):
-    return (f"({A_EMAIL} && root.child('acces/joueurs').child({CLE}).child('type').val() === 'perso' "
-            f"&& root.child('acces/joueurs').child({CLE}).child('id').val() === {pid})")
+def joueur_perso(pid):  # index dédié acces/joueursPerso (un email peut aussi avoir une fiche club)
+    return (f"({A_EMAIL} && (root.child('acces/joueursPerso').child({CLE}).val() === {pid} || "
+            f"(root.child('acces/joueurs').child({CLE}).child('type').val() === 'perso' "
+            f"&& root.child('acces/joueurs').child({CLE}).child('id').val() === {pid})))")
 
 def joueur(pid):
     return f"({joueur_club(pid)} || {joueur_perso(pid)})"
@@ -36,7 +37,7 @@ def joueur_tenant(tid, pid):
 
 # Toute personne identifiée de l'appli (équipe, joueur, préparateur) — exclut le simple visiteur anonyme.
 MEMBRE = (f"(auth != null && ({EQUIPE} || {SESSION_CODE}.exists() || {SESSION_CODE_T}.exists() || "
-          f"({A_EMAIL} && (root.child('acces/joueurs').child({CLE}).exists() || root.child('acces/joueursTenant').child({CLE}).exists() "
+          f"({A_EMAIL} && (root.child('acces/joueurs').child({CLE}).exists() || root.child('acces/joueursPerso').child({CLE}).exists() || root.child('acces/joueursTenant').child({CLE}).exists() "
           f"|| root.child('tenants_by_uid').child(auth.uid).exists()))))")
 
 MA_CLE = f"{A_EMAIL} && {CLE} === $k"
@@ -51,6 +52,7 @@ regles = {
       ".read": EQUIPE, ".write": EQUIPE,
       "equipe": {"$k": {".read": MA_CLE}},
       "joueurs": {"$k": {".read": MA_CLE}},
+      "joueursPerso": {"$k": {".read": MA_CLE}},
       "joueursTenant": {"$k": {
         ".read": MA_CLE,
         ".write": (f"{A_EMAIL} && newData.exists() && {proprio_tenant(TID_NOUVEAU)} "

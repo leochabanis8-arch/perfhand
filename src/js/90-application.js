@@ -68,6 +68,9 @@ function PerfHandApp() {
     } catch { return null; }
   });
 
+  // La fiche du joueur connecté ne peut pas être lue/synchronisée (droits) : affiché au joueur
+  const [ficheSyncRefusee, setFicheSyncRefusee] = useState(false);
+
   // Identité Firebase courante + rôle applicatif : quand l'un change, les écouteurs sont rebranchés.
   const [authUid, setAuthUid] = useState(null);
   React.useEffect(() => {
@@ -87,6 +90,9 @@ function PerfHandApp() {
   // Tout l'état passe par dbSansMdp : aucun mot de passe ne reste en mémoire, en local ni n'est envoyé.
   const [db, _setDbBrut] = useState(() => dbSansMdp(loadDb()));
   const setDbRaw = React.useCallback(u => _setDbBrut(prev => dbSansMdp(typeof u === 'function' ? u(prev) : u)), []);
+  // Dernier état connu (lu hors du rendu par l'écoute de la fiche joueur)
+  const dbCourantRef = useRef(db);
+  dbCourantRef.current = db;
 
   function setDb(updater) {
     setDbRaw(prev => {
@@ -1092,7 +1098,11 @@ function ClubStaffManager({ club, db, setDb }) {
       h = r.on('value', snap => {
         const v = snap.val();
         if (!v || typeof v !== 'object') return;
-        const remote = { ...v, id: v.id || session.playerId };
+        setFicheSyncRefusee(false);
+        const fiche = { ...v, id: v.id || session.playerId };
+        // Validations restées sur cet appareil (enregistrement refusé auparavant) : renvoyées vers la base
+        const localAvant = ((dbCourantRef.current || {})[cle] || []).find(p => p && p.id === fiche.id);
+        const remote = recupererValidationsLocales(chemin, localAvant, fiche);
         setDbRaw(prev => {
           const liste = prev[cle] || [];
           const local = liste.find(p => p && p.id === remote.id);
@@ -1102,7 +1112,7 @@ function ClubStaffManager({ club, db, setDb }) {
           try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
           return next;
         });
-      }, e => console.warn('[fiche joueur] lecture refusée', chemin, e && e.code));
+      }, e => { console.warn('[fiche joueur] lecture refusée', chemin, e && e.code); setFicheSyncRefusee(true); });
     });
     return () => { annule = true; if (r && h) r.off('value', h); };
   }, [cleConnexion]);
@@ -1139,7 +1149,7 @@ function ClubStaffManager({ club, db, setDb }) {
     return () => { annule = true; };
   }, [cleConnexion]);
 
-  const ctx = { session, login, logout, db, setDb, resetDb, user:session };
+  const ctx = { session, login, logout, db, setDb, resetDb, user:session, ficheSyncRefusee };
 
   // Register screen state
   const [showRegister, setShowRegister] = useState(false);

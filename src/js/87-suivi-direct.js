@@ -24,15 +24,19 @@ function MessagesCoachDirect({ player }) {
     });
     return () => { annule = true; if (r && h) r.off('value', h); };
   }, [actif, player && player.id]);
-  if (!actif || !messages.length) return null;
+  // Fiche illisible pour ce joueur : ses validations ne partent pas vers le coach — on le lui dit.
+  const alerteSync = app.ficheSyncRefusee && player ? _h`<div style=${{ position:'fixed', left:12, right:12, top:12, zIndex:3001, maxWidth:520, margin:'0 auto', background:'#2a0d10', border:'2px solid #FF4455', borderRadius:12, padding:'10px 14px', fontSize:12, color:'#fff', lineHeight:1.4 }}>
+    ⚠️ <b>Tes séances ne se synchronisent pas avec ton coach.</b> Ce que tu valides reste sur ton téléphone. Préviens ton coach.
+  </div>` : null;
+  if (!actif || !messages.length) return alerteSync;
   const marquerLu = m => { const r = suiviDirectRef(player.id, 'messages/' + m.id); if (r) r.update({ lu: true, luA: Date.now() }).catch(() => {}); };
-  return _h`<div style=${{ position:'fixed', left:12, right:12, bottom:14, zIndex:3000, display:'flex', flexDirection:'column', gap:8, maxWidth:520, margin:'0 auto' }}>
+  return _h`<div>${alerteSync}<div style=${{ position:'fixed', left:12, right:12, bottom:14, zIndex:3000, display:'flex', flexDirection:'column', gap:8, maxWidth:520, margin:'0 auto' }}>
     ${messages.slice(-3).map(m => _h`<div key=${m.id} style=${{ background:'#1b1408', border:'2px solid #FFA420', borderRadius:14, padding:'12px 14px', boxShadow:'0 8px 30px rgba(0,0,0,.6)' }}>
       <div style=${{ fontSize:10, color:'#FFA420', fontWeight:800, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>💬 Message du coach</div>
       <div style=${{ fontSize:15, fontWeight:700, color:'#fff', lineHeight:1.35, marginBottom:10 }}>${m.texte}</div>
       <button class="btn btn-primary" style=${{ width:'100%' }} onClick=${() => marquerLu(m)}>👍 Bien reçu</button>
     </div>`)}
-  </div>`;
+  </div></div>`;
 }
 
 // ── SUIVI EN DIRECT — CÔTÉ COACH ───────────────────────────────────────────────

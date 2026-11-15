@@ -638,7 +638,8 @@ function fusionnerPersoDistant(local, remote) {
 // Les règles ne savent pas chercher dans une liste : pour savoir « cet email est-il un coach/staff ? »
 // ou « quelle fiche appartient à cet email ? », elles lisent ces index, clés = email avec '.' → ','.
 //   acces/equipe/{email}         = true                    (coachs + staff : accès complet)
-//   acces/joueurs/{email}        = { type:'club'|'perso', id }
+//   acces/joueurs/{email}        = { type:'club'|'perso', id }   (club prioritaire si les deux)
+//   acces/joueursPerso/{email}   = id de la fiche individuelle   (un même email peut avoir les deux)
 //   acces/joueursTenant/{email}  = { tenantId, playerId }
 // Reconstruits par l'admin à chaque connexion, complétés par l'équipe au fil des ajouts.
 const ADMIN_EMAIL = 'leo.chabanis@gmail.com';
@@ -651,10 +652,10 @@ function emailAutoJoueur(p) { // même règle que resolveRole (prénom@player.fr
 }
 function enTableau(v) { return !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean); }
 function calculerIndexAcces({ clubs, staffAccounts, playerProfiles, playersPerso, tenants }) {
-  const equipe = {}, joueurs = {}, joueursTenant = {};
+  const equipe = {}, joueurs = {}, joueursPerso = {}, joueursTenant = {};
   enTableau(clubs).forEach(c => { const k = cleEmail(c && c.coach && c.coach.email); if (k) equipe[k] = true; });
   enTableau(staffAccounts).forEach(st => { const k = cleEmail(st.email); if (k) equipe[k] = true; });
-  enTableau(playersPerso).forEach(p => { const k = cleEmail(p.email); if (k && p.id) joueurs[k] = { type: 'perso', id: p.id }; });
+  enTableau(playersPerso).forEach(p => { const k = cleEmail(p.email); if (k && p.id) { joueurs[k] = { type: 'perso', id: p.id }; joueursPerso[k] = p.id; } });
   enTableau(playerProfiles).forEach(p => { // club après perso : même priorité que resolveRole
     if (!p.id) return;
     const k = cleEmail(p.email) || cleEmail(emailAutoJoueur(p));
@@ -663,7 +664,7 @@ function calculerIndexAcces({ clubs, staffAccounts, playerProfiles, playersPerso
   Object.entries(tenants || {}).forEach(([tid, t]) => {
     enTableau(t && t.playersPerso).forEach(p => { const k = cleEmail(p.email); if (k && p.id) joueursTenant[k] = { tenantId: tid, playerId: p.id }; });
   });
-  return { equipe, joueurs, joueursTenant };
+  return { equipe, joueurs, joueursPerso, joueursTenant };
 }
 // Admin : reconstruction complète depuis Firebase (retire aussi les accès supprimés).
 async function reconstruireIndexAcces() {
@@ -688,6 +689,7 @@ function completerIndexAcces(db) {
   const maj = {};
   Object.entries(idx.equipe).forEach(([k, v]) => { maj['equipe/' + k] = v; });
   Object.entries(idx.joueurs).forEach(([k, v]) => { maj['joueurs/' + k] = v; });
+  Object.entries(idx.joueursPerso).forEach(([k, v]) => { maj['joueursPerso/' + k] = v; });
   if (Object.keys(maj).length) fdb.ref('acces').update(maj).catch(e => console.warn('[index accès] complément refusé :', e && e.message));
 }
 // Préparateur (tenant) : indexe l'email de ses joueurs.
@@ -795,6 +797,46 @@ function enregistrerSeancesFusion(chemin, avant, apres) {
     return r;
   });
 }
+// ── RÉCUPÉRATION DES VALIDATIONS RESTÉES SUR L'APPAREIL DU JOUEUR ───────────────
+// Si l'enregistrement d'une validation a été refusé (droits, réseau, ancienne version de l'appli),
+// le téléphone du joueur l'affiche comme faite alors que la base ne l'a jamais reçue. À l'ouverture,
+// on renvoie ces validations : uniquement pour une séance qui existe dans la base et n'y est pas
+// validée, en complétant les champs vides (date, RPE, fatigue, bilan) sans rien écraser.
+const CHAMPS_VALIDATION = ['dateFaite', 'rpeReel', 'fatigue', 'wellness', 'notesJoueur'];
+function validationsARecuperer(localListe, serveurListe) {
+  const serveur = enTableau(serveurListe);
+  const res = [];
+  enTableau(localListe).forEach(l => {
+    if (!l.dateFaite || !idSeance(l)) return;
+    const s = serveur.find(x => idSeance(x) === idSeance(l));
+    if (!s || s.dateFaite) return; // supprimée côté serveur, ou déjà validée
+    const complement = {};
+    CHAMPS_VALIDATION.forEach(k => { if (l[k] != null && s[k] == null) complement[k] = l[k]; });
+    res.push({ ...s, ...complement });
+  });
+  return res;
+}
+const recuperationsTentees = new Set();
+// Renvoie la fiche serveur complétée des validations locales (pour l'affichage) et lance leur envoi.
+function recupererValidationsLocales(cheminFicheJoueur, local, remote) {
+  if (!local || !remote) return remote;
+  let complete = remote;
+  ['muscuSeances', 'enduranceSeances'].forEach(champ => {
+    const aRecup = validationsARecuperer(local[champ], remote[champ]);
+    if (!aRecup.length) return;
+    const serveur = enTableau(remote[champ]);
+    const apres = serveur.map(s => aRecup.find(r => idSeance(r) === idSeance(s)) || s);
+    complete = { ...complete, [champ]: apres };
+    const nouvelles = aRecup.filter(s => !recuperationsTentees.has(champ + ':' + idSeance(s)));
+    if (!nouvelles.length) return;
+    nouvelles.forEach(s => recuperationsTentees.add(champ + ':' + idSeance(s)));
+    enregistrerSeancesFusion(cheminFicheJoueur + '/' + champ, serveur, apres)
+      .then(() => console.log('[récupération] validations renvoyées vers la base :', nouvelles.length, champ))
+      .catch(e => console.warn('[récupération] envoi impossible pour l\'instant :', e && e.message));
+  });
+  return complete;
+}
+
 // Emplacement de la fiche : un profil individuel (même rattaché à un club) est dans playersPerso.
 function cheminFiche(db, player) {
   const id = player && player.id;
@@ -32651,15 +32693,19 @@ function MessagesCoachDirect({ player }) {
     });
     return () => { annule = true; if (r && h) r.off('value', h); };
   }, [actif, player && player.id]);
-  if (!actif || !messages.length) return null;
+  // Fiche illisible pour ce joueur : ses validations ne partent pas vers le coach — on le lui dit.
+  const alerteSync = app.ficheSyncRefusee && player ? _h`<div style=${{ position:'fixed', left:12, right:12, top:12, zIndex:3001, maxWidth:520, margin:'0 auto', background:'#2a0d10', border:'2px solid #FF4455', borderRadius:12, padding:'10px 14px', fontSize:12, color:'#fff', lineHeight:1.4 }}>
+    ⚠️ <b>Tes séances ne se synchronisent pas avec ton coach.</b> Ce que tu valides reste sur ton téléphone. Préviens ton coach.
+  </div>` : null;
+  if (!actif || !messages.length) return alerteSync;
   const marquerLu = m => { const r = suiviDirectRef(player.id, 'messages/' + m.id); if (r) r.update({ lu: true, luA: Date.now() }).catch(() => {}); };
-  return _h`<div style=${{ position:'fixed', left:12, right:12, bottom:14, zIndex:3000, display:'flex', flexDirection:'column', gap:8, maxWidth:520, margin:'0 auto' }}>
+  return _h`<div>${alerteSync}<div style=${{ position:'fixed', left:12, right:12, bottom:14, zIndex:3000, display:'flex', flexDirection:'column', gap:8, maxWidth:520, margin:'0 auto' }}>
     ${messages.slice(-3).map(m => _h`<div key=${m.id} style=${{ background:'#1b1408', border:'2px solid #FFA420', borderRadius:14, padding:'12px 14px', boxShadow:'0 8px 30px rgba(0,0,0,.6)' }}>
       <div style=${{ fontSize:10, color:'#FFA420', fontWeight:800, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>💬 Message du coach</div>
       <div style=${{ fontSize:15, fontWeight:700, color:'#fff', lineHeight:1.35, marginBottom:10 }}>${m.texte}</div>
       <button class="btn btn-primary" style=${{ width:'100%' }} onClick=${() => marquerLu(m)}>👍 Bien reçu</button>
     </div>`)}
-  </div>`;
+  </div></div>`;
 }
 
 // ── SUIVI EN DIRECT — CÔTÉ COACH ───────────────────────────────────────────────
@@ -32860,6 +32906,9 @@ function PerfHandApp() {
     } catch { return null; }
   });
 
+  // La fiche du joueur connecté ne peut pas être lue/synchronisée (droits) : affiché au joueur
+  const [ficheSyncRefusee, setFicheSyncRefusee] = useState(false);
+
   // Identité Firebase courante + rôle applicatif : quand l'un change, les écouteurs sont rebranchés.
   const [authUid, setAuthUid] = useState(null);
   React.useEffect(() => {
@@ -32879,6 +32928,9 @@ function PerfHandApp() {
   // Tout l'état passe par dbSansMdp : aucun mot de passe ne reste en mémoire, en local ni n'est envoyé.
   const [db, _setDbBrut] = useState(() => dbSansMdp(loadDb()));
   const setDbRaw = React.useCallback(u => _setDbBrut(prev => dbSansMdp(typeof u === 'function' ? u(prev) : u)), []);
+  // Dernier état connu (lu hors du rendu par l'écoute de la fiche joueur)
+  const dbCourantRef = useRef(db);
+  dbCourantRef.current = db;
 
   function setDb(updater) {
     setDbRaw(prev => {
@@ -33884,7 +33936,11 @@ function ClubStaffManager({ club, db, setDb }) {
       h = r.on('value', snap => {
         const v = snap.val();
         if (!v || typeof v !== 'object') return;
-        const remote = { ...v, id: v.id || session.playerId };
+        setFicheSyncRefusee(false);
+        const fiche = { ...v, id: v.id || session.playerId };
+        // Validations restées sur cet appareil (enregistrement refusé auparavant) : renvoyées vers la base
+        const localAvant = ((dbCourantRef.current || {})[cle] || []).find(p => p && p.id === fiche.id);
+        const remote = recupererValidationsLocales(chemin, localAvant, fiche);
         setDbRaw(prev => {
           const liste = prev[cle] || [];
           const local = liste.find(p => p && p.id === remote.id);
@@ -33894,7 +33950,7 @@ function ClubStaffManager({ club, db, setDb }) {
           try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
           return next;
         });
-      }, e => console.warn('[fiche joueur] lecture refusée', chemin, e && e.code));
+      }, e => { console.warn('[fiche joueur] lecture refusée', chemin, e && e.code); setFicheSyncRefusee(true); });
     });
     return () => { annule = true; if (r && h) r.off('value', h); };
   }, [cleConnexion]);
@@ -33931,7 +33987,7 @@ function ClubStaffManager({ club, db, setDb }) {
     return () => { annule = true; };
   }, [cleConnexion]);
 
-  const ctx = { session, login, logout, db, setDb, resetDb, user:session };
+  const ctx = { session, login, logout, db, setDb, resetDb, user:session, ficheSyncRefusee };
 
   // Register screen state
   const [showRegister, setShowRegister] = useState(false);

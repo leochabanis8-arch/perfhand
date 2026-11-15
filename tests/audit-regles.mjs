@@ -130,5 +130,12 @@ T('le staff lit tous les suivis', await lit('perfhand/seancesLive', kine), true)
 T('le staff envoie un message au joueur', await ecrit('perfhand/seancesLive/p-rizzi/messages/m1', kine, { texte: 'Bien joué', de: 'coach', lu: false }), true);
 T('le joueur marque le message comme lu', await maj('perfhand/seancesLive/p-rizzi/messages/m1', cs, { lu: true }), true);
 T('un visiteur lit le suivi', await lit('perfhand/seancesLive/p-rizzi', await anon()), false);
+console.log('\n— Même email sur une fiche club ET une fiche individuelle —');
+await seed({ ...DATA, acces: { ...DATA.acces, joueurs: { ...DATA.acces.joueurs, 'paul@test,fr': { type: 'club', id: 'p-autre' } }, joueursPerso: { 'paul@test,fr': 'perso-1' } } });
+T('lire SA fiche individuelle', await lit('perfhand/playersPerso/perso-1', paul), true);
+T('valider une séance sur SA fiche individuelle', await maj('perfhand/playersPerso/perso-1', paul, { poids: 82 }), true);
+T('lire SA fiche club', await lit('perfhand/playerProfiles/p-autre', paul), true);
+T('lire la fiche individuelle d\'un autre', await lit('perfhand/playersPerso/perso-2', paul), false);
+T('lire l\'index des fiches individuelles', await lit('acces/joueursPerso', paul), false);
 console.log(`\n${ko === 0 ? 'TOUT EST CONFORME' : ko + ' ÉCART(S)'}`);
 process.exit(ko ? 1 : 0);
