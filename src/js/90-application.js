@@ -97,7 +97,7 @@ function PerfHandApp() {
   function setDb(updater) {
     setDbRaw(prev => {
       const next = dbSansMdp(typeof updater === "function" ? updater(prev) : updater);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+      sauverCacheLocal(STORAGE_KEY, next);
       // Exposer la bibliothèque custom globalement pour findBiblioMatch
       window.__perfhand_custom_biblio = next.bibliothequeCustom || [];
       // Exposer les corrections de lien vidéo/image globalement pour findBiblioMatch
@@ -267,7 +267,7 @@ function PerfHandApp() {
           const np = sansProfilsSupprimes(d.playersPerso), nc = sansProfilsSupprimes(d.playerProfiles);
           if (np.length === (d.playersPerso||[]).length && nc.length === (d.playerProfiles||[]).length) return d;
           const next = { ...d, playersPerso: np, playerProfiles: nc };
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+          sauverCacheLocal(STORAGE_KEY, next);
           return next;
         });
       }, () => {});
@@ -280,7 +280,7 @@ function PerfHandApp() {
       const profiles=sansProfilsSupprimes(rawArr.map(p=>sanitizeProfile(p)).filter(Boolean));
       setDbRaw(d => {
         const next = { ...d, playerProfiles: profiles };
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+        sauverCacheLocal(STORAGE_KEY, next);
         return next;
       });
     });
@@ -428,7 +428,7 @@ function PerfHandApp() {
         const newPerso = sansProfilsSupprimes(Object.values(localMap));
         if (JSON.stringify(newPerso) === JSON.stringify(prev.playersPerso || [])) return prev;
         const next = { ...prev, playersPerso: newPerso };
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+        sauverCacheLocal(STORAGE_KEY, next);
         console.log('[PerfHand] DB mise a jour avec', newPerso.length, 'profils');
         return next;
       });
@@ -1109,7 +1109,7 @@ function ClubStaffManager({ club, db, setDb }) {
           const fusion = perso ? fusionnerPersoDistant(local || {}, remote) : sanitizeProfile(remote);
           if (!fusion || (local && JSON.stringify(local) === JSON.stringify(fusion))) return prev;
           const next = { ...prev, [cle]: local ? liste.map(p => (p && p.id === remote.id) ? fusion : p) : [...liste, fusion] };
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+          sauverCacheLocal(STORAGE_KEY, next);
           return next;
         });
       }, e => { console.warn('[fiche joueur] lecture refusée', chemin, e && e.code); setFicheSyncRefusee(true); });
@@ -1149,6 +1149,21 @@ function ClubStaffManager({ club, db, setDb }) {
     return () => { annule = true; };
   }, [cleConnexion]);
 
+  // Connexion à la base : si elle n'est pas établie depuis plus de 10 s, un bandeau le dit clairement
+  // (avant, l'appli continuait hors ligne sans prévenir et rien de ce qui était saisi n'était enregistré).
+  const [horsLigne, setHorsLigne] = useState(false);
+  React.useEffect(() => {
+    if (!window.__perfhand_db) return;
+    const ref = window.__perfhand_db.ref('.info/connected');
+    let minuteur = null;
+    const h = ref.on('value', snap => {
+      clearTimeout(minuteur);
+      if (snap.val() === true) setHorsLigne(false);
+      else minuteur = setTimeout(() => setHorsLigne(true), 10000);
+    });
+    return () => { clearTimeout(minuteur); ref.off('value', h); };
+  }, []);
+
   const ctx = { session, login, logout, db, setDb, resetDb, user:session, ficheSyncRefusee };
 
   // Register screen state
@@ -1160,6 +1175,9 @@ function ClubStaffManager({ club, db, setDb }) {
   }
 
   return _h`<${AppCtx.Provider} value=${ctx}>
+    ${session && horsLigne ? _h`<div style=${{ position:'fixed', top:0, left:0, right:0, zIndex:4000, background:'#7a1520', color:'#fff', padding:'8px 14px', fontSize:13, fontWeight:700, textAlign:'center', boxShadow:'0 4px 18px rgba(0,0,0,.5)' }}>
+      ⚠️ Pas de connexion à la base — ce que tu fais n'est PAS enregistré. Vérifie ta connexion internet, puis recharge la page.
+    </div>` : null}
     ${!session && !window._shareContext && _h`<${LoginScreen} />`}
     ${session && session.role === "admin"  && _h`<${SuperAdminView} />`}
     ${session && session.role === "coach"  && _h`<${CoachView} />`}

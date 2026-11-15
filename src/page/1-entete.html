@@ -22,6 +22,15 @@
       window.__perfhand_auth_resoudre = res;
       setTimeout(res, 6000);
     });
+    // Mémoire locale du navigateur pleine (≈ 5 Mo par site) = Firebase ne peut plus ouvrir sa connexion
+    // (« quota exceeded ») et l'appli tourne hors ligne sans le dire : ce qui est saisi n'est jamais
+    // enregistré. On libère la place AVANT d'initialiser Firebase : anciennes copies de la base, et
+    // copie actuelle si elle est trop volumineuse (ce n'est qu'un cache, rechargé depuis le serveur).
+    try {
+      ['perfhand_db_v1', 'perfhand_db_v2', 'perfhand_codes'].forEach(function(k){ localStorage.removeItem(k); });
+      var copieLocale = localStorage.getItem('perfhand_db_v3');
+      if (copieLocale && copieLocale.length > 3000000) localStorage.removeItem('perfhand_db_v3');
+    } catch(e) {}
     console.log("[Firebase] Initialisation...");
     try {
       firebase.initializeApp({

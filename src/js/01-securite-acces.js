@@ -278,6 +278,28 @@ function cheminFiche(db, player) {
   return player && player.clubId ? 'perfhand/playerProfiles/' : 'perfhand/playersPerso/';
 }
 
+// ── COPIE LOCALE DE LA BASE (cache) ───────────────────────────────────────────
+// La copie locale n'est qu'un cache. Elle ne doit jamais remplir la mémoire du navigateur : Firebase
+// n'aurait plus la place d'ouvrir sa connexion. Au-delà de 3 millions de caractères, ou si la place
+// manque, on y renonce pour la session (les données viennent alors directement du serveur).
+let cacheLocalDesactive = false;
+function sauverCacheLocal(cle, donnees) {
+  if (cacheLocalDesactive) return;
+  let texte;
+  try { texte = JSON.stringify(donnees); } catch (e) { return; }
+  const renoncer = raison => {
+    cacheLocalDesactive = true;
+    try { localStorage.removeItem(cle); } catch (e) {}
+    console.warn('[copie locale] désactivée :', raison);
+  };
+  if (texte.length > 3000000) return renoncer('trop volumineuse');
+  try { localStorage.setItem(cle, texte); }
+  catch (e) {
+    ['perfhand_db_v1', 'perfhand_db_v2', 'perfhand_codes'].forEach(k => { try { localStorage.removeItem(k); } catch (e2) {} });
+    try { localStorage.setItem(cle, texte); } catch (e3) { renoncer('mémoire du navigateur pleine'); }
+  }
+}
+
 // ── MOTS DE PASSE : JAMAIS STOCKÉS ───────────────────────────────────────────
 // La connexion passe uniquement par Firebase Auth (qui stocke les mots de passe de façon sûre).
 // Une copie en clair dans la base n'était qu'un pense-bête lisible par quiconque accède aux données :

@@ -22,6 +22,15 @@
       window.__perfhand_auth_resoudre = res;
       setTimeout(res, 6000);
     });
+    // Mémoire locale du navigateur pleine (≈ 5 Mo par site) = Firebase ne peut plus ouvrir sa connexion
+    // (« quota exceeded ») et l'appli tourne hors ligne sans le dire : ce qui est saisi n'est jamais
+    // enregistré. On libère la place AVANT d'initialiser Firebase : anciennes copies de la base, et
+    // copie actuelle si elle est trop volumineuse (ce n'est qu'un cache, rechargé depuis le serveur).
+    try {
+      ['perfhand_db_v1', 'perfhand_db_v2', 'perfhand_codes'].forEach(function(k){ localStorage.removeItem(k); });
+      var copieLocale = localStorage.getItem('perfhand_db_v3');
+      if (copieLocale && copieLocale.length > 3000000) localStorage.removeItem('perfhand_db_v3');
+    } catch(e) {}
     console.log("[Firebase] Initialisation...");
     try {
       firebase.initializeApp({
@@ -843,6 +852,28 @@ function cheminFiche(db, player) {
   if ((db && db.playersPerso || []).some(p => p && p.id === id)) return 'perfhand/playersPerso/';
   if ((db && db.playerProfiles || []).some(p => p && p.id === id)) return 'perfhand/playerProfiles/';
   return player && player.clubId ? 'perfhand/playerProfiles/' : 'perfhand/playersPerso/';
+}
+
+// ── COPIE LOCALE DE LA BASE (cache) ───────────────────────────────────────────
+// La copie locale n'est qu'un cache. Elle ne doit jamais remplir la mémoire du navigateur : Firebase
+// n'aurait plus la place d'ouvrir sa connexion. Au-delà de 3 millions de caractères, ou si la place
+// manque, on y renonce pour la session (les données viennent alors directement du serveur).
+let cacheLocalDesactive = false;
+function sauverCacheLocal(cle, donnees) {
+  if (cacheLocalDesactive) return;
+  let texte;
+  try { texte = JSON.stringify(donnees); } catch (e) { return; }
+  const renoncer = raison => {
+    cacheLocalDesactive = true;
+    try { localStorage.removeItem(cle); } catch (e) {}
+    console.warn('[copie locale] désactivée :', raison);
+  };
+  if (texte.length > 3000000) return renoncer('trop volumineuse');
+  try { localStorage.setItem(cle, texte); }
+  catch (e) {
+    ['perfhand_db_v1', 'perfhand_db_v2', 'perfhand_codes'].forEach(k => { try { localStorage.removeItem(k); } catch (e2) {} });
+    try { localStorage.setItem(cle, texte); } catch (e3) { renoncer('mémoire du navigateur pleine'); }
+  }
 }
 
 // ── MOTS DE PASSE : JAMAIS STOCKÉS ───────────────────────────────────────────
@@ -32935,7 +32966,7 @@ function PerfHandApp() {
   function setDb(updater) {
     setDbRaw(prev => {
       const next = dbSansMdp(typeof updater === "function" ? updater(prev) : updater);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+      sauverCacheLocal(STORAGE_KEY, next);
       // Exposer la bibliothèque custom globalement pour findBiblioMatch
       window.__perfhand_custom_biblio = next.bibliothequeCustom || [];
       // Exposer les corrections de lien vidéo/image globalement pour findBiblioMatch
@@ -33105,7 +33136,7 @@ function PerfHandApp() {
           const np = sansProfilsSupprimes(d.playersPerso), nc = sansProfilsSupprimes(d.playerProfiles);
           if (np.length === (d.playersPerso||[]).length && nc.length === (d.playerProfiles||[]).length) return d;
           const next = { ...d, playersPerso: np, playerProfiles: nc };
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+          sauverCacheLocal(STORAGE_KEY, next);
           return next;
         });
       }, () => {});
@@ -33118,7 +33149,7 @@ function PerfHandApp() {
       const profiles=sansProfilsSupprimes(rawArr.map(p=>sanitizeProfile(p)).filter(Boolean));
       setDbRaw(d => {
         const next = { ...d, playerProfiles: profiles };
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+        sauverCacheLocal(STORAGE_KEY, next);
         return next;
       });
     });
@@ -33266,7 +33297,7 @@ function PerfHandApp() {
         const newPerso = sansProfilsSupprimes(Object.values(localMap));
         if (JSON.stringify(newPerso) === JSON.stringify(prev.playersPerso || [])) return prev;
         const next = { ...prev, playersPerso: newPerso };
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+        sauverCacheLocal(STORAGE_KEY, next);
         console.log('[PerfHand] DB mise a jour avec', newPerso.length, 'profils');
         return next;
       });
@@ -33947,7 +33978,7 @@ function ClubStaffManager({ club, db, setDb }) {
           const fusion = perso ? fusionnerPersoDistant(local || {}, remote) : sanitizeProfile(remote);
           if (!fusion || (local && JSON.stringify(local) === JSON.stringify(fusion))) return prev;
           const next = { ...prev, [cle]: local ? liste.map(p => (p && p.id === remote.id) ? fusion : p) : [...liste, fusion] };
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch(e) {}
+          sauverCacheLocal(STORAGE_KEY, next);
           return next;
         });
       }, e => { console.warn('[fiche joueur] lecture refusée', chemin, e && e.code); setFicheSyncRefusee(true); });
@@ -33987,6 +34018,21 @@ function ClubStaffManager({ club, db, setDb }) {
     return () => { annule = true; };
   }, [cleConnexion]);
 
+  // Connexion à la base : si elle n'est pas établie depuis plus de 10 s, un bandeau le dit clairement
+  // (avant, l'appli continuait hors ligne sans prévenir et rien de ce qui était saisi n'était enregistré).
+  const [horsLigne, setHorsLigne] = useState(false);
+  React.useEffect(() => {
+    if (!window.__perfhand_db) return;
+    const ref = window.__perfhand_db.ref('.info/connected');
+    let minuteur = null;
+    const h = ref.on('value', snap => {
+      clearTimeout(minuteur);
+      if (snap.val() === true) setHorsLigne(false);
+      else minuteur = setTimeout(() => setHorsLigne(true), 10000);
+    });
+    return () => { clearTimeout(minuteur); ref.off('value', h); };
+  }, []);
+
   const ctx = { session, login, logout, db, setDb, resetDb, user:session, ficheSyncRefusee };
 
   // Register screen state
@@ -33998,6 +34044,9 @@ function ClubStaffManager({ club, db, setDb }) {
   }
 
   return _h`<${AppCtx.Provider} value=${ctx}>
+    ${session && horsLigne ? _h`<div style=${{ position:'fixed', top:0, left:0, right:0, zIndex:4000, background:'#7a1520', color:'#fff', padding:'8px 14px', fontSize:13, fontWeight:700, textAlign:'center', boxShadow:'0 4px 18px rgba(0,0,0,.5)' }}>
+      ⚠️ Pas de connexion à la base — ce que tu fais n'est PAS enregistré. Vérifie ta connexion internet, puis recharge la page.
+    </div>` : null}
     ${!session && !window._shareContext && _h`<${LoginScreen} />`}
     ${session && session.role === "admin"  && _h`<${SuperAdminView} />`}
     ${session && session.role === "coach"  && _h`<${CoachView} />`}
