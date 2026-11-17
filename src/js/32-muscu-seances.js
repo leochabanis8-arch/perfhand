@@ -1221,6 +1221,51 @@ function noterRessenti(pid, cleJournal, ressenti) {
   r.update({ dernierRessenti: ressenti, maj: Date.now() }).catch(() => {});
 }
 
+// ── Chrono d'EFFORT pour les exercices en secondes (gainage, corde, isométrie…) ──
+// « 30 s », « 45sec », « 1 min », « 1min30 », « 0:40 », « 20 s / jambe » → durée en secondes
+// (null si ce ne sont pas des secondes : « 8 », « 4 (1+1+1+1) », « 10 contacts »…).
+function dureeEffortSec(txt) {
+  const t = String(txt == null ? '' : txt).toLowerCase().trim();
+  if (!t) return null;
+  let m = t.match(/^(\d+)\s*:\s*(\d{2})\b/); if (m) return parseInt(m[1]) * 60 + parseInt(m[2]);
+  m = t.match(/^(\d+)\s*min[a-z]*\s*(\d+)\s*(s|sec|secondes?)?\b/); if (m) return parseInt(m[1]) * 60 + parseInt(m[2]);
+  m = t.match(/^(\d+)\s*min(ute)?s?(?![a-zà-ÿ])/); if (m) return parseInt(m[1]) * 60;
+  m = t.match(/^(\d+)\s*(s|sec|secs|seconde|secondes)(?![a-zà-ÿ])/); if (m) return parseInt(m[1]);
+  m = t.match(/^(\d+)\s*(''|")/); if (m) return parseInt(m[1]);
+  return null;
+}
+// « 20 s / jambe », « 30 s par côté » → effort à faire de chaque côté
+function effortParCote(txt) {
+  return /(\/|par|chaque)\s*(jambe|côté|cote|bras|pied)/i.test(String(txt || ''));
+}
+// Durée prévue pour la série n (1, 2, 3…) : détail par série, sinon « 30 s / 30 s / 20 s », sinon le champ Reps
+function effortDeLaSerie(ex, n) {
+  const det = (ex.chargeDetails || [])[n - 1];
+  if (det && det.reps != null && String(det.reps).trim()) {
+    const d = dureeEffortSec(det.reps);
+    return d ? { sec: d, cote: effortParCote(det.reps) } : null;
+  }
+  const reps = String(ex.reps == null ? '' : ex.reps);
+  const parts = reps.split('/').map(x => x.trim()).filter(Boolean);
+  if (parts.length > 1 && parts.every(x => dureeEffortSec(x))) {
+    const x = parts[Math.min(n - 1, parts.length - 1)];
+    return { sec: dureeEffortSec(x), cote: false };
+  }
+  const d = dureeEffortSec(reps);
+  return d ? { sec: d, cote: effortParCote(reps) } : null;
+}
+let __perfhand_audio = null;
+function bipChrono(freq, ms) {
+  try {
+    if (!__perfhand_audio) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; __perfhand_audio = new AC(); }
+    const a = __perfhand_audio; if (a.state === 'suspended') a.resume();
+    const o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = freq || 880; o.connect(g); g.connect(a.destination);
+    g.gain.setValueAtTime(0.25, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + (ms || 150) / 1000);
+    o.start(); o.stop(a.currentTime + (ms || 150) / 1000);
+  } catch (e) {}
+}
+
 function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, showConnector, player, seanceNom, nbExercices }) {
   // EMOM : le champ "emomDuree" (rempli par le coach dans le champ "EMOM (min)" du formulaire)
   // contient le nombre de minutes total — PAS "series" qui reste le champ "Séries" classique
@@ -1368,6 +1413,48 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
 
   function stopChrono() { setChronoEndTs(null); setChronoRestant(0); }
 
+  // ── Chrono d'effort (exercice en secondes) : Prêt 3 s → effort (→ changement de côté → effort) → série validée → repos ──
+  const effort = !ex.emom && seriesDone < totalSeries ? effortDeLaSerie(ex, seriesDone + 1) : null;
+  const [effortEnCours, setEffortEnCours] = useState(null); // { phases:[{label,sec,travail}], i, finTs }
+  const [effortNow, setEffortNow] = useState(Date.now());
+  function lancerEffort() {
+    if (!effort) return;
+    bipChrono(660, 80); // débloque le son sur mobile (geste de l'utilisateur)
+    const phases = [{ label: 'Prêt…', sec: 3 }];
+    if (effort.cote) phases.push({ label: 'EFFORT — côté 1', sec: effort.sec, travail: true }, { label: 'Change de côté', sec: 5 }, { label: 'EFFORT — côté 2', sec: effort.sec, travail: true });
+    else phases.push({ label: 'EFFORT', sec: effort.sec, travail: true });
+    setEffortEnCours({ phases, i: 0, finTs: Date.now() + phases[0].sec * 1000 });
+  }
+  function arreterEffort() { setEffortEnCours(null); }
+  React.useEffect(() => {
+    if (!effortEnCours) return;
+    let dernierBip = null;
+    function tick() {
+      const now = Date.now(); setEffortNow(now);
+      const reste = Math.ceil((effortEnCours.finTs - now) / 1000);
+      if (reste > 0 && reste <= 3 && reste !== dernierBip) { dernierBip = reste; bipChrono(880, 120); }
+      if (now >= effortEnCours.finTs) {
+        const i = effortEnCours.i + 1;
+        if (i < effortEnCours.phases.length) {
+          bipChrono(1320, 300); if (navigator.vibrate) navigator.vibrate([200]);
+          setEffortEnCours({ ...effortEnCours, i, finTs: now + effortEnCours.phases[i].sec * 1000 });
+        } else {
+          bipChrono(1320, 600); if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+          setEffortEnCours(null);
+          validerSerie(); // série faite → le chrono de repos démarre tout seul
+        }
+      }
+    }
+    tick();
+    const t = setInterval(tick, 200);
+    const onVisible = () => { if (!document.hidden) tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
+  }, [effortEnCours]);
+  const phaseEffort = effortEnCours ? effortEnCours.phases[effortEnCours.i] : null;
+  const resteEffort = effortEnCours ? Math.max(0, Math.ceil((effortEnCours.finTs - effortNow) / 1000)) : 0;
+  const fmtSec = n => n >= 60 ? Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0') : n + 's';
+
   const pct = chronoTotal > 0 ? chronoRestant / chronoTotal : 0;
   const mins = Math.floor(chronoRestant / 60);
   const secs = chronoRestant % 60;
@@ -1478,6 +1565,27 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
             ${ex.reps} reps, puis récupère jusqu'à la fin de la minute
           </div>
         </div>`}
+    </div>` : null}
+
+    ${!ex.emom && effort && !chronoActive && !effortEnCours ? _h`<button onClick=${lancerEffort}
+        style=${{ width:'100%', marginTop:8, padding:'11px', borderRadius:10, background:'rgba(255,164,32,.12)',
+          border:'1px solid rgba(255,164,32,.4)', color:'#FFA420', fontWeight:800, fontSize:13, cursor:'pointer', fontFamily:"Inter,sans-serif" }}>
+        ▶ Lancer le chrono — série ${seriesDone + 1} : ${fmtSec(effort.sec)}${effort.cote ? ' par côté' : ''}
+      </button>` : null}
+
+    ${!ex.emom && effortEnCours ? _h`<div style=${{ marginTop:8, background: phaseEffort.travail ? 'rgba(255,164,32,.1)' : 'rgba(255,255,255,.05)',
+        border:'1px solid ' + (phaseEffort.travail ? 'rgba(255,164,32,.4)' : 'rgba(255,255,255,.15)'), borderRadius:10, padding:'10px 14px' }}>
+      <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+        <div style=${{ fontSize:11, color: phaseEffort.travail ? '#FFA420' : 'rgba(255,255,255,.6)', fontWeight:800, letterSpacing:1 }}>${phaseEffort.label} · série ${seriesDone + 1}/${totalSeries}</div>
+        <button onClick=${arreterEffort}
+          style=${{ background:'rgba(255,68,85,.12)', border:'1px solid rgba(255,68,85,.2)', color:'#FF4455', borderRadius:7, padding:'3px 10px', cursor:'pointer', fontSize:11, fontFamily:'Inter,sans-serif' }}>Arrêter</button>
+      </div>
+      <div style=${{ height:4, background:'rgba(255,255,255,.07)', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+        <div style=${{ height:'100%', borderRadius:2, background: phaseEffort.travail ? '#FFA420' : 'rgba(255,255,255,.4)',
+          width: (resteEffort / phaseEffort.sec * 100) + '%', transition:'width .2s linear' }}></div>
+      </div>
+      <div style=${{ fontSize:40, fontWeight:800, color: phaseEffort.travail ? '#FFA420' : '#fff', fontFamily:"'Barlow Condensed',sans-serif", lineHeight:1, textAlign:'center' }}>${fmtSec(resteEffort)}</div>
+      <div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', textAlign:'center', marginTop:4 }}>${phaseEffort.travail ? 'Tiens jusqu\'au bip !' : 'Mets-toi en place'} — la série sera validée automatiquement à la fin</div>
     </div>` : null}
 
     ${!ex.emom && chronoActive && _h`<div style=${{ background:"rgba(56,189,248,.08)", border:"1px solid rgba(56,189,248,.2)", borderRadius:10, padding:"10px 14px" }}>

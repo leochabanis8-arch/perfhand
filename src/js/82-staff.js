@@ -87,7 +87,9 @@ function StaffView2() {
         <button class="btn btn-sm btn-danger" onClick=${logout}>Déco</button>
       </div>
       <div style=${{ padding:'20px', paddingBottom:80 }}>
+        ${React.createElement(NavJoueurs, { joueurs: players.map(p => ({ id: p.id, nom: p.name || '—', sous: p.pos || '', ouvrir: () => setSelPlayer(p) })), courantId: selPlayer.id })}
         ${React.createElement(PlayerDetail, {
+          key: selPlayer.id,
           p: selPlayer, db, setDb,
           onBack: () => setSelPlayer(null),
           staffPermissions: getStaffPermissions(staffInfo)

@@ -397,7 +397,7 @@ function EditPersoModal({ p, onSave, onClose }) {
 
 function PersoAdminDetail({ player: playerProp, setDb }) {
   const { db } = useApp();
-  const [tab, setTab] = useState('profil');
+  const [tab, setTab] = ongletMemorise('fiche-perso', 'profil'); // conservé en passant d'un joueur à l'autre
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState(null);
   // Always resolve live player from db to avoid stale data

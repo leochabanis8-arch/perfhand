@@ -1,6 +1,6 @@
 
 function PlayerDetail({ p, db, setDb, onBack, staffPermissions }) {
-  const [tab, setTab]           = useState('profil');
+  const [tab, setTab]           = ongletMemorise('fiche-club', 'profil'); // conservé en passant d'un joueur à l'autre
   const [editProfile, setEditProfile] = useState(false);
   const [showRapport, setShowRapport] = useState(false);
   const [editBlessure, setEditBlessure] = useState(false);

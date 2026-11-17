@@ -11985,6 +11985,51 @@ function noterRessenti(pid, cleJournal, ressenti) {
   r.update({ dernierRessenti: ressenti, maj: Date.now() }).catch(() => {});
 }
 
+// ── Chrono d'EFFORT pour les exercices en secondes (gainage, corde, isométrie…) ──
+// « 30 s », « 45sec », « 1 min », « 1min30 », « 0:40 », « 20 s / jambe » → durée en secondes
+// (null si ce ne sont pas des secondes : « 8 », « 4 (1+1+1+1) », « 10 contacts »…).
+function dureeEffortSec(txt) {
+  const t = String(txt == null ? '' : txt).toLowerCase().trim();
+  if (!t) return null;
+  let m = t.match(/^(\d+)\s*:\s*(\d{2})\b/); if (m) return parseInt(m[1]) * 60 + parseInt(m[2]);
+  m = t.match(/^(\d+)\s*min[a-z]*\s*(\d+)\s*(s|sec|secondes?)?\b/); if (m) return parseInt(m[1]) * 60 + parseInt(m[2]);
+  m = t.match(/^(\d+)\s*min(ute)?s?(?![a-zà-ÿ])/); if (m) return parseInt(m[1]) * 60;
+  m = t.match(/^(\d+)\s*(s|sec|secs|seconde|secondes)(?![a-zà-ÿ])/); if (m) return parseInt(m[1]);
+  m = t.match(/^(\d+)\s*(''|")/); if (m) return parseInt(m[1]);
+  return null;
+}
+// « 20 s / jambe », « 30 s par côté » → effort à faire de chaque côté
+function effortParCote(txt) {
+  return /(\/|par|chaque)\s*(jambe|côté|cote|bras|pied)/i.test(String(txt || ''));
+}
+// Durée prévue pour la série n (1, 2, 3…) : détail par série, sinon « 30 s / 30 s / 20 s », sinon le champ Reps
+function effortDeLaSerie(ex, n) {
+  const det = (ex.chargeDetails || [])[n - 1];
+  if (det && det.reps != null && String(det.reps).trim()) {
+    const d = dureeEffortSec(det.reps);
+    return d ? { sec: d, cote: effortParCote(det.reps) } : null;
+  }
+  const reps = String(ex.reps == null ? '' : ex.reps);
+  const parts = reps.split('/').map(x => x.trim()).filter(Boolean);
+  if (parts.length > 1 && parts.every(x => dureeEffortSec(x))) {
+    const x = parts[Math.min(n - 1, parts.length - 1)];
+    return { sec: dureeEffortSec(x), cote: false };
+  }
+  const d = dureeEffortSec(reps);
+  return d ? { sec: d, cote: effortParCote(reps) } : null;
+}
+let __perfhand_audio = null;
+function bipChrono(freq, ms) {
+  try {
+    if (!__perfhand_audio) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; __perfhand_audio = new AC(); }
+    const a = __perfhand_audio; if (a.state === 'suspended') a.resume();
+    const o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = freq || 880; o.connect(g); g.connect(a.destination);
+    g.gain.setValueAtTime(0.25, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + (ms || 150) / 1000);
+    o.start(); o.stop(a.currentTime + (ms || 150) / 1000);
+  } catch (e) {}
+}
+
 function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, showConnector, player, seanceNom, nbExercices }) {
   // EMOM : le champ "emomDuree" (rempli par le coach dans le champ "EMOM (min)" du formulaire)
   // contient le nombre de minutes total — PAS "series" qui reste le champ "Séries" classique
@@ -12132,6 +12177,48 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
 
   function stopChrono() { setChronoEndTs(null); setChronoRestant(0); }
 
+  // ── Chrono d'effort (exercice en secondes) : Prêt 3 s → effort (→ changement de côté → effort) → série validée → repos ──
+  const effort = !ex.emom && seriesDone < totalSeries ? effortDeLaSerie(ex, seriesDone + 1) : null;
+  const [effortEnCours, setEffortEnCours] = useState(null); // { phases:[{label,sec,travail}], i, finTs }
+  const [effortNow, setEffortNow] = useState(Date.now());
+  function lancerEffort() {
+    if (!effort) return;
+    bipChrono(660, 80); // débloque le son sur mobile (geste de l'utilisateur)
+    const phases = [{ label: 'Prêt…', sec: 3 }];
+    if (effort.cote) phases.push({ label: 'EFFORT — côté 1', sec: effort.sec, travail: true }, { label: 'Change de côté', sec: 5 }, { label: 'EFFORT — côté 2', sec: effort.sec, travail: true });
+    else phases.push({ label: 'EFFORT', sec: effort.sec, travail: true });
+    setEffortEnCours({ phases, i: 0, finTs: Date.now() + phases[0].sec * 1000 });
+  }
+  function arreterEffort() { setEffortEnCours(null); }
+  React.useEffect(() => {
+    if (!effortEnCours) return;
+    let dernierBip = null;
+    function tick() {
+      const now = Date.now(); setEffortNow(now);
+      const reste = Math.ceil((effortEnCours.finTs - now) / 1000);
+      if (reste > 0 && reste <= 3 && reste !== dernierBip) { dernierBip = reste; bipChrono(880, 120); }
+      if (now >= effortEnCours.finTs) {
+        const i = effortEnCours.i + 1;
+        if (i < effortEnCours.phases.length) {
+          bipChrono(1320, 300); if (navigator.vibrate) navigator.vibrate([200]);
+          setEffortEnCours({ ...effortEnCours, i, finTs: now + effortEnCours.phases[i].sec * 1000 });
+        } else {
+          bipChrono(1320, 600); if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+          setEffortEnCours(null);
+          validerSerie(); // série faite → le chrono de repos démarre tout seul
+        }
+      }
+    }
+    tick();
+    const t = setInterval(tick, 200);
+    const onVisible = () => { if (!document.hidden) tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
+  }, [effortEnCours]);
+  const phaseEffort = effortEnCours ? effortEnCours.phases[effortEnCours.i] : null;
+  const resteEffort = effortEnCours ? Math.max(0, Math.ceil((effortEnCours.finTs - effortNow) / 1000)) : 0;
+  const fmtSec = n => n >= 60 ? Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0') : n + 's';
+
   const pct = chronoTotal > 0 ? chronoRestant / chronoTotal : 0;
   const mins = Math.floor(chronoRestant / 60);
   const secs = chronoRestant % 60;
@@ -12242,6 +12329,27 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
             ${ex.reps} reps, puis récupère jusqu'à la fin de la minute
           </div>
         </div>`}
+    </div>` : null}
+
+    ${!ex.emom && effort && !chronoActive && !effortEnCours ? _h`<button onClick=${lancerEffort}
+        style=${{ width:'100%', marginTop:8, padding:'11px', borderRadius:10, background:'rgba(255,164,32,.12)',
+          border:'1px solid rgba(255,164,32,.4)', color:'#FFA420', fontWeight:800, fontSize:13, cursor:'pointer', fontFamily:"Inter,sans-serif" }}>
+        ▶ Lancer le chrono — série ${seriesDone + 1} : ${fmtSec(effort.sec)}${effort.cote ? ' par côté' : ''}
+      </button>` : null}
+
+    ${!ex.emom && effortEnCours ? _h`<div style=${{ marginTop:8, background: phaseEffort.travail ? 'rgba(255,164,32,.1)' : 'rgba(255,255,255,.05)',
+        border:'1px solid ' + (phaseEffort.travail ? 'rgba(255,164,32,.4)' : 'rgba(255,255,255,.15)'), borderRadius:10, padding:'10px 14px' }}>
+      <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+        <div style=${{ fontSize:11, color: phaseEffort.travail ? '#FFA420' : 'rgba(255,255,255,.6)', fontWeight:800, letterSpacing:1 }}>${phaseEffort.label} · série ${seriesDone + 1}/${totalSeries}</div>
+        <button onClick=${arreterEffort}
+          style=${{ background:'rgba(255,68,85,.12)', border:'1px solid rgba(255,68,85,.2)', color:'#FF4455', borderRadius:7, padding:'3px 10px', cursor:'pointer', fontSize:11, fontFamily:'Inter,sans-serif' }}>Arrêter</button>
+      </div>
+      <div style=${{ height:4, background:'rgba(255,255,255,.07)', borderRadius:2, marginBottom:8, overflow:'hidden' }}>
+        <div style=${{ height:'100%', borderRadius:2, background: phaseEffort.travail ? '#FFA420' : 'rgba(255,255,255,.4)',
+          width: (resteEffort / phaseEffort.sec * 100) + '%', transition:'width .2s linear' }}></div>
+      </div>
+      <div style=${{ fontSize:40, fontWeight:800, color: phaseEffort.travail ? '#FFA420' : '#fff', fontFamily:"'Barlow Condensed',sans-serif", lineHeight:1, textAlign:'center' }}>${fmtSec(resteEffort)}</div>
+      <div style=${{ fontSize:10, color:'rgba(255,255,255,.35)', textAlign:'center', marginTop:4 }}>${phaseEffort.travail ? 'Tiens jusqu\'au bip !' : 'Mets-toi en place'} — la série sera validée automatiquement à la fin</div>
     </div>` : null}
 
     ${!ex.emom && chronoActive && _h`<div style=${{ background:"rgba(56,189,248,.08)", border:"1px solid rgba(56,189,248,.2)", borderRadius:10, padding:"10px 14px" }}>
@@ -21166,7 +21274,7 @@ function RapportJoueurModal({ player, onClose }) {
 }
 
 function PlayerDetail({ p, db, setDb, onBack, staffPermissions }) {
-  const [tab, setTab]           = useState('profil');
+  const [tab, setTab]           = ongletMemorise('fiche-club', 'profil'); // conservé en passant d'un joueur à l'autre
   const [editProfile, setEditProfile] = useState(false);
   const [showRapport, setShowRapport] = useState(false);
   const [editBlessure, setEditBlessure] = useState(false);
@@ -21926,6 +22034,15 @@ function AdminView() {
   const blesses      = [...allPlayers, ...playersPerso].filter(p => p.status === 'blesse').length;
   const totalCharge  = allPlayers.reduce((s, p) => s + (p.stats?.chargeWeek||0), 0);
 
+  // Navigation rapide entre fiches (← → et recherche) : tous les joueurs club + profils individuels
+  const clubDe = p => (db.clubs || []).find(c => c && playerInClub(p, c.id)) || null;
+  const navJoueurs = [
+    ...allPlayers.map(p => { const c = clubDe(p); return { id: 'c:' + p.id, nom: p.name || '—', sous: c ? c.name : 'Club', club: c ? c.id : '',
+      ouvrir: () => { setPage('clubs'); setSelPerso(null); setSelClub(c); setSelPlayer(p); } }; }),
+    ...playersPerso.map(p => ({ id: 'p:' + p.id, nom: p.name || '—', sous: 'Profil individuel',
+      ouvrir: () => { setPage('perso'); setSelPlayer(null); setSelClub(null); setSelPerso(p); } })),
+  ];
+
   // Club players for selected club
   const clubPlayers  = selClub ? allPlayers.filter(p => playerInClub(p, selClub.id)) : [];
   const clubPlayersArchives = selClub ? archivedPlayers.filter(p => playerInClub(p, selClub.id)) : [];
@@ -22415,7 +22532,9 @@ function AdminView() {
             <button class="btn btn-sm" onClick=${() => setSelPlayer(null)}>← Effectif</button>
             <div style=${{ fontSize:16, fontWeight:800 }}>${selPlayer.name}</div>
           </div>
-          <${PlayerDetail}
+          <${NavJoueurs} joueurs=${navJoueurs} courantId=${'c:' + selPlayer.id}
+            groupe=${navJoueurs.filter(j => j.club === selClub.id).map(j => j.id)} />
+          <${PlayerDetail} key=${selPlayer.id}
             p=${{ ...{stats:{sessions:0,absences:0,chargeWeek:0,wellness:3},blessures:[],muscuSeances:[],bilans:[]}, ...((db.playerProfiles||[]).find(pl => pl.id === selPlayer.id) || selPlayer) }}
             db=${db}
             setDb=${setDb}
@@ -22462,8 +22581,12 @@ function AdminView() {
           <button class="btn btn-sm" onClick=${() => setEditPerso(selPerso)}
             style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420', flexShrink:0 }}>✏️</button>
         </div>
+        <div style=${{ padding:'12px 20px 0' }}>
+          <${NavJoueurs} joueurs=${navJoueurs} courantId=${'p:' + selPerso.id}
+            groupe=${navJoueurs.filter(j => j.id.startsWith('p:')).map(j => j.id)} />
+        </div>
         <div style=${{ padding:'0 0 80px' }}>
-          ${React.createElement(PersoAdminDetail, { player: (db.playersPerso||[]).find(p=>p.id===selPerso.id)||selPerso, setDb })}
+          ${React.createElement(PersoAdminDetail, { key: selPerso.id, player: (db.playersPerso||[]).find(p=>p.id===selPerso.id)||selPerso, setDb })}
         </div>
       </div>` : null}
       ${rapportPerso ? _h`<${RapportJoueurModal} player=${rapportPerso} onClose=${() => setRapportPerso(null)} />` : null}
@@ -23048,9 +23171,10 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
       </div>` : null}
 
       <!-- FICHE JOUEUR -->
-      ${!loading && tab === 'joueurs' && selPlayer && livePlayer ? _h`<div>
+      ${!loading && tab === 'joueurs' && selPlayer && livePlayer ? _h`<div key=${livePlayer.id}>
         <button onClick=${() => setSelPlayer(null)}
           style=${{ background:'none', border:'none', color:'rgba(255,255,255,.4)', cursor:'pointer', fontSize:12, marginBottom:16, padding:0 }}>← Retour</button>
+        <${NavJoueurs} joueurs=${players.map(p => ({ id: p.id, nom: p.name || '—', sous: p.sport || '', ouvrir: () => setSelPlayer(p) }))} courantId=${livePlayer.id} />
 
         <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 }}>
           <div style=${{ display:'flex', gap:14, alignItems:'center' }}>
@@ -24012,7 +24136,10 @@ function CoachView() {
         </div>
       </nav>
       <div class="main">
-        <${PlayerDetail} p=${pData} db=${db} setDb=${setDb} onBack=${() => setSelPlayer(null)} />
+        <div style=${{ padding:'12px 16px 0' }}>
+          <${NavJoueurs} joueurs=${players.map(p => ({ id: p.id, nom: p.name || '—', sous: p.pos || '', ouvrir: () => setSelPlayer(p) }))} courantId=${selPlayer.id} />
+        </div>
+        <${PlayerDetail} key=${selPlayer.id} p=${pData} db=${db} setDb=${setDb} onBack=${() => setSelPlayer(null)} />
       </div>
       <!-- Mobile nav quand on est sur fiche joueur -->
       <nav class="mobile-nav">
@@ -28866,7 +28993,9 @@ function StaffView2() {
         <button class="btn btn-sm btn-danger" onClick=${logout}>Déco</button>
       </div>
       <div style=${{ padding:'20px', paddingBottom:80 }}>
+        ${React.createElement(NavJoueurs, { joueurs: players.map(p => ({ id: p.id, nom: p.name || '—', sous: p.pos || '', ouvrir: () => setSelPlayer(p) })), courantId: selPlayer.id })}
         ${React.createElement(PlayerDetail, {
+          key: selPlayer.id,
           p: selPlayer, db, setDb,
           onBack: () => setSelPlayer(null),
           staffPermissions: getStaffPermissions(staffInfo)
@@ -29743,7 +29872,7 @@ function EditPersoModal({ p, onSave, onClose }) {
 
 function PersoAdminDetail({ player: playerProp, setDb }) {
   const { db } = useApp();
-  const [tab, setTab] = useState('profil');
+  const [tab, setTab] = ongletMemorise('fiche-perso', 'profil'); // conservé en passant d'un joueur à l'autre
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState(null);
   // Always resolve live player from db to avoid stale data
@@ -33582,6 +33711,65 @@ function SemaineSeancesView({ groupes, chargerTenants }) {
         </div>
       </div>
     </div>` : null}
+  </div>`;
+}
+// ── NAVIGATION RAPIDE ENTRE FICHES JOUEURS ─────────────────────────────────────
+// Barre affichée en haut d'une fiche : ← joueur précédent / suivant → (dans le même groupe)
+// + recherche par nom (dans tous les joueurs accessibles). L'onglet ouvert (Muscu, Planif…) est
+// conservé d'une fiche à l'autre (voir ongletMemorise).
+// joueurs = [{ id, nom, sous?, ouvrir() }] ; groupe = ids pour précédent/suivant (défaut : tous).
+
+function ongletMemorise(cle, defaut) {
+  const [onglet, setOnglet] = useState(() => (window.__perfhand_onglets && window.__perfhand_onglets[cle]) || defaut);
+  const changer = v => {
+    window.__perfhand_onglets = { ...(window.__perfhand_onglets || {}), [cle]: v };
+    setOnglet(v);
+  };
+  return [onglet, changer];
+}
+
+function sansAccents(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function NavJoueurs({ joueurs, groupe, courantId }) {
+  const [texte, setTexte] = useState('');
+  const [ouvert, setOuvert] = useState(false);
+  const liste = (joueurs || []).filter(j => j && j.id);
+  const ordre = groupe ? liste.filter(j => groupe.includes(j.id)) : liste;
+  const idx = ordre.findIndex(j => j.id === courantId);
+  const prec = idx > 0 ? ordre[idx - 1] : null;
+  const suiv = idx >= 0 && idx < ordre.length - 1 ? ordre[idx + 1] : null;
+  const q = sansAccents(texte.trim());
+  const resultats = q ? liste.filter(j => sansAccents(j.nom + ' ' + (j.sous || '')).includes(q)).slice(0, 12) : [];
+  const aller = j => { if (!j) return; setTexte(''); setOuvert(false); j.ouvrir(); try { window.scrollTo(0, 0); } catch (e) {} };
+
+  const btn = actif => ({ padding:'6px 10px', borderRadius:8, fontSize:11.5, fontWeight:700, whiteSpace:'nowrap', maxWidth:170,
+    overflow:'hidden', textOverflow:'ellipsis', cursor: actif ? 'pointer' : 'default',
+    border:'1px solid ' + (actif ? 'rgba(255,164,32,.35)' : 'rgba(255,255,255,.08)'),
+    background: actif ? 'rgba(255,164,32,.08)' : 'rgba(255,255,255,.02)', color: actif ? '#FFA420' : 'rgba(255,255,255,.2)' });
+
+  return _h`<div class="nav-joueurs" style=${{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', margin:'0 0 12px' }}>
+    <button style=${btn(!!prec)} disabled=${!prec} onClick=${() => aller(prec)} title=${prec ? prec.nom : ''}>← ${prec ? prec.nom : 'Précédent'}</button>
+    <span style=${{ fontSize:10.5, color:'rgba(255,255,255,.35)' }}>${idx >= 0 ? (idx + 1) + ' / ' + ordre.length : ''}</span>
+    <button style=${btn(!!suiv)} disabled=${!suiv} onClick=${() => aller(suiv)} title=${suiv ? suiv.nom : ''}>${suiv ? suiv.nom : 'Suivant'} →</button>
+    <div style=${{ position:'relative', flex:'1 1 180px', minWidth:150, maxWidth:320 }}>
+      <input class="inp" value=${texte} placeholder="🔍 Aller à un joueur…"
+        onInput=${e => { setTexte(e.target.value); setOuvert(true); }}
+        onFocus=${() => setOuvert(true)}
+        onBlur=${() => setTimeout(() => setOuvert(false), 200)}
+        onKeyDown=${e => { if (e.key === 'Enter' && resultats.length) aller(resultats[0]); if (e.key === 'Escape') { setTexte(''); setOuvert(false); } }}
+        style=${{ width:'100%', boxSizing:'border-box', padding:'6px 10px', fontSize:12 }}/>
+      ${ouvert && q ? _h`<div style=${{ position:'absolute', top:'100%', left:0, right:0, zIndex:50, marginTop:4, background:'#1A1A1A',
+          border:'1px solid rgba(255,255,255,.12)', borderRadius:8, maxHeight:300, overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,.5)' }}>
+        ${resultats.length ? resultats.map(j => _h`<div key=${j.id} onMouseDown=${e => { e.preventDefault(); aller(j); }}
+            style=${{ padding:'7px 10px', cursor:'pointer', borderBottom:'1px solid rgba(255,255,255,.05)', background: j.id === courantId ? 'rgba(255,164,32,.08)' : 'transparent' }}>
+            <div style=${{ fontSize:12, fontWeight:700 }}>${j.nom}</div>
+            ${j.sous ? _h`<div style=${{ fontSize:10, color:'rgba(255,255,255,.4)' }}>${j.sous}</div>` : null}
+          </div>`)
+          : _h`<div style=${{ padding:'8px 10px', fontSize:11, color:'rgba(255,255,255,.4)' }}>Aucun joueur trouvé</div>`}
+      </div>` : null}
+    </div>
   </div>`;
 }
 

@@ -300,6 +300,15 @@ function AdminView() {
   const blesses      = [...allPlayers, ...playersPerso].filter(p => p.status === 'blesse').length;
   const totalCharge  = allPlayers.reduce((s, p) => s + (p.stats?.chargeWeek||0), 0);
 
+  // Navigation rapide entre fiches (← → et recherche) : tous les joueurs club + profils individuels
+  const clubDe = p => (db.clubs || []).find(c => c && playerInClub(p, c.id)) || null;
+  const navJoueurs = [
+    ...allPlayers.map(p => { const c = clubDe(p); return { id: 'c:' + p.id, nom: p.name || '—', sous: c ? c.name : 'Club', club: c ? c.id : '',
+      ouvrir: () => { setPage('clubs'); setSelPerso(null); setSelClub(c); setSelPlayer(p); } }; }),
+    ...playersPerso.map(p => ({ id: 'p:' + p.id, nom: p.name || '—', sous: 'Profil individuel',
+      ouvrir: () => { setPage('perso'); setSelPlayer(null); setSelClub(null); setSelPerso(p); } })),
+  ];
+
   // Club players for selected club
   const clubPlayers  = selClub ? allPlayers.filter(p => playerInClub(p, selClub.id)) : [];
   const clubPlayersArchives = selClub ? archivedPlayers.filter(p => playerInClub(p, selClub.id)) : [];
@@ -789,7 +798,9 @@ function AdminView() {
             <button class="btn btn-sm" onClick=${() => setSelPlayer(null)}>← Effectif</button>
             <div style=${{ fontSize:16, fontWeight:800 }}>${selPlayer.name}</div>
           </div>
-          <${PlayerDetail}
+          <${NavJoueurs} joueurs=${navJoueurs} courantId=${'c:' + selPlayer.id}
+            groupe=${navJoueurs.filter(j => j.club === selClub.id).map(j => j.id)} />
+          <${PlayerDetail} key=${selPlayer.id}
             p=${{ ...{stats:{sessions:0,absences:0,chargeWeek:0,wellness:3},blessures:[],muscuSeances:[],bilans:[]}, ...((db.playerProfiles||[]).find(pl => pl.id === selPlayer.id) || selPlayer) }}
             db=${db}
             setDb=${setDb}
@@ -836,8 +847,12 @@ function AdminView() {
           <button class="btn btn-sm" onClick=${() => setEditPerso(selPerso)}
             style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.3)', color:'#FFA420', flexShrink:0 }}>✏️</button>
         </div>
+        <div style=${{ padding:'12px 20px 0' }}>
+          <${NavJoueurs} joueurs=${navJoueurs} courantId=${'p:' + selPerso.id}
+            groupe=${navJoueurs.filter(j => j.id.startsWith('p:')).map(j => j.id)} />
+        </div>
         <div style=${{ padding:'0 0 80px' }}>
-          ${React.createElement(PersoAdminDetail, { player: (db.playersPerso||[]).find(p=>p.id===selPerso.id)||selPerso, setDb })}
+          ${React.createElement(PersoAdminDetail, { key: selPerso.id, player: (db.playersPerso||[]).find(p=>p.id===selPerso.id)||selPerso, setDb })}
         </div>
       </div>` : null}
       ${rapportPerso ? _h`<${RapportJoueurModal} player=${rapportPerso} onClose=${() => setRapportPerso(null)} />` : null}

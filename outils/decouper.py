@@ -63,6 +63,7 @@ DECOUPE = [  # (fichier, premier élément)
   ('js/86-tactique.js', 'TACT_W'),
   ('js/87-suivi-direct.js', 'MessagesCoachDirect'),
   ('js/88-semaine-seances.js', 'semaineEnTableau'),
+  ('js/89-navigation-joueurs.js', 'ongletMemorise'),
   ('js/90-application.js', 'PerfHandApp'),
 ]
 

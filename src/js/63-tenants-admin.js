@@ -305,9 +305,10 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
       </div>` : null}
 
       <!-- FICHE JOUEUR -->
-      ${!loading && tab === 'joueurs' && selPlayer && livePlayer ? _h`<div>
+      ${!loading && tab === 'joueurs' && selPlayer && livePlayer ? _h`<div key=${livePlayer.id}>
         <button onClick=${() => setSelPlayer(null)}
           style=${{ background:'none', border:'none', color:'rgba(255,255,255,.4)', cursor:'pointer', fontSize:12, marginBottom:16, padding:0 }}>← Retour</button>
+        <${NavJoueurs} joueurs=${players.map(p => ({ id: p.id, nom: p.name || '—', sous: p.sport || '', ouvrir: () => setSelPlayer(p) }))} courantId=${livePlayer.id} />
 
         <div style=${{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 }}>
           <div style=${{ display:'flex', gap:14, alignItems:'center' }}>

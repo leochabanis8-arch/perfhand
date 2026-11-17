@@ -124,7 +124,10 @@ function CoachView() {
         </div>
       </nav>
       <div class="main">
-        <${PlayerDetail} p=${pData} db=${db} setDb=${setDb} onBack=${() => setSelPlayer(null)} />
+        <div style=${{ padding:'12px 16px 0' }}>
+          <${NavJoueurs} joueurs=${players.map(p => ({ id: p.id, nom: p.name || '—', sous: p.pos || '', ouvrir: () => setSelPlayer(p) }))} courantId=${selPlayer.id} />
+        </div>
+        <${PlayerDetail} key=${selPlayer.id} p=${pData} db=${db} setDb=${setDb} onBack=${() => setSelPlayer(null)} />
       </div>
       <!-- Mobile nav quand on est sur fiche joueur -->
       <nav class="mobile-nav">
