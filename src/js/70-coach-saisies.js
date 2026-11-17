@@ -16,6 +16,7 @@ function CoachView() {
     { id:"dashboard",  icon:"⊞",  label:"Dashboard" },
     { id:"effectif",   icon:"▤",  label:"Effectif" },
     { id:"charge",     icon:"📊", label:"Charge" },
+    { id:"semaine",    icon:"📅", label:"Séances semaine" },
     { id:"seances",    icon:"◫",  label:"Planning" },
     { id:"tactique",   icon:"🎯", label:"Tactique" },
     { id:"bibliotheque", icon:"📚", label:"Bibliothèque" },
@@ -318,6 +319,7 @@ function CoachView() {
       </div>`}
 
       ${page === "charge"  && _h`<${ChargeDashboard} players=${players} />`}
+      ${page === "semaine" && _h`<div class="page-pad">${React.createElement(SemaineSeancesView, { groupes: [{ titre: '🏐 ' + (club ? club.name : 'Équipe'), joueurs: players }] })}</div>`}
       ${page === "seances" && _h`<${PlanifSaison} club=${club} db=${db} />`}
       ${page === "blessures" && _h`<${SuiviMedical} players=${players} db=${db} setDb=${setDb} onSelectPlayer=${p => setSelPlayer(p)} />`}
       ${page === "tactique" && _h`<div class="page-pad">${React.createElement(TactiqueView, { db, setDb, clubs: db.clubs || [], clubId: user.clubId || '', canEdit: true, auteur: user.name || 'Coach' })}</div>`}

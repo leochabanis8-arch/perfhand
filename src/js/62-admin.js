@@ -287,6 +287,7 @@ function AdminView() {
     { id:'overview',     icon:'⊞',  label:'Vue globale' },
     { id:'clubs',        icon:'🏐', label:'Clubs & Effectifs' },
     { id:'charge',       icon:'📊', label:'Charge équipe' },
+    { id:'semaine',      icon:'📅', label:'Séances semaine' },
     { id:'perso',        icon:'👤', label:'Profils individuels' },
     { id:'tactique',     icon:'🎯', label:'Tactique' },
     { id:'bibliotheque', icon:'📚', label:'Bibliothèque' },
@@ -799,6 +800,15 @@ function AdminView() {
 
       <!-- ── CHARGE ÉQUIPE ────────────────────────────────────────── -->
       ${page === 'charge' && React.createElement(ChargeGroupeRouter, { allPlayers, db, setDb })}
+
+      <!-- ── SÉANCES DE LA SEMAINE (tous clubs, profils individuels, tenants) ── -->
+      ${page === 'semaine' ? _h`<div class="page-pad">${React.createElement(SemaineSeancesView, {
+        groupes: [
+          ...(db.clubs || []).filter(Boolean).map(c => ({ titre: '🏐 ' + (c.name || c.id), joueurs: allPlayers.filter(p => playerInClub(p, c.id)) })),
+          { titre: '👤 Profils individuels', joueurs: playersPerso },
+        ],
+        chargerTenants: true,
+      })}</div>` : null}
 
       <!-- ── PROFILS INDIVIDUELS ──────────────────────────────────── -->
       ${page === 'tactique' ? _h`<div class="page-pad">${React.createElement(TactiqueView, { db, setDb, clubs: db.clubs || [], clubId: '', canEdit: true, auteur: 'Léo' })}</div>` : null}

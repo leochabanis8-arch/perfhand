@@ -195,6 +195,7 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
   const TABS = [
     { id:'dashboard', label:'Dashboard', icon:'🏠' },
     { id:'joueurs', label:'Joueurs perso', icon:'👤' },
+    { id:'semaine', label:'Séances semaine', icon:'📅' },
     { id:'clubs', label:'Clubs', icon:'🏟️' },
     { id:'settings', label:'Paramètres', icon:'⚙️' },
   ];
@@ -261,6 +262,14 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
           </div>`)}
         </div>`}
       </div>` : null}
+
+      <!-- SÉANCES DE LA SEMAINE -->
+      ${!loading && tab === 'semaine' ? React.createElement(SemaineSeancesView, { groupes: (() => {
+        const gs = clubs.map(c => ({ titre: '🏟️ ' + (c.nom || c.name || c.id), joueurs: players.filter(p => p.clubId && p.clubId === c.id) }));
+        const ids = new Set(clubs.map(c => c.id));
+        gs.push({ titre: '👤 Joueurs', joueurs: players.filter(p => !p.clubId || !ids.has(p.clubId)) });
+        return gs;
+      })() }) : null}
 
       <!-- JOUEURS PERSO -->
       ${!loading && tab === 'joueurs' && !selPlayer ? _h`<div>

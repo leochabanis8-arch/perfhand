@@ -121,6 +121,7 @@ function StaffView2() {
       ${[
         ['joueurs','👥 Joueurs', null],
         ['planif','📅 Planif', 'planif'],
+        ['semaine','🗓️ Séances semaine', 'planif'],
         ['charge','📊 Charge équipe', 'charge'],
         ['volume','📈 Volume équipe', 'charge'],
         ['poids','⚖️ Poids équipe', 'charge'],
@@ -190,6 +191,7 @@ function StaffView2() {
 
       <!-- CHARGE ÉQUIPE -->
       ${page === 'charge' && React.createElement(ChargeDashboard, { players: players, clubs: db.clubs || [] })}
+      ${page === 'semaine' && React.createElement(SemaineSeancesView, { groupes: [{ titre: '🏐 ' + (myClub ? myClub.name : 'Équipe'), joueurs: players }] })}
 
       <!-- VOLUME ÉQUIPE -->
       ${page === 'volume' && React.createElement(VolumeEquipeView, { players: players })}
