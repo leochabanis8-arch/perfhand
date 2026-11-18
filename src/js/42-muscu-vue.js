@@ -946,6 +946,7 @@ const MUSCLES_REGLES = [
   [/marche laterale|band walk|monster walk/, { [MU_FE]:1 }],
   [/battle rope/, { [MU_EP]:1, [MU_CR]:0.5 }],
   [/copenhag/, { [MU_AD]:1, [MU_CR]:0.5 }],
+  [/pall?.?of|oblique|dragon flag|sit.?up|rotation (elastique|kb|kettlebell|avec|au|a la poulie|poulie)|travail de rotation|russian twist/, { [MU_CR]:1 }],
   [/gainage|planche|plank/, { [MU_CR]:1 }],
   [/(jump|bound|bond).*sprint/, { [MU_Q]:0.5, [MU_FE]:0.5, [MU_MO]:0.5 }],
   [/elevations? (de |des )?talons?/, { [MU_MO]:1 }],
@@ -968,7 +969,8 @@ const MUSCLES_REGLES = [
   [/\brdl\b|roumain|romanian|jambes tendues|stiff|good morning|souleve.*(unipodal|une jambe)|single.?leg deadlift/, { [MU_IJ]:1, [MU_FE]:0.5, [MU_LO]:0.5 }],
   [/hip thrust.*ischio|pont.*ischio|bridge.*ischio/, { [MU_IJ]:1, [MU_FE]:0.5 }],
   // Haltérophilie / triple extension
-  [/arrache|snatch|epaule.?jete|\bjete\b|jerk|clean|\bhang\b|high pull|tirage haut|jump shrug/, { [MU_Q]:0.5, [MU_FE]:0.5, [MU_IJ]:0.5, [MU_TR]:0.5, [MU_MO]:0.25 }],
+  // Haltérophilie : mouvement complet — tirage (dos, épaules, trapèzes) + réception / remontée (fessiers, ischios, quadriceps)
+  [/arrache|snatch|epaule.?jete|\bjete\b|jerk|clean|\bhang\b|high pull|tirage haut|jump shrug|chute d|\bdrop (clean|snatch)|epaule (en )?(puissance|force|suspension|debout|du sol)|suspension haute|epaule\b.*suspension/, { [MU_Q]:0.5, [MU_FE]:0.5, [MU_IJ]:0.5, [MU_TR]:0.5, [MU_DO]:0.25, [MU_EP]:0.25, [MU_MO]:0.25 }],
   [/sumo/, { [MU_FE]:1, [MU_AD]:0.5, [MU_IJ]:0.5, [MU_Q]:0.5, [MU_LO]:0.5 }],
   [/deadlift|souleve de terre|trap bar|hex bar/, { [MU_FE]:1, [MU_IJ]:0.5, [MU_Q]:0.5, [MU_LO]:0.5, [MU_TR]:0.25 }],
   [/kettlebell swing|\bswing\b/, { [MU_FE]:1, [MU_IJ]:0.5, [MU_LO]:0.5 }],
@@ -980,7 +982,7 @@ const MUSCLES_REGLES = [
   // Plyo / sauts (avant « squat » pour « jump squat »)
   [/(pompes?|push.?ups?) (plyo|explosi|sautee|claquee)|plyometric push|clap push/, { [MU_PE]:1, [MU_TRI]:0.5, [MU_EP]:0.25 }],
   [/corde a sauter|jump rope|pogo|rebond|skipping/, { [MU_MO]:1, [MU_CH]:0.25 }],
-  [/jump|saut|bond|bound|\bbox\b|\bhops?\b|plyo|broad|depth|cmj|skater|haies|hurdle/, { [MU_Q]:0.5, [MU_FE]:0.5, [MU_MO]:0.5 }],
+  [/jump|saut|bond|bound|\bbox\b|\bhops?\b|plyo|broad|depth|cmj|skater|patineur|haies|hurdle/, { [MU_Q]:0.5, [MU_FE]:0.5, [MU_MO]:0.5 }],
   // Quadriceps
   [/fente laterale|lateral lunge|cossack/, { [MU_Q]:1, [MU_AD]:0.5, [MU_FE]:0.5 }],
   [/bulgare|split squat|fente|lunge|step.?up|montee sur banc|pistol/, { [MU_Q]:1, [MU_FE]:0.5, [MU_AD]:0.25 }],
@@ -992,10 +994,11 @@ const MUSCLES_REGLES = [
   [/cheville|propriocep|alphabet|equilibre|unipodal|y.?balance|star excursion|single leg balance/, { [MU_CH]:1 }],
   // Épaules / coiffe
   [/face pull/, { [MU_EP]:1, [MU_CO]:0.5, [MU_TR]:0.5 }],
-  [/\b(re|ri|er|ir)\b|external rotation|internal rotation|fer a repasser|ballon au mur|rotation (externe|interne)|coiffe|cuban|\bytw\b|\by.?t.?w\b|prone|pendule|sleeper|\bl.?raise|\bw.?raise|scaption|serratus|scapul/, { [MU_CO]:1 }],
+  [/\b(re|ri|er|ir)\b|external rotation|internal rotation|fer a repasser|ballon au mur|rotation (externe|interne)|coiffe|cuban|\bytw\b|\by.?t.?w\b|prone|pendule|pendulum|sleeper|\bl.?raise|\bw.?raise|scaption|serratus|scapul/, { [MU_CO]:1 }],
   [/rowing vertical|upright row/, { [MU_EP]:1, [MU_TR]:0.5 }],
   [/developpe militaire|overhead press|military|arnold|push press|developpe (epaules|halteres assis)|landmine press|z.?press|developpe nuque/, { [MU_EP]:1, [MU_TRI]:0.5, [MU_CR]:0.25 }],
-  [/elevation|lateral raise|oiseau|rear delt|deltoide|front raise|antepulsion/, { [MU_EP]:1 }],
+  [/arriere d.?epaule|deltoide post/, { [MU_EP]:1, [MU_TR]:0.5 }],
+  [/elevation|lateral raise|oiseau|rear delt|deltoide|front raise|antepulsion|flexion d.?epaule/, { [MU_EP]:1 }],
   [/handstand|appui renverse/, { [MU_EP]:1, [MU_TRI]:0.5, [MU_CR]:0.5 }],
   [/battle rope/, { [MU_EP]:1, [MU_CR]:0.5 }],
   [/pull.?apart/, { [MU_TR]:1, [MU_EP]:0.5 }],
@@ -1003,8 +1006,9 @@ const MUSCLES_REGLES = [
   [/shrug|trapez|haussement|rhombo/, { [MU_TR]:1 }],
   // Triceps (avant pectoraux pour « dips triceps »)
   [/dips? (triceps|banc)|triceps|skull|barre front|kickback.*tricep|extension.*(tricep|nuque|poulie)|poulie haute|pushdown|french press|close.?grip|prise serree/, { [MU_TRI]:1 }],
+  [/overhead|iso.*lourd/, { [MU_EP]:1, [MU_TRI]:0.25 }],
   // Pectoraux
-  [/plyometric push|pompe|push.?up|developpe couche|developpe incline|developpe decline|bench|\bdips?\b|\bpec(s|toraux)?\b|ecarte|\bfly\b|butterfly|chest press|developpe (halteres|barre)|floor press/, { [MU_PE]:1, [MU_TRI]:0.5, [MU_EP]:0.25 }],
+  [/plyometric push|pompe|push.?up|developpe couche|developpe incline|developpe decline|bench|\bdips?\b|\bpec(s|toraux)?\b|ecarte|\bfly\b|butterfly|chest press|developpe (halteres|barre|horizontal)|floor press|larsen|\bdeveloppe\b/, { [MU_PE]:1, [MU_TRI]:0.5, [MU_EP]:0.25 }],
   // Dos
   [/traction|pull.?up|chin.?up|lat pulldown|pulldown|tirage (vertical|poitrine|nuque)|tirage/, { [MU_DO]:1, [MU_BI]:0.5 }],
   [/rowing|\brow\b|renegade|inverse|australienne|seal row|tirage horizontal|pendlay|meadows/, { [MU_DO]:1, [MU_BI]:0.5, [MU_TR]:0.25 }],
