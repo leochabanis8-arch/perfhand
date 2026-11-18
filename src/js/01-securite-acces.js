@@ -351,15 +351,50 @@ async function creerCompteConnexion(email, password) {
 }
 
 // Remplace l'affichage du mot de passe : le joueur reçoit un lien pour choisir le sien.
-function envoyerReinitialisation(email) {
+// IMPORTANT : Firebase n'envoie RIEN (et ne signale aucune erreur, protection anti-énumération)
+// si l'email n'a pas de compte de connexion — cas des joueurs créés à l'époque où le mot de passe
+// était stocké dans la base. On crée donc d'abord le compte s'il manque (mot de passe aléatoire
+// jamais affiché ni stocké), puis on envoie le lien.
+function motDePasseAleatoire() {
+  const t = new Uint8Array(18);
+  try { crypto.getRandomValues(t); } catch (e) { for (let i = 0; i < t.length; i++) t[i] = Math.floor(Math.random() * 256); }
+  return Array.from(t, b => b.toString(36).padStart(2, '0')).join('') + 'Aa1!';
+}
+async function envoyerLienMotDePasse(email) {
+  const auth = window.__perfhand_auth;
+  try { auth.languageCode = 'fr'; } catch (e) {}
+  const url = (location.origin && /^https?:/.test(location.origin)) ? location.origin + location.pathname : null;
+  if (url) {
+    try { await auth.sendPasswordResetEmail(email, { url }); return; }
+    catch (e) { if (!e || !/continue-uri|invalid-continue|unauthorized/.test(e.code || '')) throw e; }
+  }
+  await auth.sendPasswordResetEmail(email);
+}
+async function envoyerReinitialisation(email) {
+  email = String(email || '').trim().toLowerCase();
   if (!email) { alert('Aucun email renseigné pour ce profil.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Email invalide : « ' + email + ' ». Corrige-le dans le profil du joueur.'); return; }
   if (!window.__perfhand_auth) { alert('Service de connexion indisponible.'); return; }
   if (!confirm('Envoyer à ' + email + ' un email pour (re)définir son mot de passe ?')) return;
-  window.__perfhand_auth.sendPasswordResetEmail(email)
-    .then(() => alert('Email envoyé à ' + email + '.\nLe joueur clique sur le lien pour choisir son mot de passe.'))
-    .catch(e => alert(e && e.code === 'auth/user-not-found'
-      ? 'Aucun compte de connexion n\'existe pour ' + email + '.'
-      : 'Envoi impossible : ' + ((e && e.message) || e)));
+  const compte = await creerCompteConnexion(email, motDePasseAleatoire());
+  if (!compte.ok) { alert('Impossible de vérifier le compte de connexion de ' + email + ' : ' + compte.msg); return; }
+  const cree = !compte.existait;
+  try {
+    await envoyerLienMotDePasse(email);
+    let expediteur = 'noreply@…firebaseapp.com';
+    try { expediteur = 'noreply@' + firebase.app().options.authDomain; } catch (e) {}
+    alert('✅ Email envoyé à ' + email + '.\n\n'
+      + (cree ? 'Ce joueur n\'avait pas encore de compte de connexion : il vient d\'être créé.\n\n' : '')
+      + 'À dire au joueur :\n'
+      + '• regarder dans les SPAMS / courrier indésirable (très fréquent) ;\n'
+      + '• l\'expéditeur est ' + expediteur + ' ;\n'
+      + '• cliquer sur le lien, choisir un mot de passe, puis se connecter avec son email et ce mot de passe ;\n'
+      + '• le lien n\'est valable qu\'une heure (sinon, renvoie-le).');
+  } catch (e) {
+    alert(e && e.code === 'auth/too-many-requests'
+      ? 'Trop de demandes pour ' + email + '. Réessaie dans quelques minutes.'
+      : 'Envoi impossible : ' + ((e && e.message) || e));
+  }
 }
 
 // Nettoyage unique (lancé à la connexion de l'admin) : efface de Firebase les mots de passe

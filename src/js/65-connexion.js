@@ -9,6 +9,23 @@ function LoginScreen() {
   const [loginMode, setLoginMode] = useState("email");
   const [accessCode, setAccessCode] = useState("");
 
+  const [info, setInfo] = useState("");
+  // Le joueur demande lui-même le lien pour choisir un nouveau mot de passe.
+  async function motDePasseOublie() {
+    const mail = email.trim().toLowerCase();
+    setErr(""); setInfo("");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { setErr("Écris d'abord ton email ci-dessus, puis clique sur « Mot de passe oublié ? »."); return; }
+    if (!window.__perfhand_auth) { setErr("Service de connexion indisponible. Recharge la page."); return; }
+    try {
+      await envoyerLienMotDePasse(mail);
+      setInfo("Si un compte existe pour " + mail + ", un email vient de partir. Regarde aussi dans tes SPAMS. Clique sur le lien, choisis un mot de passe, puis reviens te connecter. Rien reçu après 10 minutes ? Demande à ton coach de te renvoyer le lien.");
+    } catch (e) {
+      if (e && e.code === 'auth/user-not-found') setErr("Aucun compte pour " + mail + ". Demande à ton coach de t'envoyer le lien depuis ta fiche.");
+      else if (e && e.code === 'auth/too-many-requests') setErr("Trop de demandes. Réessaie dans quelques minutes.");
+      else setErr("Envoi impossible : " + ((e && e.message) || e));
+    }
+  }
+
   async function doLogin() {
     if (!email.trim() || !pw.trim()) return;
     setLoading(true);
@@ -203,6 +220,14 @@ function LoginScreen() {
               >${showPw ? "🙈" : "👁"}</button>
             </div>
           </div>
+
+          <div style=${{ textAlign:'right', marginTop:-12, marginBottom:16 }}>
+            <button onClick=${motDePasseOublie}
+              style=${{ background:'none', border:'none', color:'rgba(56,189,248,.8)', fontSize:11.5, cursor:'pointer', textDecoration:'underline', padding:0 }}>
+              Mot de passe oublié ?
+            </button>
+          </div>
+          ${info && _h`<div style=${{ fontSize:12, color:'#4CAF50', background:'rgba(76,175,80,0.08)', borderRadius:8, padding:'10px 14px', marginBottom:16, lineHeight:1.5 }}>${info}</div>`}
 
           <!-- Erreur -->
           ${err && _h`<div style=${{ fontSize:12, color:"#FF4455", background:"rgba(255,68,85,0.08)", borderRadius:8, padding:"10px 14px", marginBottom:16, textAlign:"center" }}>${err}</div>`}

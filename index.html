@@ -927,15 +927,50 @@ async function creerCompteConnexion(email, password) {
 }
 
 // Remplace l'affichage du mot de passe : le joueur reçoit un lien pour choisir le sien.
-function envoyerReinitialisation(email) {
+// IMPORTANT : Firebase n'envoie RIEN (et ne signale aucune erreur, protection anti-énumération)
+// si l'email n'a pas de compte de connexion — cas des joueurs créés à l'époque où le mot de passe
+// était stocké dans la base. On crée donc d'abord le compte s'il manque (mot de passe aléatoire
+// jamais affiché ni stocké), puis on envoie le lien.
+function motDePasseAleatoire() {
+  const t = new Uint8Array(18);
+  try { crypto.getRandomValues(t); } catch (e) { for (let i = 0; i < t.length; i++) t[i] = Math.floor(Math.random() * 256); }
+  return Array.from(t, b => b.toString(36).padStart(2, '0')).join('') + 'Aa1!';
+}
+async function envoyerLienMotDePasse(email) {
+  const auth = window.__perfhand_auth;
+  try { auth.languageCode = 'fr'; } catch (e) {}
+  const url = (location.origin && /^https?:/.test(location.origin)) ? location.origin + location.pathname : null;
+  if (url) {
+    try { await auth.sendPasswordResetEmail(email, { url }); return; }
+    catch (e) { if (!e || !/continue-uri|invalid-continue|unauthorized/.test(e.code || '')) throw e; }
+  }
+  await auth.sendPasswordResetEmail(email);
+}
+async function envoyerReinitialisation(email) {
+  email = String(email || '').trim().toLowerCase();
   if (!email) { alert('Aucun email renseigné pour ce profil.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Email invalide : « ' + email + ' ». Corrige-le dans le profil du joueur.'); return; }
   if (!window.__perfhand_auth) { alert('Service de connexion indisponible.'); return; }
   if (!confirm('Envoyer à ' + email + ' un email pour (re)définir son mot de passe ?')) return;
-  window.__perfhand_auth.sendPasswordResetEmail(email)
-    .then(() => alert('Email envoyé à ' + email + '.\nLe joueur clique sur le lien pour choisir son mot de passe.'))
-    .catch(e => alert(e && e.code === 'auth/user-not-found'
-      ? 'Aucun compte de connexion n\'existe pour ' + email + '.'
-      : 'Envoi impossible : ' + ((e && e.message) || e)));
+  const compte = await creerCompteConnexion(email, motDePasseAleatoire());
+  if (!compte.ok) { alert('Impossible de vérifier le compte de connexion de ' + email + ' : ' + compte.msg); return; }
+  const cree = !compte.existait;
+  try {
+    await envoyerLienMotDePasse(email);
+    let expediteur = 'noreply@…firebaseapp.com';
+    try { expediteur = 'noreply@' + firebase.app().options.authDomain; } catch (e) {}
+    alert('✅ Email envoyé à ' + email + '.\n\n'
+      + (cree ? 'Ce joueur n\'avait pas encore de compte de connexion : il vient d\'être créé.\n\n' : '')
+      + 'À dire au joueur :\n'
+      + '• regarder dans les SPAMS / courrier indésirable (très fréquent) ;\n'
+      + '• l\'expéditeur est ' + expediteur + ' ;\n'
+      + '• cliquer sur le lien, choisir un mot de passe, puis se connecter avec son email et ce mot de passe ;\n'
+      + '• le lien n\'est valable qu\'une heure (sinon, renvoie-le).');
+  } catch (e) {
+    alert(e && e.code === 'auth/too-many-requests'
+      ? 'Trop de demandes pour ' + email + '. Réessaie dans quelques minutes.'
+      : 'Envoi impossible : ' + ((e && e.message) || e));
+  }
 }
 
 // Nettoyage unique (lancé à la connexion de l'admin) : efface de Firebase les mots de passe
@@ -23273,7 +23308,11 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
               <div style=${{ fontSize:12, color:'rgba(255,255,255,.4)' }}>${livePlayer.email} · ${livePlayer.sport||''} · ${livePlayer.poste||''}</div>
             </div>
           </div>
-          <div style=${{ display:'flex', gap:8 }}>
+          <div style=${{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <button onClick=${() => envoyerReinitialisation(livePlayer.email)} title="Envoyer au joueur un email pour choisir son mot de passe"
+              style=${{ background:'rgba(56,189,248,.1)', border:'1px solid rgba(56,189,248,.3)', color:'#38BDF8', borderRadius:8, padding:'6px 12px', cursor:'pointer', fontSize:11 }}>
+              🔑 Mot de passe
+            </button>
             <button onClick=${() => {
               // Générer code 6 chiffres unique
               // Sauvegarder dans Firebase tenants/{tenantId}/codes/{code}
@@ -23877,6 +23916,23 @@ function LoginScreen() {
   const [loginMode, setLoginMode] = useState("email");
   const [accessCode, setAccessCode] = useState("");
 
+  const [info, setInfo] = useState("");
+  // Le joueur demande lui-même le lien pour choisir un nouveau mot de passe.
+  async function motDePasseOublie() {
+    const mail = email.trim().toLowerCase();
+    setErr(""); setInfo("");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { setErr("Écris d'abord ton email ci-dessus, puis clique sur « Mot de passe oublié ? »."); return; }
+    if (!window.__perfhand_auth) { setErr("Service de connexion indisponible. Recharge la page."); return; }
+    try {
+      await envoyerLienMotDePasse(mail);
+      setInfo("Si un compte existe pour " + mail + ", un email vient de partir. Regarde aussi dans tes SPAMS. Clique sur le lien, choisis un mot de passe, puis reviens te connecter. Rien reçu après 10 minutes ? Demande à ton coach de te renvoyer le lien.");
+    } catch (e) {
+      if (e && e.code === 'auth/user-not-found') setErr("Aucun compte pour " + mail + ". Demande à ton coach de t'envoyer le lien depuis ta fiche.");
+      else if (e && e.code === 'auth/too-many-requests') setErr("Trop de demandes. Réessaie dans quelques minutes.");
+      else setErr("Envoi impossible : " + ((e && e.message) || e));
+    }
+  }
+
   async function doLogin() {
     if (!email.trim() || !pw.trim()) return;
     setLoading(true);
@@ -24071,6 +24127,14 @@ function LoginScreen() {
               >${showPw ? "🙈" : "👁"}</button>
             </div>
           </div>
+
+          <div style=${{ textAlign:'right', marginTop:-12, marginBottom:16 }}>
+            <button onClick=${motDePasseOublie}
+              style=${{ background:'none', border:'none', color:'rgba(56,189,248,.8)', fontSize:11.5, cursor:'pointer', textDecoration:'underline', padding:0 }}>
+              Mot de passe oublié ?
+            </button>
+          </div>
+          ${info && _h`<div style=${{ fontSize:12, color:'#4CAF50', background:'rgba(76,175,80,0.08)', borderRadius:8, padding:'10px 14px', marginBottom:16, lineHeight:1.5 }}>${info}</div>`}
 
           <!-- Erreur -->
           ${err && _h`<div style=${{ fontSize:12, color:"#FF4455", background:"rgba(255,68,85,0.08)", borderRadius:8, padding:"10px 14px", marginBottom:16, textAlign:"center" }}>${err}</div>`}
