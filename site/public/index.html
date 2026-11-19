@@ -12404,21 +12404,90 @@ function dureeEffortSec(txt) {
 function effortParCote(txt) {
   return /(\/|par|chaque)\s*(jambe|côté|cote|bras|pied)/i.test(String(txt || ''));
 }
-// Durée prévue pour la série n (1, 2, 3…) : détail par série, sinon « 30 s / 30 s / 20 s », sinon le champ Reps
+// ── Lecture de TOUS les formats d'exercices en secondes ──
+// Une « effort » = { reps, seq:[secondes…], cote } : reps répétitions, chacune composée des efforts
+// de seq enchaînés (ex. PAILs « 10 s + 10 s »), éventuellement de chaque côté.
+// Formats reconnus (champ Reps, détail par série, nom de l'exercice ou champ Charge) :
+//   « 30 s », « 45sec », « 1 min », « 0:40 », « 30-45 s », « 20 s / jambe »      → 1 × durée
+//   « 5 × 5 s », « 5x10s », « 6 reps de 5 s », « 3 / 2 / 1 × 10 s » (par série)  → N × durée
+//   « 5 (pause 3 s) », « 6 / côté tenu 5 s », « 8 iso 5 s »                      → N × durée tenue
+//   reps « 5 » + nom « Overhead iso lourd (5sec) »                                → 5 × 5 s
+//   reps « 1 cycle / côté » + charge « 10 s pousser + 10 s tirer »                → 1 × (10 s + 10 s) par côté
+// « 12 + 10 s tenu » → 1 maintien de 10 s (après les reps). Les tempos (« 3 s descente ») ne déclenchent PAS de chrono.
+const EFFORT_DUREE = "(\\d+)\\s*(?:-\\s*\\d+\\s*)?(?:s|sec|secs|seconde|secondes|''|\"|″)(?![a-z])";
+function normEffort(txt) {
+  return String(txt == null ? '' : txt).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[×✕]/g, 'x').replace(/[’‘]/g, "'").replace(/''/g, "''").trim();
+}
+function effortParCote(txt) {
+  return /(\/|par|chaque|de chaque)\s*(jambe|cote|bras|pied)|\/\s*cote|\bpar cote|chaque cote/i.test(normEffort(txt));
+}
+function compteReps(txt) {
+  const t = normEffort(txt);
+  const m = t.match(/^(\d+)(?!\s*(?:-\s*\d+\s*)?(?:s|sec|secs|seconde|secondes|min|'|"|:)(?![a-z]))/);
+  return m ? parseInt(m[1]) : null;
+}
+function lireEffort(txt, n) {
+  const t = normEffort(txt);
+  if (!t) return null;
+  if (/descente|tempo|excentrique|concentrique|\bmontee\b/.test(t)) return null; // tempo, pas un maintien
+  const D = EFFORT_DUREE;
+  let m;
+  // « 3 / 2 / 1 x 10 s » : nombre de répétitions différent à chaque série
+  m = t.match(new RegExp('^((?:\\d+\\s*/\\s*)+\\d+)\\s*x\\s*' + D));
+  if (m) { const l = m[1].split('/').map(x => parseInt(x)); return { reps: l[Math.min((n || 1) - 1, l.length - 1)], seq: [parseInt(m[2])] }; }
+  // « 5 x 5 s », « 6 reps de 5 s », « 4 fois 10 s »
+  m = t.match(new RegExp('^(\\d+)\\s*(?:x|\\*|fois|reps?(?:\\s*(?:de|x))?|repetitions?(?:\\s*de)?)\\s*' + D));
+  if (m) return { reps: parseInt(m[1]), seq: [parseInt(m[2])] };
+  // « 10 s + 10 s » (PAILs / RAILs, contraction puis relâchement actif)
+  m = t.match(new RegExp('^' + D + '[^+]*\\+\\s*' + D));
+  if (m) return { reps: 1, seq: [parseInt(m[1]), parseInt(m[2])] };
+  // Durée seule en tête : « 30 s », « 1 min », « 0:40 », « 30-45 s »
+  const d = dureeEffortSec(t) || ((m = t.match(new RegExp('^' + D))) ? parseInt(m[1]) : null);
+  if (d) return { reps: 1, seq: [d] };
+  // « 5 (pause 3 s) », « 6 / cote tenu 5 s », « 8 iso 5 s », « 5 avec 10 s de maintien »
+  const N = compteReps(t);
+  m = t.match(new RegExp('(?:pause|tenu|tenir|hold|maintien|maintenir|iso\\w*|gainage)\\D{0,15}?' + D))
+    || t.match(new RegExp(D + '\\s*(?:de\\s*)?(?:pause|tenu|hold|maintien|iso)'));
+  if (N && m) {
+    const sec = parseInt(m[1]);
+    // « 12 + 10 s tenu » : les 12 reps puis UN maintien de 10 s à la fin
+    if (/\+/.test(t.slice(0, t.indexOf(m[0])))) return sec >= 2 ? { reps: 1, seq: [sec] } : null;
+    if (sec >= 2) return { reps: N, seq: [sec] };
+  }
+  return null;
+}
+// Effort prévu pour la série n (1, 2, 3…)
 function effortDeLaSerie(ex, n) {
   const det = (ex.chargeDetails || [])[n - 1];
-  if (det && det.reps != null && String(det.reps).trim()) {
-    const d = dureeEffortSec(det.reps);
-    return d ? { sec: d, cote: effortParCote(det.reps) } : null;
+  let reps = det && det.reps != null && String(det.reps).trim() ? String(det.reps) : String(ex.reps == null ? '' : ex.reps);
+  if (!(det && det.reps != null && String(det.reps).trim())) {
+    // « 30 s / 30 s / 20 s » : une durée par série (mais pas « 20 s / jambe »)
+    const parts = reps.split('/').map(x => x.trim()).filter(Boolean);
+    if (parts.length > 1 && parts.every(x => lireEffort(x, 1))) reps = parts[Math.min(n - 1, parts.length - 1)];
   }
-  const reps = String(ex.reps == null ? '' : ex.reps);
-  const parts = reps.split('/').map(x => x.trim()).filter(Boolean);
-  if (parts.length > 1 && parts.every(x => dureeEffortSec(x))) {
-    const x = parts[Math.min(n - 1, parts.length - 1)];
-    return { sec: dureeEffortSec(x), cote: false };
+  const cote = effortParCote(reps);
+  let e = lireEffort(reps, n);
+  // Durée écrite dans le NOM (« Overhead iso lourd (5sec) ») ou dans la CHARGE (« 10 s + 10 s »)
+  if (!e) {
+    const N = compteReps(reps) || 1;
+    const nom = normEffort(ex.nom);
+    const m = nom.match(new RegExp('\\(\\s*' + EFFORT_DUREE + '\\s*\\)'))
+      || (/iso|tenu|hold|maintien|gainage|planche|chaise|wall sit|pause/.test(nom) ? nom.match(new RegExp(EFFORT_DUREE)) : null);
+    if (m && parseInt(m[1]) >= 2) e = { reps: N, seq: [parseInt(m[1])] };
+    if (!e) {
+      const c = lireEffort(ex.charge, n);
+      if (c && c.reps === 1) e = { reps: N, seq: c.seq };
+      else if (c) e = c;
+    }
   }
-  const d = dureeEffortSec(reps);
-  return d ? { sec: d, cote: effortParCote(reps) } : null;
+  if (!e || !e.seq.length || e.seq.some(x => !(x > 0 && x <= 1800)) || !(e.reps >= 1 && e.reps <= 50)) return null;
+  return { ...e, cote: cote || effortParCote(ex.charge), sec: e.seq.reduce((a, b) => a + b, 0) };
+}
+function libelleEffort(e) {
+  const f = x => x >= 60 ? Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0') : x + 's';
+  const un = e.seq.map(f).join(' + ');
+  return (e.reps > 1 ? e.reps + ' × ' + (e.seq.length > 1 ? '(' + un + ')' : un) : un) + (e.cote ? ' par côté' : '');
 }
 let __perfhand_audio = null;
 function bipChrono(freq, ms) {
@@ -12587,8 +12656,15 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
     if (!effort) return;
     bipChrono(660, 80); // débloque le son sur mobile (geste de l'utilisateur)
     const phases = [{ label: 'Prêt…', sec: 3 }];
-    if (effort.cote) phases.push({ label: 'EFFORT — côté 1', sec: effort.sec, travail: true }, { label: 'Change de côté', sec: 5 }, { label: 'EFFORT — côté 2', sec: effort.sec, travail: true });
-    else phases.push({ label: 'EFFORT', sec: effort.sec, travail: true });
+    const cotes = effort.cote ? [1, 2] : [0];
+    cotes.forEach((c, ci) => {
+      if (ci > 0) phases.push({ label: 'Change de côté', sec: 5 });
+      for (let r = 1; r <= effort.reps; r++) {
+        if (r > 1) phases.push({ label: 'Relâche', sec: effort.seq.length > 1 || effort.sec >= 20 ? 10 : (effort.sec < 5 ? 3 : 5) });
+        effort.seq.forEach((sec, k) => phases.push({ sec, travail: true,
+          label: 'EFFORT' + (effort.reps > 1 ? ' — rep ' + r + '/' + effort.reps : '') + (effort.seq.length > 1 ? ' (' + (k + 1) + '/' + effort.seq.length + ')' : '') + (c ? ' — côté ' + c : '') }));
+      }
+    });
     setEffortEnCours({ phases, i: 0, finTs: Date.now() + phases[0].sec * 1000 });
   }
   function arreterEffort() { setEffortEnCours(null); }
@@ -12736,7 +12812,7 @@ function ExerciceAvecChrono({ ex, exIndex, seanceId, groupColor, isGrouped, show
     ${!ex.emom && effort && !chronoActive && !effortEnCours ? _h`<button onClick=${lancerEffort}
         style=${{ width:'100%', marginTop:8, padding:'11px', borderRadius:10, background:'rgba(255,164,32,.12)',
           border:'1px solid rgba(255,164,32,.4)', color:'#FFA420', fontWeight:800, fontSize:13, cursor:'pointer', fontFamily:"Inter,sans-serif" }}>
-        ▶ Lancer le chrono — série ${seriesDone + 1} : ${fmtSec(effort.sec)}${effort.cote ? ' par côté' : ''}
+        ▶ Lancer le chrono — série ${seriesDone + 1} : ${libelleEffort(effort)}
       </button>` : null}
 
     ${!ex.emom && effortEnCours ? _h`<div style=${{ marginTop:8, background: phaseEffort.travail ? 'rgba(255,164,32,.1)' : 'rgba(255,255,255,.05)',
