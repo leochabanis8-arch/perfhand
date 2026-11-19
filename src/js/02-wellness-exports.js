@@ -233,3 +233,43 @@ function playerInClub(p, clubId) {
   if (p.clubId === clubId) return true;
   return Array.isArray(p.clubIdsExtra) && p.clubIdsExtra.includes(clubId);
 }
+
+// ── CHIFFRES CLÉS D'UN JOUEUR (en-tête de son espace et de sa fiche) ──────────
+// Calculés à partir des vraies données (séances, RPE, wellness) — remplacent les anciens compteurs
+// « stats » saisis à la main, jamais mis à jour (d'où « 0 séance, 0 % de charge » partout).
+//  - séances : faites / programmées sur la semaine en cours (lundi → dimanche), muscu + endurance ;
+//  - charge : durée × RPE des séances validées sur les 7 derniers jours (UA, même calcul que « Charge équipe ») ;
+//  - bien-être : moyenne (sur 5) du dernier questionnaire wellness ;
+//  - non faites : séances prévues les 7 derniers jours (avant aujourd'hui) et pas validées.
+function statsJoueur(p) {
+  const arr = v => !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean);
+  const jour = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const auj = new Date(); auj.setHours(0, 0, 0, 0);
+  const today = jour(auj);
+  const lundi = new Date(auj); lundi.setDate(lundi.getDate() - ((auj.getDay() + 6) % 7));
+  const dimanche = new Date(lundi); dimanche.setDate(dimanche.getDate() + 6);
+  const il7 = new Date(auj); il7.setDate(il7.getDate() - 6);
+  const L = jour(lundi), D = jour(dimanche), J7 = jour(il7);
+  const muscu = arr(p && p.muscuSeances), endu = arr(p && p.enduranceSeances);
+  const toutes = [...muscu.map(s => ({ s, t: 'muscu' })), ...endu.map(s => ({ s, t: 'endu' }))];
+  const d10 = x => String(x || '').slice(0, 10);
+  const semaine = toutes.filter(({ s }) => d10(s.datePrevu) >= L && d10(s.datePrevu) <= D);
+  const faitesSemaine = semaine.filter(({ s }) => s.dateFaite).length;
+  let charge = 0;
+  toutes.forEach(({ s, t }) => {
+    const f = d10(s.dateFaite);
+    if (!f || f < J7 || f > today || s.rpeReel == null) return;
+    const duree = Number(s.duree) > 0 ? Number(s.duree) : (t === 'muscu' ? Math.max(30, Math.min(100, arr(s.exercices).length * 9)) : 45);
+    charge += duree * Number(s.rpeReel || 0);
+  });
+  arr(p && p.bilans).forEach(b => { const d = d10(b.date); if (b.type === 'Terrain' && d >= J7 && d <= today) charge += Number(b.chargeSession) || 0; });
+  const wc = arr(p && p.wellnessCheckins).map(c => ({ ...c, _d: d10(c.dateRessenti || c.date) }))
+    .filter(c => c._d).sort((a, b) => a._d < b._d ? 1 : -1)[0];
+  let bienEtre = null;
+  if (wc) {
+    const v = ['douleurs', 'energie', 'sommeil', 'humeur', 'stress'].map(k => Number(wc[k])).filter(x => x >= 1 && x <= 5);
+    if (v.length) bienEtre = Math.round(v.reduce((a, b) => a + b, 0) / v.length * 10) / 10;
+  }
+  const nonFaites = toutes.filter(({ s }) => { const d = d10(s.datePrevu); return d >= J7 && d < today && !s.dateFaite; }).length;
+  return { programmees: semaine.length, faites: faitesSemaine, charge: Math.round(charge), bienEtre, bienEtreDate: wc ? wc._d : null, nonFaites };
+}

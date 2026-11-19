@@ -211,12 +211,12 @@ function CoachView() {
                     </div>
                   </td>
                   <td><${Badge} status=${p.status} /></td>
-                  <td style=${{ minWidth:120 }}><${LoadBar} v=${p.stats.chargeWeek} /></td>
+                  ${(st => _h`<td style=${{ minWidth:120, fontSize:12, fontWeight:700 }}>${st.charge} UA <span style=${{ fontSize:10, color:'rgba(255,255,255,.35)', fontWeight:400 }}>(7 j)</span></td>
                   <td>
-                    <div style=${{ display:"flex", gap:3 }}>
-                      ${[1,2,3,4,5].map(i => _h`<div key=${i} style=${{ width:7, height:7, borderRadius:"50%", background: i <= p.stats.wellness ? ACCENT : "rgba(255,255,255,0.1)" }}></div>`)}
+                    <div style=${{ display:"flex", gap:3 }} title=${st.bienEtre != null ? 'Dernier wellness : ' + st.bienEtre + '/5' : 'Pas de wellness'}>
+                      ${[1,2,3,4,5].map(i => _h`<div key=${i} style=${{ width:7, height:7, borderRadius:"50%", background: st.bienEtre != null && i <= Math.round(st.bienEtre) ? ACCENT : "rgba(255,255,255,0.1)" }}></div>`)}
                     </div>
-                  </td>
+                  </td>`)(statsJoueur(p))}
                   <td><button class="btn btn-sm" onClick=${() => setSelPlayer(p)}>Voir</button></td>
                 </tr>`)}
               </tbody>

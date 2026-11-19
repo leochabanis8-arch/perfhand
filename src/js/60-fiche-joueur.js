@@ -174,7 +174,7 @@ function PlayerDetail({ p, db, setDb, onBack, staffPermissions }) {
         <div class="card">
           <div style=${{ fontSize:12, fontWeight:700, marginBottom:10 }}>Stats semaine</div>
           <div class="grid-2">
-            ${[['Seances',player.stats.sessions],['Absences',player.stats.absences],['Charge',player.stats.chargeWeek+'%'],['Wellness',player.stats.wellness+'/5']].map(([l,v]) =>
+            ${(st => [['Séances semaine', st.faites + '/' + st.programmees], ['Non faites (7 j)', st.nonFaites], ['Charge 7 j', st.charge + ' UA'], ['Bien-être', st.bienEtre != null ? String(st.bienEtre).replace('.', ',') + '/5' : '—']])(statsJoueur(player)).map(([l,v]) =>
               _h`<div key=${l} style=${{ background:'rgba(255,255,255,.03)', borderRadius:9, padding:'8px 10px' }}>
                 <div style=${{ fontSize:9, color:'rgba(255,255,255,.25)', textTransform:'uppercase' }}>${l}</div>
                 <div style=${{ fontSize:18, fontWeight:700, marginTop:2 }}>${v}</div>

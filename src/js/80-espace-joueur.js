@@ -200,9 +200,8 @@ function PlayerView() {
       </div>
       <div class="grid-4" style=${{ gap:10, paddingBottom:20 }}>
         ${(function(){
-          var st = player.stats || {};
-          var n = function(v){ return typeof v==="number" ? v : 0; };
-          return [["Seances",n(st.sessions),"#fff"],["Charge",n(st.chargeWeek)+"%",ACCENT],["Bien-etre",n(st.wellness)+"/5",ACCENT],["Absences",n(st.absences),"rgba(255,255,255,0.6)"]].map(function(row){
+          var st = statsJoueur(player);
+          return [["Séances semaine", st.faites + "/" + st.programmees, "#fff"],["Charge 7 j", st.charge + " UA", ACCENT],["Bien-être", st.bienEtre != null ? String(st.bienEtre).replace(".", ",") + "/5" : "—", ACCENT],["Non faites (7 j)", st.nonFaites, st.nonFaites ? "#FF4455" : "rgba(255,255,255,0.6)"]].map(function(row){
             return _h`<div key=${row[0]} class="card" style=${{ textAlign:"center", padding:"12px 8px" }}>
               <div style=${{ fontSize:22, fontWeight:800, color:row[2] }}>${String(row[1])}</div>
               <div style=${{ fontSize:9, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:1, marginTop:2 }}>${row[0]}</div>

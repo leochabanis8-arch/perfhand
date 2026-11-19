@@ -57,7 +57,7 @@ const R = (l, ok, extra = '') => (ok || echecs++, console.log((ok ? '  ✅ ' : '
   });
   await run('perso', async ({ p }) => { await loginEmail(p, 'paul@test.fr', 'secret1'); R('Joueur perso Paul : son espace', /Paul Perso/.test(await body(p)) && /Muscu/.test(await body(p))); });
   await run('staff', async ({ p }) => { await loginEmail(p, 'kine@test.fr', 'secret3'); R('Staff kiné : espace staff', /Espace Staff/.test(await body(p))); });
-  await run('code club', async ({ p }) => { await loginCode(p, '123456'); R('Code club 123456 : espace Maxence', /Maxence Rizzi/.test(await body(p)) && /SEANCES/.test(await body(p))); });
+  await run('code club', async ({ p }) => { await loginCode(p, '123456'); R('Code club 123456 : espace Maxence', /Maxence Rizzi/.test(await body(p)) && /S[EÉ]ANCES/i.test(await body(p))); });
   await run('code tenant', async ({ p }) => { await loginCode(p, '654321'); R('Code tenant 654321 : espace Tina', /Tina/.test(await body(p)) && !/Code introuvable/.test(await body(p))); });
   await run('mauvais code', async ({ p }) => { await loginCode(p, '000000'); R('Mauvais code refusé proprement', /introuvable/i.test(await body(p))); });
   await run('tenant admin', async ({ p }) => {
@@ -83,7 +83,7 @@ const R = (l, ok, extra = '') => (ok || echecs++, console.log((ok ? '  ✅ ' : '
     const tenants = await get('tenants'); const t = Object.values(tenants || {}).find(x => x.email === 'nouveau@prepa.fr');
     R('Inscription d\'un nouveau préparateur', !!t, t ? '' : '→ ' + (await body(p)).slice(0, 140));
   });
-  await run('joueur club email', async ({ p }) => { await loginEmail(p, 'maxence@player.fr', 'maxpass1'); const t = await body(p); R('Joueur club Maxence par email : son espace', /Maxence Rizzi/.test(t) && /SEANCES/.test(t), t.slice(0, 80)); });
+  await run('joueur club email', async ({ p }) => { await loginEmail(p, 'maxence@player.fr', 'maxpass1'); const t = await body(p); R('Joueur club Maxence par email : son espace', /Maxence Rizzi/.test(t) && /S[EÉ]ANCES/i.test(t), t.slice(0, 80)); });
   await run('code club écrit', async ({ p }) => {
     await loginCode(p, '123456');
     const ok = await p.evaluate(() => new Promise(res => window.__perfhand_db.ref('perfhand/playerProfiles/p-rizzi').update({ stress: 4 }).then(() => res(true), () => res(false))));
@@ -100,7 +100,7 @@ const R = (l, ok, extra = '') => (ok || echecs++, console.log((ok ? '  ✅ ' : '
   {
     const s = await open(file, { localStorage: { perfhand_tenant_session: JSON.stringify({ role: 'usm_code', playerId: 'p-rizzi', name: 'Maxence Rizzi', clubId: 'usm', code: '123456' }) }, wait: 6000 });
     const t = await body(s.p);
-    R('Session code mémorisée : réouverture directe de l\'espace', /Maxence Rizzi/.test(t) && /SEANCES/.test(t), t.slice(0, 80));
+    R('Session code mémorisée : réouverture directe de l\'espace', /Maxence Rizzi/.test(t) && /S[EÉ]ANCES/i.test(t), t.slice(0, 80));
     if (s.errs.length) console.log('     erreurs JS:', s.errs.slice(0, 2));
     await s.b.close();
   }
