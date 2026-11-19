@@ -946,6 +946,13 @@ const MUSCLES_REGLES = [
   [/marche laterale|band walk|monster walk/, { [MU_FE]:1 }],
   [/battle rope/, { [MU_EP]:1, [MU_CR]:0.5 }],
   [/copenhag/, { [MU_AD]:1, [MU_CR]:0.5 }],
+  [/curl.?up|mcgill|bird.?dog/, { [MU_CR]:1 }],
+  // Mobilité « en force » (contractions en fin d'amplitude) : comptée comme du renforcement
+  [/(flechisseur|fente basse).*(pails|rails)|(pails|rails).*(flechisseur|fente basse)/, { [MU_FH]:1 }],
+  [/90.?90.*(lift.?off|switch actif)|lift.?off/, { [MU_FH]:0.5, [MU_FE]:0.5 }],
+  [/90.?90.*(pails|rails)/, { [MU_FE]:1 }],
+  [/thread the needle/, { [MU_TR]:0.5, [MU_CR]:0.5 }],
+  [/suspension a la barre|dead.?hang/, { [MU_AV]:0.5, [MU_DO]:0.25 }],
   [/pall?.?of|oblique|dragon flag|sit.?up|rotation (elastique|kb|kettlebell|avec|au|a la poulie|poulie)|travail de rotation|russian twist/, { [MU_CR]:1 }],
   [/gainage|planche|plank/, { [MU_CR]:1 }],
   [/(jump|bound|bond).*sprint/, { [MU_Q]:0.5, [MU_FE]:0.5, [MU_MO]:0.5 }],
@@ -1010,7 +1017,7 @@ const MUSCLES_REGLES = [
   // Pectoraux
   [/plyometric push|pompe|push.?up|developpe couche|developpe incline|developpe decline|bench|\bdips?\b|\bpec(s|toraux)?\b|ecarte|\bfly\b|butterfly|chest press|developpe (halteres|barre|horizontal)|floor press|larsen|\bdeveloppe\b/, { [MU_PE]:1, [MU_TRI]:0.5, [MU_EP]:0.25 }],
   // Dos
-  [/traction|pull.?up|chin.?up|lat pulldown|pulldown|tirage (vertical|poitrine|nuque)|tirage/, { [MU_DO]:1, [MU_BI]:0.5 }],
+  [/\btraction|pull.?up|chin.?up|lat pulldown|pulldown|tirage (vertical|poitrine|nuque)|tirage/, { [MU_DO]:1, [MU_BI]:0.5 }],
   [/rowing|\brow\b|renegade|inverse|australienne|seal row|tirage horizontal|pendlay|meadows/, { [MU_DO]:1, [MU_BI]:0.5, [MU_TR]:0.25 }],
   [/pull.?over|straight.?arm/, { [MU_DO]:1 }],
   // Lombaires
