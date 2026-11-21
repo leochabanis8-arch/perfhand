@@ -492,11 +492,11 @@
 <script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.js"></script>
 
 <script>
-// PerfHand v1789809000
-console.log("PerfHand v1789809000 - chargement...");
+// PerfHand v1789812000
+console.log("PerfHand v1789812000 - chargement...");
 // Force cache bust: si version en cache différente, reload
 (function() {
-  var VER = "1789809000";
+  var VER = "1789812000";
   var stored = sessionStorage.getItem("perfhand_ver");
   if (stored && stored !== VER) { sessionStorage.setItem("perfhand_ver", VER); window.location.reload(true); }
   else { sessionStorage.setItem("perfhand_ver", VER); }
@@ -14869,6 +14869,28 @@ function StatsMatchView({ club, players, db, setDb }) {
   const [editingMatchId, setEditingMatchId] = React.useState(null); // id du match en cours de modification (null = nouveau match)
   const gardiens = players.filter(p => p.pos === 'Gardien');
 
+  // Joueurs réellement présents dans les données d'un/des match(s) : l'effectif actuel + ceux qui ont
+  // des stats mais ne sont plus dans la liste (archivés, changés de club, retirés) — sinon leurs
+  // stats disparaissent des exports (PDF détaillé, CSV, Excel).
+  const joueursDesMatchs = (matchsArr) => {
+    const ids = new Set();
+    (matchsArr || []).forEach(mm => {
+      const st = mm.stats || {};
+      ['attaque','defense','gardien'].forEach(k => Object.keys(st[k] || {}).forEach(id => ids.add(id)));
+      ['interceptions','pertesProvoquees','contres','neutralisations','relancesGardien'].forEach(k => (mm[k] || []).forEach(ev => { if (ev && ev.playerId) ids.add(ev.playerId); }));
+      (mm.liveDefense || []).forEach(ev => { if (ev && ev.gardienId) ids.add(ev.gardienId); });
+    });
+    const have = new Set(players.map(p => p.id));
+    const profils = (db && db.playerProfiles) || [];
+    const extra = [];
+    ids.forEach(id => {
+      if (have.has(id)) return;
+      const pr = profils.find(x => x.id === id);
+      if (pr) extra.push(pr);
+    });
+    return extra.length ? [...players, ...extra] : players;
+  };
+
   const emptyStats = () => ({
     attaque: Object.fromEntries(players.map(p => [p.id, Object.fromEntries(STATS_ATTAQUE.map(s => [s, '']))])),
     defense: Object.fromEntries(players.map(p => [p.id, Object.fromEntries(STATS_DEFENSE.map(s => [s, '']))])),
@@ -15090,13 +15112,13 @@ function StatsMatchView({ club, players, db, setDb }) {
       <div style=${{ display:'flex', gap:8, flexWrap:'wrap' }}>
         ${matchs.length > 0 ? _h`<button class="btn btn-sm" style=${{ background:'rgba(76,175,80,.1)', border:'1px solid rgba(76,175,80,.35)', color:'#4CAF50', fontWeight:700 }}
           onClick=${() => {
-            const { header, rows } = buildStatsExportRows(matchs, players);
+            const { header, rows } = buildStatsExportRows(matchs, joueursDesMatchs(matchs));
             downloadCSV('stats_matchs_' + (club.name||'club').replace(/\s+/g,'_') + '_' + localDateStr() + '.csv', [header, ...rows]);
           }}>⬇️ CSV</button>` : null}
         ${matchs.length > 0 ? _h`<button class="btn btn-sm" style=${{ background:'rgba(33,150,243,.1)', border:'1px solid rgba(33,150,243,.35)', color:'#2196F3', fontWeight:700 }}
-          onClick=${() => exporterStatsExcel(matchs, players, club)}>📊 Excel</button>` : null}
+          onClick=${() => exporterStatsExcel(matchs, joueursDesMatchs(matchs), club)}>📊 Excel</button>` : null}
         ${matchs.length > 0 ? _h`<button class="btn btn-sm" style=${{ background:'rgba(255,164,32,.1)', border:'1px solid rgba(255,164,32,.35)', color:'#FFA420', fontWeight:700 }}
-          onClick=${() => exporterStatsPDF(matchs, players, club)}>📄 PDF</button>` : null}
+          onClick=${() => exporterStatsPDF(matchs, joueursDesMatchs(matchs), club)}>📄 PDF</button>` : null}
         <button class="btn btn-sm" style=${{ background:'rgba(255,68,85,.12)', border:'1px solid rgba(255,68,85,.4)', color:'#FF4455', fontWeight:700 }} onClick=${() => setView('live')}>🔴 Stats Live</button>
         <button class="btn btn-primary btn-sm" onClick=${() => { setView('new'); setStep(0); }}>+ Nouveau match</button>
       </div>
@@ -15390,6 +15412,8 @@ function StatsMatchView({ club, players, db, setDb }) {
   // ── DETAIL D'UN MATCH ────────────────────────────────────────────────
   if (view === 'detail' && selMatch) {
     const m = selMatch;
+    const players = joueursDesMatchs([m]);
+    const gardiens = players.filter(p => p.pos === 'Gardien');
     const res = m.scoreNous > m.scoreEux ? '#4CAF50' : m.scoreNous < m.scoreEux ? '#FF4455' : '#FFB800';
     const label = m.scoreNous > m.scoreEux ? 'Victoire' : m.scoreNous < m.scoreEux ? 'Défaite' : 'Nul';
     const totalButs  = players.reduce((s,p) => s + (Number(m.stats?.attaque?.[p.id]?.['Buts'])||0), 0);
