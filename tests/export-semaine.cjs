@@ -20,7 +20,7 @@ let ko = 0; const V = (l, ok, x = '') => { if (!ok) ko++; console.log(`  ${ok ? 
         wellnessCheckins: { [auj]: { dateRessenti: auj, douleurs: 4, energie: 4, sommeil: 4, humeur: 4, stress: 4 } },
         muscuSeances: [
           { id: 'm1', nom: 'Force bas du corps', datePrevu: lundi(1), rpeCible: 8, notes: 'Bien s’échauffer → montée progressive', exercices: [
-            { nom: 'Squat bulgare', series: 3, reps: '6 / jambe', charge: 'Haltères 2×16 kg', repos: '2min', notes: 'Descente 3 s' },
+            { nom: 'Squat bulgare', series: 3, reps: '6 / jambe', charge: 'Haltères 2×16 kg', repos: '2min', notes: 'Descente 3 s', imageUrl: 'https://exemple.test/bulgare.png' },
             { nom: 'Hip Thrust', series: 2, reps: '', charge: '', repos: '90s', chargeDetails: [{ serie: 1, reps: '8', pct: 70 }, { serie: 2, reps: '6', pct: 80 }] }] },
           { id: 'm2', nom: 'Hors semaine', datePrevu: lundi(10), exercices: [] }],
         enduranceSeances: [{ id: 'e1', nom: 'Intermittent 30/30', datePrevu: lundi(3), duree: 25, intensite: '100% VMA', type: 'intermittent' }] } },
@@ -28,6 +28,9 @@ let ko = 0; const V = (l, ok, x = '') => { if (!ok) ko++; console.log(`  ${ok ? 
     acces: { joueurs: { 'samir@test,fr': { type: 'perso', id: 'perso-samir' } } } }) });
   const s = await open(file);
   await s.p.setViewportSize({ width: 430, height: 900 });
+  // Images : servies localement (pas d'accès réseau dans les tests), avec l'en-tête CORS des vrais sites
+  const png = fs.readFileSync(path.join(__dirname, 'page-charge.png'));
+  await s.p.route(/exemple\.test|i\.ytimg\.com/, r => r.fulfill({ body: png, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' } }));
   await loginEmail(s.p, 'samir@test.fr', 'samir123'); await s.p.waitForTimeout(2000);
   await s.p.getByRole('button', { name: /Exporter mes séances/ }).click(); await s.p.waitForTimeout(500);
   const t = await s.p.evaluate(() => document.body.innerText);
@@ -43,6 +46,13 @@ let ko = 0; const V = (l, ok, x = '') => { if (!ok) ko++; console.log(`  ${ok ? 
   V('PDF : détail par série (S1 8 reps à 70 %, S2 6 reps à 80 %)', /Série 1/.test(txt) && /70%/.test(txt) && /80%/.test(txt));
   V('PDF : séance d\'endurance', /Intermittent 30\/30/.test(txt) && /100% VMA/.test(txt) && /25 min/.test(txt));
   V('PDF : notes du coach (flèche convertie)', /Bien s’échauffer -> montée progressive/.test(txt));
+  V('PDF : fiche exercice avec consigne du coach', /Consigne du coach/.test(txt));
+  V('PDF : technique et muscles de la bibliothèque (Hip Thrust)', /Technique/.test(txt) && /Squeeze en haut/.test(txt) && /Muscles/.test(txt) && /Fessiers/.test(txt));
+  V('PDF : lien vidéo de référence', /Voir la vidéo : https:\/\/youtu\.be\/SEdqd1n0cvg/.test(txt));
+  const nbImages = execFileSync('pdfimages', ['-list', SORTIE]).toString().trim().split('\n').length - 2;
+  V('PDF : images intégrées (image du coach + miniature vidéo)', nbImages >= 2, String(nbImages));
+  const brut = fs.readFileSync(SORTIE, 'latin1');
+  V('PDF : le lien vidéo est cliquable', /\/URI\s*\(https:\/\/youtu\.be\/SEdqd1n0cvg\)/.test(brut));
   V('PDF : séance hors semaine absente', !/Hors semaine/.test(txt));
   V('aucune erreur JavaScript', !s.errs.length, JSON.stringify(s.errs).slice(0, 200));
   await s.b.close(); process.exit(ko ? 1 : 0);

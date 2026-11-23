@@ -21,12 +21,78 @@ function exportSemaineSeances(p, debut, nbSemaines) {
   ].sort((a, b) => String(a.datePrevu).localeCompare(String(b.datePrevu)) || (a._type === 'muscu' ? -1 : 1));
 }
 
-function exporterSemainePDF(player, debut, nbSemaines) {
+// ── Médias des exercices : image du coach, image / vidéo de la bibliothèque ──
+function idYoutube(url) {
+  const m = String(url || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : null;
+}
+function estImageUrl(url) {
+  return /^data:image\//.test(url) || /\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(String(url || '')) || /googleusercontent|imgur|i\.ytimg|img\.youtube|unsplash|cloudinary|firebasestorage/i.test(String(url || ''));
+}
+// Pour un exercice : { image (URL à intégrer), video (lien), lien (autre lien), biblio (fiche de la bibliothèque) }
+function mediasExercice(ex) {
+  const res = { image: null, video: null, lien: null, biblio: null };
+  let m = null;
+  try { m = typeof findBiblioMatch === 'function' ? findBiblioMatch(typeof biblioNomPour === 'function' ? biblioNomPour(ex) : ex.nom) : null; } catch (e) {}
+  res.biblio = m;
+  const urls = [ex.imageUrl, m && m.imageUrl, m && (m.videoUrl || (m.videoId ? 'https://youtu.be/' + m.videoId : ''))].filter(Boolean);
+  urls.forEach(u => {
+    const yt = idYoutube(u);
+    if (yt) { if (!res.video) res.video = 'https://youtu.be/' + yt; if (!res.image) res.image = 'https://i.ytimg.com/vi/' + yt + '/hqdefault.jpg'; }
+    else if (estImageUrl(u)) { if (!res.image) res.image = u; }
+    else if (/^https?:\/\//.test(u)) {
+      if (/vimeo|instagram|tiktok|\.mp4|\.mov|drive\.google|facebook|dailymotion|youtube/i.test(u)) { if (!res.video) res.video = u; }
+      else if (!res.lien) res.lien = u;
+    }
+  });
+  // Une image explicite du coach passe avant la miniature YouTube
+  if (ex.imageUrl && estImageUrl(ex.imageUrl) && !idYoutube(ex.imageUrl)) res.image = ex.imageUrl;
+  return res;
+}
+// Charge une image (avec délai max) et la convertit en JPEG intégrable au PDF. null si impossible
+// (site qui refuse le partage d'image : le lien reste dans le PDF).
+function chargerImagePDF(url, delai) {
+  return new Promise(resolve => {
+    if (!url) return resolve(null);
+    let fini = false;
+    const fin = v => { if (!fini) { fini = true; resolve(v); } };
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const max = 480, r = Math.min(1, max / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+        const w = Math.max(1, Math.round((img.naturalWidth || 320) * r)), h = Math.max(1, Math.round((img.naturalHeight || 180) * r));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+        fin({ data: c.toDataURL('image/jpeg', 0.82), w, h });
+      } catch (e) { fin(null); }
+    };
+    img.onerror = () => fin(null);
+    setTimeout(() => fin(null), delai || 7000);
+    img.src = url;
+  });
+}
+
+async function exporterSemainePDF(player, debut, nbSemaines, onEtat) {
   try {
     const J = window.jspdf && window.jspdf.jsPDF;
     if (!J) { alert("La librairie d'export PDF n'a pas pu charger. Vérifie ta connexion et réessaie."); return; }
     const T = exportSemaineTexte;
     const seances = exportSemaineSeances(player, debut, nbSemaines);
+    // Médias de tous les exercices, images chargées en parallèle
+    const exosDe = s => (Array.isArray(s.exercices) ? s.exercices : Object.values(s.exercices || {})).filter(Boolean);
+    const medias = new Map();
+    seances.forEach(s => { if (s._type === 'muscu') exosDe(s).forEach(ex => medias.set(ex, mediasExercice(ex))); });
+    const urlsImages = Array.from(new Set(Array.from(medias.values()).map(m => m.image).filter(Boolean)));
+    if (onEtat) onEtat('Chargement des images (' + urlsImages.length + ')…');
+    const images = {};
+    await Promise.all(urlsImages.map(async u => {
+      let r = await chargerImagePDF(u);
+      const yt = u.match(/i\.ytimg\.com\/vi\/([^/]+)\/hqdefault/);
+      if (!r && yt) r = await chargerImagePDF('https://i.ytimg.com/vi/' + yt[1] + '/mqdefault.jpg');
+      images[u] = r;
+    }));
+    if (onEtat) onEtat('Création du PDF…');
     const fin = new Date(debut); fin.setDate(fin.getDate() + nbSemaines * 7 - 1);
     const fmtJour = d => d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const fmtCourt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
@@ -104,7 +170,46 @@ function exporterSemainePDF(player, debut, nbSemaines) {
               }
             },
           });
-          y = doc.lastAutoTable.finalY + 14;
+          y = doc.lastAutoTable.finalY + 10;
+          // ── Fiches exercices : image / vidéo de référence, consignes, technique, muscles ──
+          exos.forEach((ex, i) => {
+            const md = medias.get(ex) || {};
+            const im = md.image ? images[md.image] : null;
+            const b = md.biblio || {};
+            const lignes = [];
+            const presc = ex.emom ? (ex.emomDuree || 10) + ' min EMOM · ' + (ex.reps || '') + ' reps/min'
+              : [ex.series && ex.reps ? ex.series + ' × ' + ex.reps : (ex.series ? ex.series + ' séries' : ex.reps), ex.charge, ex.repos && 'repos ' + ex.repos, ex.rir && 'RIR ' + ex.rir].filter(Boolean).join('  ·  ');
+            if (presc) lignes.push(['Programme', presc]);
+            if (ex.notes) lignes.push(['Consigne du coach', ex.notes]);
+            if (b.notes) lignes.push(['Technique', b.notes + (b.variante ? ' (' + b.variante + ')' : '')]);
+            if (b.groupe || b.musclesSec) lignes.push(['Muscles', [b.groupe, b.musclesSec].filter(Boolean).join(' · ')]);
+            if (b.materiel) lignes.push(['Matériel', b.materiel]);
+            const imgW = im ? 110 : 0, imgH = im ? Math.min(110 * im.h / im.w, 120) : 0;
+            const xTxt = M + (im ? imgW + 10 : 0), wTxt = W - M - xTxt;
+            doc.setFontSize(8.3);
+            const blocs = lignes.map(([k, v]) => ({ k, l: doc.splitTextToSize(T(v), wTxt - 82) }));
+            const hTxt = 14 + blocs.reduce((a, bl) => a + bl.l.length * 9.6 + 2, 0) + (md.video || md.lien ? 22 : 0);
+            const hBloc = Math.max(imgH, hTxt) + 8;
+            if (y + hBloc > H - 34) { doc.addPage(); y = 40; }
+            doc.setDrawColor(230, 230, 233); doc.setLineWidth(0.6); doc.roundedRect(M - 4, y - 4, W - 2 * M + 8, hBloc, 4, 4);
+            if (im) { try { doc.addImage(im.data, 'JPEG', M, y, imgW, imgH); } catch (e) {} }
+            let yy = y + 9;
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 24);
+            doc.text(T((i + 1) + '. ' + (ex.nom || '')), xTxt, yy); yy += 13;
+            blocs.forEach(bl => {
+              doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(120, 120, 126); doc.text(T(bl.k), xTxt, yy);
+              doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); doc.setTextColor(35, 35, 40); doc.text(bl.l, xTxt + 82, yy);
+              yy += bl.l.length * 9.6 + 2;
+            });
+            if (md.video || md.lien) {
+              const u = md.video || md.lien;
+              doc.setFont('helvetica', 'bold'); doc.setFontSize(8.6); doc.setTextColor(25, 118, 210);
+              const lib = (md.video ? '> Voir la vidéo : ' : '> Lien : ') + u;
+              doc.textWithLink(T(lib.length > 95 ? lib.slice(0, 92) + '...' : lib), xTxt, yy + 4, { url: u });
+            }
+            y += hBloc + 6;
+          });
+          y += 4;
         } else {
           doc.setFontSize(9); doc.setTextColor(120, 120, 120); doc.text(T('(aucun exercice renseigné)'), M, y); y += 12;
         }
@@ -159,6 +264,7 @@ function BoutonExportSemaine({ player, compact, libelle }) {
   const [ouvert, setOuvert] = useState(false);
   const [decalage, setDecalage] = useState(0);
   const [nb, setNb] = useState(1);
+  const [etat, setEtat] = useState('');
   if (!player) return null;
   const lundi = new Date(); lundi.setHours(0, 0, 0, 0);
   lundi.setDate(lundi.getDate() - ((lundi.getDay() + 6) % 7) + decalage * 7);
@@ -196,8 +302,9 @@ function BoutonExportSemaine({ player, compact, libelle }) {
           <div style=${{ marginBottom: 14, color: seances.length ? 'rgba(255,255,255,.75)' : '#FF4455' }}>
             ${seances.length ? seances.length + ' séance' + (seances.length > 1 ? 's' : '') + ' : ' + seances.map(s => s.nom || (s._type === 'muscu' ? 'Muscu' : 'Endurance')).join(', ') : 'Aucune séance programmée sur cette période.'}
           </div>
-          <button class="btn btn-primary" style=${{ width: '100%', padding: 11, fontWeight: 800 }} disabled=${!seances.length}
-            onClick=${() => { if (exporterSemainePDF(player, lundi, nb)) setOuvert(false); }}>⬇️ Télécharger le PDF</button>
+          <button class="btn btn-primary" style=${{ width: '100%', padding: 11, fontWeight: 800 }} disabled=${!seances.length || !!etat}
+            onClick=${async () => { setEtat('Préparation…'); const ok = await exporterSemainePDF(player, lundi, nb, setEtat); setEtat(''); if (ok) setOuvert(false); }}>${etat ? '⏳ ' + etat : '⬇️ Télécharger le PDF'}</button>
+          <div style=${{ fontSize: 10.5, color: 'rgba(255,255,255,.35)', marginTop: 8, lineHeight: 1.5 }}>Le PDF contient une fiche par exercice avec l'image ou la vidéo de référence (lien cliquable), les consignes et la technique.</div>
         </div>
       </div>
     </div>` : null}
