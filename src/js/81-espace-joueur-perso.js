@@ -126,6 +126,7 @@ function PersoPlayerView() {
           <span style=${{ fontSize:10, padding:'3px 9px', borderRadius:20, fontWeight:700, background:sc+'18', color:sc }}>
             ${{ ok:'Disponible', blesse:'Blessé', surveille:'Surveillance', repos:'Repos' }[player.status]||'Disponible'}
           </span>
+          <div style=${{ marginTop:8 }}>${React.createElement(BoutonExportSemaine, { player })}</div>
         </div>
       </div>
       ${player.objectif ? _h`<div style=${{ fontSize:12, color:'rgba(255,255,255,.5)', background:'rgba(56,189,248,.06)', border:'1px solid rgba(56,189,248,.15)', borderRadius:9, padding:'8px 12px', fontStyle:'italic' }}>🎯 ${player.objectif}</div>` : null}

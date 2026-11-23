@@ -42,5 +42,6 @@ js/86-tactique.js
 js/87-suivi-direct.js
 js/88-semaine-seances.js
 js/89-navigation-joueurs.js
+js/89b-export-semaine.js
 js/90-application.js
 page/3-fin.html

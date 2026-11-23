@@ -101,6 +101,7 @@ function TenantPlayerView({ session }) {
       <div style=${{ marginBottom:20 }}>
         <div style=${{ fontSize:18, fontWeight:800 }}>${player.name}</div>
         <div style=${{ fontSize:12, color:'rgba(255,255,255,.4)' }}>${player.sport||''} · ${player.poste||''}</div>
+        <div style=${{ marginTop:8 }}>${React.createElement(BoutonExportSemaine, { player })}</div>
         ${player.objectif ? _h`<div style=${{ marginTop:10, background:'rgba(255,164,32,.06)', border:'1px solid rgba(255,164,32,.15)', borderRadius:10, padding:'10px 14px', fontSize:12, color:'rgba(255,255,255,.6)' }}>🎯 ${player.objectif}</div>` : null}
       </div>
 

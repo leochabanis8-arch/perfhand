@@ -5,7 +5,7 @@ const dossier = p => path.join(__dirname, 'node_modules', p) + '/';
 const FB = dossier('firebase'), REACT = dossier('react'), REACT_DOM = dossier('react-dom'), HTM = dossier('htm');
 async function open(file, { localStorage = {}, wait = 2500 } = {}) {
   const b = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
-  const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const errs = [], dialogs = [], denied = [];
   p.on('pageerror', e => errs.push(e.message));
@@ -22,6 +22,8 @@ async function open(file, { localStorage = {}, wait = 2500 } = {}) {
   await p.route(/react@18\.2\.0\/umd\/react\.production/, r => r.fulfill({ path: REACT + 'umd/react.production.min.js', contentType: 'text/javascript' }));
   await p.route(/react-dom@18\.2\.0\/umd\/react-dom\.production/, r => r.fulfill({ path: REACT_DOM + 'umd/react-dom.production.min.js', contentType: 'text/javascript' }));
   await p.route(/htm@3\.1\.1/, r => r.fulfill({ path: HTM + 'dist/htm.js', contentType: 'text/javascript' }));
+  await p.route(/jspdf\.umd\.min\.js/, r => r.fulfill({ path: dossier('jspdf') + 'dist/jspdf.umd.min.js', contentType: 'text/javascript' }));
+  await p.route(/jspdf\.plugin\.autotable/, r => r.fulfill({ path: dossier('jspdf-autotable') + 'dist/jspdf.plugin.autotable.min.js', contentType: 'text/javascript' }));
   if (file !== '/dev/null') await p.goto('file://' + file);
   await p.waitForTimeout(wait);
   return { b, p, errs, dialogs, denied };

@@ -325,6 +325,7 @@ function TenantAdminView({ tenant, onBack, superAdmin }) {
               style=${{ background:'rgba(56,189,248,.1)', border:'1px solid rgba(56,189,248,.3)', color:'#38BDF8', borderRadius:8, padding:'6px 12px', cursor:'pointer', fontSize:11 }}>
               🔑 Mot de passe
             </button>
+            ${React.createElement(BoutonExportSemaine, { player: livePlayer, libelle: 'Séances PDF' })}
             <button onClick=${() => {
               // Générer code 6 chiffres unique
               // Sauvegarder dans Firebase tenants/{tenantId}/codes/{code}

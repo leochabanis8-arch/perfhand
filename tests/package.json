@@ -3,7 +3,7 @@
   "private": true,
   "description": "Tests de sécurité et de non-régression de PerfHand (émulateur Firebase local, jamais la vraie base)",
   "scripts": {
-    "test": "firebase emulators:exec --config ../firebase.json --project demo-perfhand --only database,auth \"node fusion-seances.cjs && node audit-regles.mjs && node telegram.mjs && node scenarios.cjs && node wellness-noam.cjs ../index.html ../database.rules.json && node alertes-seances.cjs && node alertes-appli-ouverte.cjs && node reproduction-admin.cjs ../index.html 300 && node page-charge.cjs && node suivi-direct.cjs && node suivi-direct-perso.cjs && node validation-perso.cjs && node recuperation-validation.cjs && node memoire-pleine.cjs ../index.html && node detail-series.cjs && node semaine-seances.cjs && node nav-joueurs.cjs && node chrono-effort.cjs && node muscles.cjs && node reinit-mdp.cjs && node stats-joueur.cjs && node stats-match-archives.cjs\"",
+    "test": "firebase emulators:exec --config ../firebase.json --project demo-perfhand --only database,auth \"node fusion-seances.cjs && node audit-regles.mjs && node telegram.mjs && node scenarios.cjs && node wellness-noam.cjs ../index.html ../database.rules.json && node alertes-seances.cjs && node alertes-appli-ouverte.cjs && node reproduction-admin.cjs ../index.html 300 && node page-charge.cjs && node suivi-direct.cjs && node suivi-direct-perso.cjs && node validation-perso.cjs && node recuperation-validation.cjs && node memoire-pleine.cjs ../index.html && node detail-series.cjs && node semaine-seances.cjs && node nav-joueurs.cjs && node chrono-effort.cjs && node muscles.cjs && node reinit-mdp.cjs && node stats-joueur.cjs && node stats-match-archives.cjs && node export-semaine.cjs\"",
     "test:regles": "firebase emulators:exec --config ../firebase.json --project demo-perfhand --only database,auth \"node audit-regles.mjs\"",
     "test:appli": "firebase emulators:exec --config ../firebase.json --project demo-perfhand --only database,auth \"node scenarios.cjs\""
   },
@@ -11,6 +11,8 @@
     "firebase": "9.23.0",
     "firebase-tools": "13.35.1",
     "htm": "3.1.1",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
     "playwright": "1.56.1",
     "react": "18.2.0",
     "react-dom": "18.2.0"

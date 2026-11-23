@@ -196,6 +196,7 @@ function PlayerView() {
           <div style=${{ fontSize:24, fontWeight:800, marginBottom:3, fontFamily:"'Barlow Condensed',sans-serif" }}>${String(player.name||"")}</div>
           <div style=${{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:8 }}>#${String(player.num||0)} - ${String(player.pos||"")} - ${String(player.poids||0)} kg</div>
           <${Badge} status=${String(player.status||"ok")} />
+          <div style=${{ marginTop:8 }}>${React.createElement(BoutonExportSemaine, { player })}</div>
         </div>
       </div>
       <div class="grid-4" style=${{ gap:10, paddingBottom:20 }}>
